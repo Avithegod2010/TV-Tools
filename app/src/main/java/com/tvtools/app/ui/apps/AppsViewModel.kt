@@ -148,6 +148,16 @@ class AppsViewModel : ViewModel() {
                 // try the remaining chunks anyway
             }
         }
+        // Fallback: single-file stat for anything a chunk missed (some adbd builds choke on batched args).
+        paths.filter { it !in result }.take(60).forEach { path ->
+            try {
+                val quoted = "'" + path.replace("'", "'\\''") + "'"
+                val single = adb.exec("stat -c %s $quoted 2>/dev/null", timeoutMs = 10_000).trim()
+                    .toLongOrNull()
+                if (single != null) result[path] = single
+            } catch (_: Exception) {
+            }
+        }
         return result
     }
 
