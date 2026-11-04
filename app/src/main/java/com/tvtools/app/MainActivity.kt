@@ -30,6 +30,7 @@ import com.tvtools.app.ui.files.FileManagerScreen
 import com.tvtools.app.ui.apps.BackupsScreen
 import com.tvtools.app.ui.home.HomeScreen
 import com.tvtools.app.ui.mirror.MirrorScreen
+import com.tvtools.app.ui.music.MusicScreen
 import com.tvtools.app.ui.onboarding.OnboardingScreen
 import com.tvtools.app.ui.share.ShareToTvDialog
 import com.tvtools.app.ui.storage.StorageScreen
@@ -118,6 +119,7 @@ private fun AppNav() {
                 onOpenMirror = { nav.navigate("mirror/${Uri.encode(name)}") },
                 onOpenBackups = { nav.navigate("backups") },
                 onOpenStorage = { nav.navigate("storage") },
+                onOpenMusic = { nav.navigate("music") },
             )
         }
         composable("files") {
@@ -128,6 +130,9 @@ private fun AppNav() {
         }
         composable("storage") {
             StorageScreen(onBack = { nav.popBackStack() })
+        }
+        composable("music") {
+            MusicScreen(onBack = { nav.popBackStack() })
         }
         composable(
             route = "mirror/{name}",

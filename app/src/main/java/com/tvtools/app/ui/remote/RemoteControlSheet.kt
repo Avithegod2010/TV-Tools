@@ -107,8 +107,16 @@ private const val KEY_MEDIA_FF = 90
 private const val KEY_SLEEP = 223
 private const val KEY_WAKE = 224
 private const val KEY_MUTE = 164
+private const val KEY_CH_UP = 166
+private const val KEY_CH_DOWN = 167
+private const val KEY_GAMEPAD_A = 96
+private const val KEY_GAMEPAD_B = 97
+private const val KEY_GAMEPAD_X = 99
+private const val KEY_GAMEPAD_Y = 100
+private const val KEY_GAMEPAD_START = 108
+private const val KEY_GAMEPAD_SELECT = 109
 
-private enum class RemoteMode { DPAD, TOUCHPAD }
+private enum class RemoteMode { DPAD, TOUCHPAD, GAMEPAD }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,6 +131,7 @@ fun RemoteControlSheet(
     var mode by remember { mutableStateOf(RemoteMode.DPAD) }
     var showTextDialog by remember { mutableStateOf(false) }
     var showPowerMenu by remember { mutableStateOf(false) }
+    var showNumberPad by remember { mutableStateOf(false) }
     var powerMessage by remember { mutableStateOf<String?>(null) }
 
     fun send(code: Int) {
@@ -174,13 +183,18 @@ fun RemoteControlSheet(
                 SegmentedButton(
                     selected = mode == RemoteMode.DPAD,
                     onClick = { mode = RemoteMode.DPAD },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                 ) { Text("D-Pad") }
                 SegmentedButton(
                     selected = mode == RemoteMode.TOUCHPAD,
                     onClick = { mode = RemoteMode.TOUCHPAD },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                ) { Text("Touchpad") }
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
+                ) { Text("Touch") }
+                SegmentedButton(
+                    selected = mode == RemoteMode.GAMEPAD,
+                    onClick = { mode = RemoteMode.GAMEPAD },
+                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                ) { Text("Game") }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -193,16 +207,24 @@ fun RemoteControlSheet(
                 when (current) {
                     RemoteMode.DPAD -> DPadPad(onSend = ::send)
                     RemoteMode.TOUCHPAD -> TouchPad(onSend = ::send)
+                    RemoteMode.GAMEPAD -> GamepadPad(onSend = ::send)
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // Navigation row
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Navigation + channel row
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 NavPill(Icons.AutoMirrored.Filled.ArrowBack, "Back") { send(KEY_BACK) }
                 NavPill(Icons.Default.Home, "Home") { send(KEY_HOME) }
                 NavPill(Icons.Default.Menu, "Menu") { send(KEY_MENU) }
+                Spacer(Modifier.width(6.dp))
+                TextButton(onClick = { send(KEY_CH_DOWN) }) { Text("CH−") }
+                TextButton(onClick = { send(KEY_CH_UP) }) { Text("CH+") }
+                TextButton(onClick = { showNumberPad = true }) { Text("0–9") }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -261,6 +283,13 @@ fun RemoteControlSheet(
                 showTextDialog = false
                 scope.launch { adb.inputText(text) }
             },
+        )
+    }
+
+    if (showNumberPad) {
+        NumberPadDialog(
+            onDismiss = { showNumberPad = false },
+            onKey = { code -> send(code) },
         )
     }
 
@@ -418,6 +447,79 @@ private fun TouchPad(onSend: (Int) -> Unit) {
             )
         }
     }
+}
+
+// ---------------- Gamepad ----------------
+
+@Composable
+private fun GamepadPad(onSend: (Int) -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier.size(260.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                modifier = Modifier.size(260.dp),
+            ) {}
+
+            HoldKeyButton(
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp),
+                onClick = { onSend(KEY_GAMEPAD_Y) },
+                container = androidx.compose.ui.graphics.Color(0xFFB58B00),
+            ) { Text("Y", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+
+            HoldKeyButton(
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 10.dp),
+                onClick = { onSend(KEY_GAMEPAD_X) },
+                container = androidx.compose.ui.graphics.Color(0xFF1565C0),
+            ) { Text("X", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+
+            HoldKeyButton(
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 10.dp),
+                onClick = { onSend(KEY_GAMEPAD_B) },
+                container = androidx.compose.ui.graphics.Color(0xFFB3261E),
+            ) { Text("B", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+
+            HoldKeyButton(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp),
+                onClick = { onSend(KEY_GAMEPAD_A) },
+                container = androidx.compose.ui.graphics.Color(0xFF2E7D32),
+            ) { Text("A", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            NavPill(Icons.Default.KeyboardArrowLeft, "Select") { onSend(KEY_GAMEPAD_SELECT) }
+            NavPill(Icons.Default.KeyboardArrowRight, "Start") { onSend(KEY_GAMEPAD_START) }
+        }
+    }
+}
+
+// ---------------- Number pad ----------------
+
+@Composable
+private fun NumberPadDialog(onDismiss: () -> Unit, onKey: (Int) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Channel / numbers") },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                listOf(listOf(1, 2, 3), listOf(4, 5, 6), listOf(7, 8, 9), listOf(-1, 0, -2)).forEach { row ->
+                    Row {
+                        row.forEach { digit ->
+                            when (digit) {
+                                -1 -> Spacer(Modifier.size(64.dp))
+                                -2 -> TextButton(onClick = { onKey(23) }) { Text("OK") }
+                                else -> TextButton(onClick = { onKey(7 + digit) }) { Text("$digit", fontSize = 20.sp) }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
 }
 
 // ---------------- building blocks ----------------

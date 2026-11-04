@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.2-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-1.3-166d32" alt="Version" />
   </p>
 </div>
 
@@ -25,14 +25,16 @@
 | | |
 |---|---|
 | 📡 **Wireless ADB** | Auto-discovery (mDNS + LAN scan), Android 11+ pairing codes, Fire TV legacy ADB, auto-reconnect, **multi-TV dashboard** |
-| 🛠 **Tools** | Install APK / **.apks / .xapk**, upload to TV, clear caches, live screenshots, **storage analyzer** |
+| 🛠 **Tools** | Install APK / **.apks / .xapk**, **long-press Install to send a phone app to the TV**, upload files, **multi-file & folder upload on long-press**, clear caches, live screenshots, **storage analyzer**, **screen recording** |
 | 📺 **Screen mirroring** | Live TV view with tap & swipe control, LIVE fps counter, on-screen back/home/menu keys |
 | 📤 **Share to TV** | Send photos, videos or APKs from Android's share sheet — the app uploads and opens/installs them |
-| 🧩 **Apps** | Browse apps with icons & sizes, launch, uninstall, extract APK, force stop, clear data, disable, **multi-select** |
+| 🧩 **Apps** | Real icons (auto-loaded, smallest first), sizes, launch, multi-select with **batch backup / uninstall / force-stop / clear-data / disable / extract APKs** |
 | 💾 **Backup & restore** | **Bulk backup any apps (base + splits)** with metadata, one-tap restore via `pm install-multiple` |
 | 🗂 **File manager** | Browse TV storage, thumbnails, upload, **multi-select**, copy/move, image/text previews, **download queue** |
 | 💻 **Shell** | Interactive ADB shell with CTRL+C, clear and copy |
-| 🎛 **Remote** | Modern remote sheet: D-Pad ↔ touchpad, media keys, volume, text input, power menu |
+| 🎛 **Remote** | Modern remote sheet: D-Pad ↔ touchpad ↔ **gamepad**, **channel +/− and 0–9 pad**, media keys, volume, text input, power menu |
+| 🎵 **Music manager** | Browse and manage TV music — play on the TV, download, delete, upload |
+| 🖥 **Screen record** | Record the TV screen (15/30/60 s) and save it to your phone's Movies |
 | ⚡ **Power** | Sleep, power toggle, restart, and Wake-on-LAN |
 | 📊 **Device info** | Storage / RAM / CPU gauges, network usage, uptime |
 | 🎨 **Themes & haptics** | System/Light/Dark, 5 accent colors incl. Material You, haptic feedback |

@@ -4,6 +4,8 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Box
@@ -81,8 +83,6 @@ fun AppsTab(onOpenBackups: () -> Unit, viewModel: AppsViewModel = viewModel()) {
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = viewModel::selectAll) { Text("All") }
-                    TextButton(onClick = viewModel::backupSelected) { Text("Backup") }
                     TextButton(onClick = viewModel::clearSelection) { Text("Cancel") }
                 } else {
                     Text(
@@ -91,9 +91,32 @@ fun AppsTab(onOpenBackups: () -> Unit, viewModel: AppsViewModel = viewModel()) {
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
+                    if (ui.iconsTotal > 0 && ui.iconsLoaded < ui.iconsTotal) {
+                        Text(
+                            "icons ${ui.iconsLoaded}/${ui.iconsTotal}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
                     IconButton(onClick = onOpenBackups) {
                         Icon(Icons.Default.Folder, contentDescription = "App backups")
                     }
+                }
+            }
+
+            if (ui.selection.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = viewModel::selectAll) { Text("All") }
+                    TextButton(onClick = viewModel::backupSelected) { Text("Backup") }
+                    TextButton(onClick = viewModel::downloadSelectedApks) { Text("APKs") }
+                    TextButton(onClick = viewModel::forceStopSelected) { Text("Stop") }
+                    TextButton(onClick = viewModel::clearDataSelected) { Text("Clear data") }
+                    TextButton(onClick = viewModel::disableSelected) { Text("Disable") }
+                    TextButton(onClick = viewModel::uninstallSelected) { Text("Uninstall") }
                 }
             }
 

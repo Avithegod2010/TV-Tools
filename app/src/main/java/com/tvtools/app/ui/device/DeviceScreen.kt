@@ -30,7 +30,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -63,6 +62,7 @@ fun DeviceScreen(
     onOpenMirror: () -> Unit,
     onOpenBackups: () -> Unit,
     onOpenStorage: () -> Unit,
+    onOpenMusic: () -> Unit,
     viewModel: DeviceViewModel = viewModel(),
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -101,6 +101,9 @@ fun DeviceScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { haptics(); showRemote = true }) {
+                        Icon(Icons.Default.SettingsRemote, contentDescription = "Remote control")
+                    }
                     Box {
                         IconButton(onClick = { menuOpen = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
@@ -156,19 +159,6 @@ fun DeviceScreen(
                 )
             }
         },
-        floatingActionButton = {
-            SmallFloatingActionButton(
-                onClick = { haptics(); showRemote = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(
-                    Icons.Default.SettingsRemote,
-                    contentDescription = "Remote control",
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -189,6 +179,7 @@ fun DeviceScreen(
                         onOpenFiles = onOpenFiles,
                         onOpenMirror = onOpenMirror,
                         onOpenStorage = onOpenStorage,
+                        onOpenMusic = onOpenMusic,
                     )
                     1 -> AppsTab(onOpenBackups = onOpenBackups)
                     2 -> ShellTab()

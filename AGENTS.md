@@ -49,6 +49,16 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 - ADB private key + cert stay in app-private storage (`files/adbkeys`).
 - ADB TLS uses the library's trust-all manager (inherent to ADB pairing).
 
+## Feature map (v1.3)
+- Remote: `RemoteControlSheet` has D-Pad / Touchpad / Gamepad modes, channel keys (166/167), number pad (keycodes 7–16), text input, power dialog.
+- Screen record: `ToolsViewModel.screenRecord` (`screenrecord --time-limit N`, pull, MediaStore Movies/TV Tools).
+- Music manager: `ui/music/` scans `/sdcard/Music` + `/sdcard/Download`, plays on TV via VIEW intent, download/delete/upload.
+- Phone-app install: long-press Install → `ToolsViewModel.loadPhoneApps` (PackageManager) → copies sourceDir/splits → installs on TV.
+- Multi-upload: long-press Upload → multi-file (`GetMultipleContents`) or folder (`OpenDocumentTree` + DocumentFile recursion).
+- App selection: batch backup/apks/force-stop/clear-data/disable/uninstall in `AppsViewModel`.
+- Real icons: background loader pulls APKs ≤60 MB sorted smallest-first with progress (`iconsLoaded/iconsTotal`).
+- Remote entry moved to the top app bar (removed the overlapping FAB).
+
 ## Feature map (v1.2)
 - Backup/restore: `data/BackupManager.kt` (APK paths via `pm path`, metadata in `meta.txt`), `ui/apps/BackupsScreen.kt`; split install via `AdbClient.installSplitApk` (`pm install-multiple`), `.apks/.xapk` unpacked in `ToolsViewModel`.
 - Storage analyzer: `ui/storage/` — `du -sk`, `find -size +50M` + batch `stat`.

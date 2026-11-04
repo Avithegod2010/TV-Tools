@@ -35,6 +35,8 @@ data class AppsUiState(
     val busyPkg: String? = null,
     val busyLabel: String? = null,
     val selection: Set<String> = emptySet(),
+    val iconsLoaded: Int = 0,
+    val iconsTotal: Int = 0,
 ) {
     val visible: List<TvApp>
         get() {
@@ -71,8 +73,8 @@ class AppsViewModel : ViewModel() {
     private val iconIndex = HashMap<String, Pair<File, Long>>()
     private val versionLookups = HashSet<String>()
 
-    /** Auto icon loading budget: only small, user-installed APKs (TV Wi-Fi is slow). */
-    private val autoIconSizeLimit = 40L * 1024 * 1024
+    /** Auto icon loading budget (TV Wi-Fi is slow, so biggest APKs stay manual). */
+    private val autoIconSizeLimit = 60L * 1024 * 1024
 
     init {
         loadApps()
@@ -118,6 +120,10 @@ class AppsViewModel : ViewModel() {
                     val f = File(iconDir, "${app.packageName}.png")
                     if (f.exists()) app.copy(iconPath = f.absolutePath) else app
                 }
+                _ui.value = _ui.value.copy(
+                    iconsLoaded = withCachedIcons.count { it.iconPath != null },
+                    iconsTotal = withCachedIcons.size,
+                )
                 _ui.value = _ui.value.copy(apps = withCachedIcons, loading = false)
                 loadRunningPkgs()
                 autoLoadIcons(withCachedIcons)
@@ -176,19 +182,19 @@ class AppsViewModel : ViewModel() {
     }
 
     /**
-     * Background icon loader. Only small user apps are pulled automatically —
-     * on a typical TV's slow Wi-Fi, pulling a 100 MB system APK per icon is not viable.
-     * Big/system apps get their icons only on explicit request ("Load icon" menu action).
+     * Background icon loader for real app icons: pulls small APKs first so the grid
+     * fills up quickly, then continues until every app ≤60 MB has its real icon.
      */
     private fun autoLoadIcons(apps: List<TvApp>) {
         viewModelScope.launch {
+            val candidates = apps
+                .filter { it.iconPath == null && it.sizeBytes in 1..autoIconSizeLimit }
+                .sortedBy { it.sizeBytes }
+            _ui.value = _ui.value.copy(iconsTotal = candidates.size, iconsLoaded = 0)
             val semaphore = Semaphore(1)
-            apps.filter {
-                !it.isSystemApp && it.iconPath == null && it.sizeBytes in 1..autoIconSizeLimit
-            }.forEach { app ->
-                launch {
-                    semaphore.withPermit { enrichOne(app, force = false) }
-                }
+            candidates.forEachIndexed { index, app ->
+                semaphore.withPermit { enrichOne(app, force = false) }
+                _ui.value = _ui.value.copy(iconsLoaded = index + 1)
             }
         }
     }
@@ -207,7 +213,7 @@ class AppsViewModel : ViewModel() {
     }
 
     private suspend fun enrichOne(app: TvApp, force: Boolean) {
-        if (!force && (app.isSystemApp || app.sizeBytes > autoIconSizeLimit)) return
+        if (!force && app.sizeBytes > autoIconSizeLimit) return
         if (iconIndex.containsKey(app.packageName)) return
 
         val tmp = File(apkTmpDir, "${app.packageName}.apk")
@@ -312,6 +318,87 @@ class AppsViewModel : ViewModel() {
 
     fun selectAll() {
         _ui.value = _ui.value.copy(selection = _ui.value.visible.map { it.packageName }.toSet())
+    }
+
+    private fun selectedApps(): List<TvApp> = _ui.value.apps.filter { it.packageName in _ui.value.selection }
+
+    fun uninstallSelected() {
+        val apps = selectedApps().filter { !it.isSystemApp }
+        if (apps.isEmpty() || _ui.value.busyLabel != null) return
+        viewModelScope.launch {
+            apps.forEachIndexed { i, app ->
+                _ui.value = _ui.value.copy(busyLabel = "Uninstalling ${i + 1}/${apps.size}: ${app.label ?: app.packageName}")
+                try {
+                    adb.uninstallApp(app.packageName)
+                    _ui.value = _ui.value.copy(apps = _ui.value.apps.filterNot { it.packageName == app.packageName })
+                } catch (_: Exception) {
+                }
+            }
+            _ui.value = _ui.value.copy(busyLabel = null, selection = emptySet())
+        }
+    }
+
+    fun forceStopSelected() {
+        val apps = selectedApps()
+        if (apps.isEmpty() || _ui.value.busyLabel != null) return
+        viewModelScope.launch {
+            apps.forEachIndexed { i, app ->
+                _ui.value = _ui.value.copy(busyLabel = "Stopping ${i + 1}/${apps.size}: ${app.label ?: app.packageName}")
+                try { adb.forceStopApp(app.packageName) } catch (_: Exception) {}
+            }
+            loadRunningPkgs()
+            _ui.value = _ui.value.copy(busyLabel = null)
+            _messages.emit("Force-stopped ${apps.size} app(s)")
+        }
+    }
+
+    fun clearDataSelected() {
+        val apps = selectedApps()
+        if (apps.isEmpty() || _ui.value.busyLabel != null) return
+        viewModelScope.launch {
+            apps.forEachIndexed { i, app ->
+                _ui.value = _ui.value.copy(busyLabel = "Clearing ${i + 1}/${apps.size}: ${app.label ?: app.packageName}")
+                try { adb.clearAppData(app.packageName) } catch (_: Exception) {}
+            }
+            _ui.value = _ui.value.copy(busyLabel = null)
+            _messages.emit("Cleared data for ${apps.size} app(s)")
+        }
+    }
+
+    fun disableSelected() {
+        val apps = selectedApps().filter { !it.isSystemApp }
+        if (apps.isEmpty() || _ui.value.busyLabel != null) return
+        viewModelScope.launch {
+            apps.forEachIndexed { i, app ->
+                _ui.value = _ui.value.copy(busyLabel = "Disabling ${i + 1}/${apps.size}: ${app.label ?: app.packageName}")
+                try {
+                    adb.disableApp(app.packageName)
+                    updateApp(app.packageName) { it.copy(enabled = false) }
+                } catch (_: Exception) {
+                }
+            }
+            _ui.value = _ui.value.copy(busyLabel = null)
+            _messages.emit("Disabled ${apps.size} app(s)")
+        }
+    }
+
+    fun downloadSelectedApks() {
+        val apps = selectedApps()
+        if (apps.isEmpty() || _ui.value.busyLabel != null) return
+        viewModelScope.launch {
+            val dir = File(context.getExternalFilesDir(null), "apks").apply { mkdirs() }
+            apps.forEachIndexed { i, app ->
+                _ui.value = _ui.value.copy(busyLabel = "Extracting ${i + 1}/${apps.size}: ${app.label ?: app.packageName}")
+                try {
+                    val safe = (app.label ?: app.packageName).replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    val out = File(dir, "$safe.apk")
+                    withContext(Dispatchers.IO) { adb.pullFile(app.apkPath, out) }
+                } catch (_: Exception) {
+                }
+            }
+            _ui.value = _ui.value.copy(busyLabel = null)
+            _messages.emit("APKs saved to app storage/Documents")
+        }
     }
     fun toggleSort() {
         _ui.value = _ui.value.copy(sort = if (_ui.value.sort == AppSort.NAME) AppSort.SIZE else AppSort.NAME)
