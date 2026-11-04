@@ -1,0 +1,603 @@
+package com.tvtools.app.ui.remote
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.tvtools.app.AppServices
+import com.tvtools.app.ui.common.rememberHaptics
+import com.tvtools.app.util.Wol
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+
+// Android KEYCODEs
+private const val KEY_HOME = 3
+private const val KEY_BACK = 4
+private const val KEY_DPAD_UP = 19
+private const val KEY_DPAD_DOWN = 20
+private const val KEY_DPAD_LEFT = 21
+private const val KEY_DPAD_RIGHT = 22
+private const val KEY_DPAD_CENTER = 23
+private const val KEY_VOL_UP = 24
+private const val KEY_VOL_DOWN = 25
+private const val KEY_POWER = 26
+private const val KEY_MENU = 82
+private const val KEY_MEDIA_PLAY_PAUSE = 85
+private const val KEY_MEDIA_NEXT = 87
+private const val KEY_MEDIA_PREV = 88
+private const val KEY_MEDIA_REWIND = 89
+private const val KEY_MEDIA_FF = 90
+private const val KEY_SLEEP = 223
+private const val KEY_WAKE = 224
+private const val KEY_MUTE = 164
+
+private enum class RemoteMode { DPAD, TOUCHPAD }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RemoteControlSheet(
+    deviceName: String,
+    onDismiss: () -> Unit,
+    onOpenMirror: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val adb = AppServices.adb
+
+    var mode by remember { mutableStateOf(RemoteMode.DPAD) }
+    var showTextDialog by remember { mutableStateOf(false) }
+    var showPowerMenu by remember { mutableStateOf(false) }
+    var powerMessage by remember { mutableStateOf<String?>(null) }
+
+    fun send(code: Int) {
+        scope.launch { adb.keyEvent(code) }
+    }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Remote",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        deviceName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = { showTextDialog = true }) {
+                    Icon(Icons.Default.Keyboard, contentDescription = "Send text")
+                }
+                IconButton(onClick = onOpenMirror) {
+                    Icon(Icons.Default.Cast, contentDescription = "Screen mirroring")
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Mode switch
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = mode == RemoteMode.DPAD,
+                    onClick = { mode = RemoteMode.DPAD },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) { Text("D-Pad") }
+                SegmentedButton(
+                    selected = mode == RemoteMode.TOUCHPAD,
+                    onClick = { mode = RemoteMode.TOUCHPAD },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) { Text("Touchpad") }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            AnimatedContent(
+                targetState = mode,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "remote-mode",
+            ) { current ->
+                when (current) {
+                    RemoteMode.DPAD -> DPadPad(onSend = ::send)
+                    RemoteMode.TOUCHPAD -> TouchPad(onSend = ::send)
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Navigation row
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                NavPill(Icons.AutoMirrored.Filled.ArrowBack, "Back") { send(KEY_BACK) }
+                NavPill(Icons.Default.Home, "Home") { send(KEY_HOME) }
+                NavPill(Icons.Default.Menu, "Menu") { send(KEY_MENU) }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Media controls
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MediaButton(Icons.Default.SkipPrevious, "Previous") { send(KEY_MEDIA_PREV) }
+                    MediaButton(Icons.Default.FastRewind, "Rewind") { send(KEY_MEDIA_REWIND) }
+                    MediaButton(Icons.Default.PlayArrow, "Play/Pause") { send(KEY_MEDIA_PLAY_PAUSE) }
+                    MediaButton(Icons.Default.FastForward, "Fast forward") { send(KEY_MEDIA_FF) }
+                    MediaButton(Icons.Default.SkipNext, "Next") { send(KEY_MEDIA_NEXT) }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Volume + power
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                CircleKey(Icons.AutoMirrored.Filled.VolumeDown, "Volume down", repeatable = true) { send(KEY_VOL_DOWN) }
+                CircleKey(Icons.Default.VolumeOff, "Mute") { send(KEY_MUTE) }
+                CircleKey(Icons.AutoMirrored.Filled.VolumeUp, "Volume up", repeatable = true) { send(KEY_VOL_UP) }
+                Spacer(Modifier.width(6.dp))
+                CircleKey(
+                    Icons.Default.PowerSettingsNew,
+                    "Power menu",
+                    container = MaterialTheme.colorScheme.errorContainer,
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                ) { showPowerMenu = true }
+            }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    if (showTextDialog) {
+        TextInputDialog(
+            onDismiss = { showTextDialog = false },
+            onSend = { text ->
+                showTextDialog = false
+                scope.launch { adb.inputText(text) }
+            },
+        )
+    }
+
+    if (showPowerMenu) {
+        PowerMenuDialog(
+            deviceName = deviceName,
+            onDismiss = { showPowerMenu = false },
+            onSleep = { showPowerMenu = false; send(KEY_SLEEP) },
+            onPowerToggle = { showPowerMenu = false; send(KEY_POWER) },
+            onWake = {
+                showPowerMenu = false
+                scope.launch {
+                    val mac = AppServices.prefs.loadLastMac()
+                    powerMessage = if (mac == null) {
+                        "No MAC saved yet — connect to the TV once first."
+                    } else if (Wol.send(mac)) {
+                        "Wake packet sent ✓"
+                    } else {
+                        "Couldn't send the wake packet."
+                    }
+                }
+            },
+            onRestart = {
+                showPowerMenu = false
+                scope.launch {
+                    powerMessage = try {
+                        val out = adb.rebootTv().trim()
+                        if (out.isBlank()) "Restart command sent" else out
+                    } catch (e: Exception) {
+                        "Restart failed: ${e.message}"
+                    }
+                }
+            },
+        )
+    }
+
+    powerMessage?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { powerMessage = null },
+            confirmButton = { TextButton(onClick = { powerMessage = null }) { Text("OK") } },
+            text = { Text(msg) },
+        )
+    }
+}
+
+// ---------------- D-Pad ----------------
+
+@Composable
+private fun DPadPad(onSend: (Int) -> Unit) {
+    Box(
+        modifier = Modifier.size(260.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+            modifier = Modifier.size(260.dp),
+        ) {}
+
+        HoldKeyButton(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 6.dp),
+            onClick = { onSend(KEY_DPAD_UP) },
+            repeatable = true,
+        ) { Icon(Icons.Default.KeyboardArrowUp, "Up", Modifier.size(34.dp)) }
+
+        HoldKeyButton(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 6.dp),
+            onClick = { onSend(KEY_DPAD_DOWN) },
+            repeatable = true,
+        ) { Icon(Icons.Default.KeyboardArrowDown, "Down", Modifier.size(34.dp)) }
+
+        HoldKeyButton(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 6.dp),
+            onClick = { onSend(KEY_DPAD_LEFT) },
+            repeatable = true,
+        ) { Icon(Icons.Default.KeyboardArrowLeft, "Left", Modifier.size(34.dp)) }
+
+        HoldKeyButton(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 6.dp),
+            onClick = { onSend(KEY_DPAD_RIGHT) },
+            repeatable = true,
+        ) { Icon(Icons.Default.KeyboardArrowRight, "Right", Modifier.size(34.dp)) }
+
+        HoldKeyButton(
+            modifier = Modifier.align(Alignment.Center),
+            onClick = { onSend(KEY_DPAD_CENTER) },
+            container = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.onPrimary,
+            size = 88,
+        ) { Text("OK", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+    }
+}
+
+// ---------------- Touchpad ----------------
+
+@Composable
+private fun TouchPad(onSend: (Int) -> Unit) {
+    val haptics = rememberHaptics()
+    var dragTotal by remember { mutableStateOf(Offset.Zero) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(260.dp)
+            .background(
+                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                RoundedCornerShape(28.dp),
+            )
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { onSend(KEY_DPAD_CENTER) })
+            }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { dragTotal = Offset.Zero },
+                    onDrag = { change, drag ->
+                        change.consume()
+                        dragTotal += drag
+                        val threshold = 70.dp.toPx()
+                        if (abs(dragTotal.x) > threshold || abs(dragTotal.y) > threshold) {
+                            val key = if (abs(dragTotal.x) > abs(dragTotal.y)) {
+                                if (dragTotal.x > 0) KEY_DPAD_RIGHT else KEY_DPAD_LEFT
+                            } else {
+                                if (dragTotal.y > 0) KEY_DPAD_DOWN else KEY_DPAD_UP
+                            }
+                            onSend(key)
+                            haptics()
+                            dragTotal = Offset.Zero
+                        }
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Default.TouchApp,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(34.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Swipe to navigate · Tap to select",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+// ---------------- building blocks ----------------
+
+@Composable
+private fun HoldKeyButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    repeatable: Boolean = false,
+    container: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surface,
+    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    size: Int = 64,
+    content: @Composable () -> Unit,
+) {
+    val haptics = rememberHaptics()
+    var pressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "press")
+
+    LaunchedEffect(pressed) {
+        if (pressed && repeatable) {
+            while (pressed) {
+                delay(150)
+                onClick()
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .size(size.dp)
+            .scale(scale)
+            .background(container.copy(alpha = 0.95f), CircleShape)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    pressed = true
+                    haptics()
+                    onClick()
+                    tryAwaitRelease()
+                    pressed = false
+                })
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.material3.LocalContentColor provides tint
+        ) { content() }
+    }
+}
+
+@Composable
+private fun NavPill(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val haptics = rememberHaptics()
+    TextButton(onClick = { haptics(); onClick() }) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label)
+    }
+}
+
+@Composable
+private fun MediaButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val haptics = rememberHaptics()
+    IconButton(onClick = { haptics(); onClick() }) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(26.dp))
+    }
+}
+
+@Composable
+private fun CircleKey(
+    icon: ImageVector,
+    label: String,
+    repeatable: Boolean = false,
+    container: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.secondaryContainer,
+    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSecondaryContainer,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberHaptics()
+    var pressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "circle-press")
+
+    LaunchedEffect(pressed) {
+        if (pressed && repeatable) {
+            while (pressed) {
+                delay(150)
+                onClick()
+            }
+        }
+    }
+
+    FilledIconButton(
+        onClick = { haptics(); onClick() },
+        modifier = Modifier
+            .size(52.dp)
+            .scale(scale)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    pressed = true
+                    tryAwaitRelease()
+                    pressed = false
+                })
+            },
+        shape = CircleShape,
+        colors = IconButtonDefaults.filledIconButtonColors(containerColor = container, contentColor = tint),
+    ) {
+        Icon(icon, contentDescription = label)
+    }
+}
+
+@Composable
+private fun TextInputDialog(onDismiss: () -> Unit, onSend: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Send text to TV") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Text") },
+                placeholder = { Text("Type in a search box…") },
+                singleLine = false,
+                maxLines = 4,
+            )
+        },
+        confirmButton = {
+            Button(onClick = { onSend(text) }, enabled = text.isNotBlank()) { Text("Send") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun PowerMenuDialog(
+    deviceName: String,
+    onDismiss: () -> Unit,
+    onSleep: () -> Unit,
+    onPowerToggle: () -> Unit,
+    onWake: () -> Unit,
+    onRestart: () -> Unit,
+) {
+    var confirmRestart by remember { mutableStateOf(false) }
+    if (!confirmRestart) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Power — $deviceName") },
+            text = {
+                Column {
+                    PowerRow("Turn screen off (sleep)") { onSleep() }
+                    PowerRow("Power button (toggle)") { onPowerToggle() }
+                    PowerRow("Wake with Wake-on-LAN") { onWake() }
+                    PowerRow("Restart TV") { confirmRestart = true }
+                }
+            },
+            confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = { confirmRestart = false },
+            title = { Text("Restart TV?") },
+            text = { Text("This asks the TV to reboot. Some TVs only allow this when rooted.") },
+            confirmButton = { Button(onClick = onRestart) { Text("Restart") } },
+            dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text("Cancel") } },
+        )
+    }
+}
+
+@Composable
+private fun PowerRow(label: String, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(label, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+    }
+}
+
+/** Small loading overlay used when switching modes. */
+@Composable
+private fun RemoteLoading() {
+    Box(Modifier.size(260.dp), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}

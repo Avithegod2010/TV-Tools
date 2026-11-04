@@ -1,0 +1,25 @@
+# Gradle / Android
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing (never commit!)
+*.keystore
+*.jks
+keystore.properties
+signing.properties
+
+# Build outputs
+dist/
+build-log.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log

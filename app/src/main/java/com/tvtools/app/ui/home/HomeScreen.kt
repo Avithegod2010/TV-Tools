@@ -1,0 +1,499 @@
+package com.tvtools.app.ui.home
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.data.TvDevice
+import com.tvtools.app.ui.common.rememberHaptics
+import com.tvtools.app.ui.settings.SettingsSheet
+
+@Composable
+fun HomeScreen(
+    onConnected: (TvDevice) -> Unit,
+    viewModel: HomeViewModel = viewModel(),
+) {
+    val ui by viewModel.ui.collectAsState()
+    val snackbar = remember { SnackbarHostState() }
+    val haptics = rememberHaptics()
+
+    var pairingTarget by remember { mutableStateOf<TvDevice?>(null) }
+    var showManualDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is HomeEvent.Connected -> onConnected(event.device)
+                is HomeEvent.Error -> snackbar.showSnackbar(event.message)
+                is HomeEvent.PairingRequested -> pairingTarget = event.device
+                else -> {}
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 20.dp),
+        ) {
+            Spacer(Modifier.height(28.dp))
+
+            // Logo
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(38.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(26.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    "TV Tools",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            ui.lastConnected?.let { last ->
+                Text(
+                    "Last connected",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(8.dp))
+                DeviceCard(
+                    device = last,
+                    connecting = ui.connectingTo?.host == last.host,
+                    onClick = { haptics(); viewModel.connect(last) },
+                )
+                Spacer(Modifier.height(20.dp))
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    "Select device",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                if (ui.scanning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        strokeCap = StrokeCap.Round,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
+                IconButton(onClick = { viewModel.startDiscovery() }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = !ui.showAll,
+                    onClick = { haptics(); viewModel.setShowAll(false) },
+                    label = { Text("Android TV & Fire TV") },
+                    leadingIcon = if (!ui.showAll) {
+                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                    } else null,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                )
+                FilterChip(
+                    selected = ui.showAll,
+                    onClick = { haptics(); viewModel.setShowAll(true) },
+                    label = { Text("All") },
+                )
+            }
+
+            Text(
+                "Only Android TV / Fire TV devices with ADB enabled can be found here",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(ui.visibleDevices, key = { "${it.host}:${it.port}:${it.proto}" }) { device ->
+                    DeviceCard(
+                        device = device,
+                        connecting = ui.connectingTo?.host == device.host,
+                        onClick = { haptics(); viewModel.connect(device) },
+                    )
+                }
+                if (!ui.scanning && ui.visibleDevices.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Icon(
+                                Icons.Default.Info, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "No devices found yet.\nMake sure the TV is on the same Wi-Fi\nwith ADB / Wireless debugging enabled.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedButton(onClick = { showManualDialog = true }) {
+                                Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Add by IP address")
+                            }
+                        }
+                    }
+                }
+                item { Spacer(Modifier.height(8.dp)) }
+            }
+
+            // Bottom bar: manual add + More
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { showManualDialog = true }) {
+                    Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Add IP")
+                }
+                Spacer(Modifier.weight(1f))
+                var menuOpen by remember { mutableStateOf(false) }
+                Box {
+                    TextButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Default.MoreVert, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("More")
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Add device by IP") },
+                            leadingIcon = { Icon(Icons.Default.Add, null) },
+                            onClick = { menuOpen = false; showManualDialog = true },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Wake last TV (WOL)") },
+                            leadingIcon = { Icon(Icons.Default.PowerSettingsNew, null) },
+                            onClick = { menuOpen = false; viewModel.wakeLastTv() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            leadingIcon = { Icon(Icons.Default.Settings, null) },
+                            onClick = { menuOpen = false; showSettings = true },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("How to enable ADB on my TV") },
+                            leadingIcon = { Icon(Icons.Default.Info, null) },
+                            onClick = { menuOpen = false; showAboutDialog = true },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showManualDialog) {
+        ManualConnectDialog(
+            onDismiss = { showManualDialog = false },
+            onConnect = { host, port ->
+                showManualDialog = false
+                viewModel.connectManual(host, port)
+            },
+        )
+    }
+
+    pairingTarget?.let { target ->
+        PairingDialog(
+            target = target,
+            onDismiss = { pairingTarget = null },
+            onPair = { host, port, code ->
+                pairingTarget = null
+                viewModel.pairThenConnect(host, port, code)
+            },
+        )
+    }
+
+    if (showSettings) {
+        SettingsSheet(onDismiss = { showSettings = false })
+    }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            confirmButton = { TextButton(onClick = { showAboutDialog = false }) { Text("Got it") } },
+            title = { Text("Enable ADB on your TV") },
+            text = {
+                Text(
+                    "Android TV / Google TV / Xiaomi:\n" +
+                        "Settings → Device Preferences → About → tap \"Build\" 7 times → back → " +
+                        "Developer options → enable \"Wireless debugging\" (Android 11+) or \"Network debugging\".\n\n" +
+                        "Amazon Fire TV:\n" +
+                        "Settings → My Fire TV → About → tap the name 7 times → " +
+                        "Developer Options → enable \"ADB debugging\".\n\n" +
+                        "Keep your phone and TV on the same Wi-Fi network."
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun DeviceCard(
+    device: TvDevice,
+    connecting: Boolean,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TvIcon()
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    device.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    buildString {
+                        append(device.host)
+                        append(":")
+                        append(device.port)
+                        if (device.pairing) append("  •  pairing")
+                        else if (device.proto == com.tvtools.app.data.DeviceProto.TLS) append("  •  wireless debugging")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (connecting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    strokeCap = StrokeCap.Round,
+                )
+            } else {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvIcon() {
+    Icon(
+        imageVector = Icons.Default.Tv,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(26.dp),
+    )
+}
+
+@Composable
+private fun ManualConnectDialog(
+    onDismiss: () -> Unit,
+    onConnect: (host: String, port: Int) -> Unit,
+) {
+    var host by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf("5555") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Connect by IP") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = host,
+                    onValueChange = { host = it.trim() },
+                    label = { Text("IP address") },
+                    placeholder = { Text("192.168.1.50") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = port,
+                    onValueChange = { port = it.filter(Char::isDigit) },
+                    label = { Text("Port") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "5555 for Fire TV & network ADB. For Android 11+ use the port shown in Wireless debugging.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConnect(host, port.toIntOrNull() ?: 5555) },
+                enabled = host.count { it == '.' } == 3,
+            ) { Text("Connect") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun PairingDialog(
+    target: TvDevice,
+    onDismiss: () -> Unit,
+    onPair: (host: String, port: Int, code: String) -> Unit,
+) {
+    var host by remember { mutableStateOf(target.host) }
+    var port by remember { mutableStateOf(target.port.takeIf { target.pairing }?.toString() ?: "") }
+    var code by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Pair with TV") },
+        text = {
+            Column {
+                Text(
+                    "On the TV open: Developer options → Wireless debugging → \"Pair device with pairing code\". " +
+                        "Enter the IP, port and 6-digit code shown there.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = host,
+                    onValueChange = { host = it.trim() },
+                    label = { Text("IP address") },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = port,
+                    onValueChange = { port = it.filter(Char::isDigit) },
+                    label = { Text("Pairing port") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it.filter(Char::isDigit).take(6) },
+                    label = { Text("6-digit pairing code") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onPair(host, port.toIntOrNull() ?: 0, code) },
+                enabled = host.isNotBlank() && (port.toIntOrNull() ?: 0) > 0 && code.length == 6,
+            ) { Text("Pair & connect") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}

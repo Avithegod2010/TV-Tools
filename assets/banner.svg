@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a1f10"/>
+      <stop offset="55%" stop-color="#0d2b16"/>
+      <stop offset="100%" stop-color="#06130a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="420" rx="28" fill="url(#bg)"/>
+  <ellipse cx="640" cy="160" rx="470" ry="200" fill="url(#glow)"/>
+
+  <!-- TV -->
+  <g transform="translate(690 80)">
+    <rect x="0" y="0" width="400" height="240" rx="22" fill="#0f1f14" stroke="#2c5137" stroke-width="4"/>
+    <rect x="24" y="24" width="352" height="176" rx="12" fill="#08130b"/>
+    <!-- mini app tiles -->
+    <rect x="48" y="48" width="88" height="52" rx="10" fill="#123a20"/>
+    <rect x="150" y="48" width="88" height="52" rx="10" fill="#123a20"/>
+    <rect x="252" y="48" width="100" height="52" rx="10" fill="#123a20"/>
+    <rect x="48" y="118" width="150" height="14" rx="7" fill="#1f4a2c"/>
+    <rect x="48" y="146" width="110" height="14" rx="7" fill="#1b4026"/>
+    <circle cx="310" cy="150" r="18" fill="url(#accent)"/>
+    <path d="M304 150l5 5 9 -10" stroke="#06130a" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- stand -->
+    <rect x="150" y="240" width="100" height="10" rx="5" fill="#2c5137"/>
+    <rect x="120" y="250" width="160" height="8" rx="4" fill="#2c5137"/>
+  </g>
+
+  <!-- Phone with remote -->
+  <g transform="translate(520 60) rotate(-8)">
+    <rect x="0" y="0" width="150" height="300" rx="26" fill="#0d1a10" stroke="#356b45" stroke-width="4"/>
+    <rect x="12" y="12" width="126" height="276" rx="18" fill="#08130b"/>
+    <circle cx="75" cy="66" r="26" fill="#123a20"/>
+    <path d="M75 80 V52 M63 64l12 12 12 -12" stroke="#4ade80" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="75" cy="150" r="34" fill="#123a20" stroke="#2c5137" stroke-width="3"/>
+    <circle cx="75" cy="150" r="18" fill="url(#accent)"/>
+    <rect x="34" y="212" width="82" height="16" rx="8" fill="#1b4026"/>
+    <rect x="34" y="242" width="82" height="16" rx="8" fill="#1b4026"/>
+  </g>
+
+  <!-- Copy -->
+  <text x="72" y="140" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="64" font-weight="800" fill="#f2fff5">TV <tspan fill="#4ade80">Tools</tspan></text>
+  <text x="74" y="192" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="25" fill="#9fd8ad">Your TV, in your pocket.</text>
+  <text x="74" y="232" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="18" fill="#6f9a7c">Wireless ADB · Apps · Files · Shell · Mirroring · Remote</text>
+
+  <rect x="74" y="270" width="150" height="38" rx="19" fill="#123a20" stroke="#2c5137"/>
+  <text x="149" y="295" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="16" fill="#4ade80" text-anchor="middle">Android + Compose</text>
+  <rect x="236" y="270" width="110" height="38" rx="19" fill="#123a20" stroke="#2c5137"/>
+  <text x="291" y="295" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="16" fill="#4ade80" text-anchor="middle">MIT</text>
+
+  <text x="74" y="360" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="15" fill="#4f755a">No root · No accounts · Local network only</text>
+</svg>
