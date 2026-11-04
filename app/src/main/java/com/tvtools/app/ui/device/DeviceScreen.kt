@@ -61,6 +61,8 @@ fun DeviceScreen(
     onBack: () -> Unit,
     onOpenFiles: () -> Unit,
     onOpenMirror: () -> Unit,
+    onOpenBackups: () -> Unit,
+    onOpenStorage: () -> Unit,
     viewModel: DeviceViewModel = viewModel(),
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -183,8 +185,12 @@ fun DeviceScreen(
                 label = "tabs",
             ) { tab ->
                 when (tab) {
-                    0 -> ToolsTab(onOpenFiles = onOpenFiles, onOpenMirror = onOpenMirror)
-                    1 -> AppsTab()
+                    0 -> ToolsTab(
+                        onOpenFiles = onOpenFiles,
+                        onOpenMirror = onOpenMirror,
+                        onOpenStorage = onOpenStorage,
+                    )
+                    1 -> AppsTab(onOpenBackups = onOpenBackups)
                     2 -> ShellTab()
                     3 -> InfoTab(viewModel = viewModel)
                 }

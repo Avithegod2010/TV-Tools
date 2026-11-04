@@ -111,28 +111,72 @@ class ToolsViewModel : ViewModel() {
         if (_ui.value.busyLabel != null) return
         _ui.value = _ui.value.copy(busyLabel = "Installing…", progress = 0f)
         viewModelScope.launch {
+            var apksToDelete = emptyList<java.io.File>()
             try {
-                val apk = withContext(Dispatchers.IO) { copyUriToCache(uri, ".apk") }
-                if (apk == null) {
-                    _messages.emit("Couldn't read the selected APK")
+                val picked = withContext(Dispatchers.IO) { copyUriToCache(uri, ".apk") }
+                if (picked == null) {
+                    _messages.emit("Couldn't read the selected file")
                     return@launch
                 }
-                val total = apk.length().coerceAtLeast(1)
-                val result = adb.installApk(apk) { done ->
-                    _ui.value = _ui.value.copy(progress = done.toFloat() / total)
-                }
-                apk.delete()
-                if (result.contains("Success", ignoreCase = true)) {
-                    _messages.emit("✅ Installed successfully")
+                val name = picked.name.lowercase()
+                if (name.endsWith(".apks") || name.endsWith(".xapk") || name.endsWith(".zip")) {
+                    _ui.value = _ui.value.copy(busyLabel = "Extracting…", progress = -1f)
+                    val dir = java.io.File(context.cacheDir, "split_${System.currentTimeMillis()}")
+                    val apks = withContext(Dispatchers.IO) { unzipApks(picked, dir) }
+                    picked.delete()
+                    apksToDelete = apks
+                    if (apks.isEmpty()) {
+                        _messages.emit("No APK files found in the archive")
+                        return@launch
+                    }
+                    _ui.value = _ui.value.copy(busyLabel = "Installing ${apks.size} APKs…", progress = 0f)
+                    val total = apks.sumOf { it.length() }.coerceAtLeast(1)
+                    val result = adb.installSplitApk(apks) { done ->
+                        _ui.value = _ui.value.copy(progress = done.toFloat() / total)
+                    }
+                    if (result.contains("Success", ignoreCase = true)) {
+                        _messages.emit("✅ Installed successfully (${apks.size} APKs)")
+                    } else {
+                        _messages.emit("Install result: ${result.trim().ifBlank { "unknown" }}")
+                    }
                 } else {
-                    _messages.emit("Install result: ${result.trim().ifBlank { "unknown" }}")
+                    val total = picked.length().coerceAtLeast(1)
+                    val result = adb.installApk(picked) { done ->
+                        _ui.value = _ui.value.copy(progress = done.toFloat() / total)
+                    }
+                    picked.delete()
+                    if (result.contains("Success", ignoreCase = true)) {
+                        _messages.emit("✅ Installed successfully")
+                    } else {
+                        _messages.emit("Install result: ${result.trim().ifBlank { "unknown" }}")
+                    }
                 }
             } catch (e: Exception) {
                 _messages.emit("Install failed: ${e.message}")
             } finally {
+                apksToDelete.forEach { it.parentFile?.deleteRecursively() }
                 _ui.value = _ui.value.copy(busyLabel = null, progress = -1f)
             }
         }
+    }
+
+    private fun unzipApks(archive: java.io.File, dir: java.io.File): List<java.io.File> {
+        dir.mkdirs()
+        try {
+            java.util.zip.ZipInputStream(archive.inputStream().buffered()).use { zis ->
+                var entry = zis.nextEntry
+                var count = 0
+                while (entry != null && count < 50) {
+                    if (!entry.isDirectory && entry.name.endsWith(".apk", ignoreCase = true)) {
+                        val out = java.io.File(dir, "split_${count++}.apk")
+                        out.outputStream().use { zis.copyTo(it) }
+                    }
+                    entry = zis.nextEntry
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return dir.listFiles { f -> f.extension.equals("apk", true) }?.toList() ?: emptyList()
     }
 
     fun uploadToDownloads(uri: Uri) {

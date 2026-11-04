@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.1-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-1.2-166d32" alt="Version" />
   </p>
 </div>
 
@@ -24,17 +24,19 @@
 
 | | |
 |---|---|
-| 📡 **Wireless ADB** | Auto-discovery (mDNS + LAN scan), Android 11+ pairing codes, Fire TV legacy ADB, auto-reconnect |
-| 🛠 **Tools** | Install APK, upload to TV, clear caches, live screenshots (update / share / save) |
+| 📡 **Wireless ADB** | Auto-discovery (mDNS + LAN scan), Android 11+ pairing codes, Fire TV legacy ADB, auto-reconnect, **multi-TV dashboard** |
+| 🛠 **Tools** | Install APK / **.apks / .xapk**, upload to TV, clear caches, live screenshots, **storage analyzer** |
 | 📺 **Screen mirroring** | Live TV view with tap & swipe control, LIVE fps counter, on-screen back/home/menu keys |
 | 📤 **Share to TV** | Send photos, videos or APKs from Android's share sheet — the app uploads and opens/installs them |
-| 🧩 **Apps** | Browse all apps with icons & sizes, launch, uninstall, extract APK, force stop, clear data, disable |
-| 🗂 **File manager** | Browse TV storage, thumbnails, upload, download, rename, delete |
+| 🧩 **Apps** | Browse apps with icons & sizes, launch, uninstall, extract APK, force stop, clear data, disable, **multi-select** |
+| 💾 **Backup & restore** | **Bulk backup any apps (base + splits)** with metadata, one-tap restore via `pm install-multiple` |
+| 🗂 **File manager** | Browse TV storage, thumbnails, upload, **multi-select**, copy/move, image/text previews, **download queue** |
 | 💻 **Shell** | Interactive ADB shell with CTRL+C, clear and copy |
 | 🎛 **Remote** | Modern remote sheet: D-Pad ↔ touchpad, media keys, volume, text input, power menu |
 | ⚡ **Power** | Sleep, power toggle, restart, and Wake-on-LAN |
 | 📊 **Device info** | Storage / RAM / CPU gauges, network usage, uptime |
 | 🎨 **Themes & haptics** | System/Light/Dark, 5 accent colors incl. Material You, haptic feedback |
+| 🧩 **System integration** | **Quick Settings tile** ("TV Remote") + **home-screen remote widget**, onboarding, splash screen |
 
 ## 🔐 Privacy & security
 
@@ -47,7 +49,7 @@
 
 ## 🚀 Install
 
-1. Download the latest APK from [Releases](../../releases).
+1. Download the latest **signed** APK from [Releases](../../releases).
 2. Allow installs from unknown sources and install it.
 3. Put your phone and TV on the **same Wi-Fi**.
 
@@ -67,8 +69,19 @@
 
 ```bash
 # Requirements: JDK 17, Android SDK 35
-./gradlew assembleDebug
+./gradlew assembleDebug      # debug APK
+./gradlew assembleRelease    # signed release (add keystore.properties)
+
 # APK → app/build/outputs/apk/debug/app-debug.apk
+#       app/build/outputs/apk/release/app-release.apk
+```
+
+Release signing uses `keystore.properties` (git-ignored):
+```properties
+storeFile=tvtools-release.jks
+storePassword=…
+keyAlias=tvtools
+keyPassword=…
 ```
 
 ## 🗺 Roadmap
@@ -78,10 +91,13 @@
 - [x] Screen mirroring with touch control
 - [x] Share-to-TV + Wake-on-LAN
 - [x] Themes, haptics, modern remote
-- [ ] Bulk app backup & restore (split APKs)
-- [ ] Storage analyzer & cleanup
-- [ ] Multi-TV dashboard
-- [ ] Quick Settings tile & home-screen widget
+- [x] Bulk app backup & restore (split APKs)
+- [x] Storage analyzer & cleanup
+- [x] Multi-TV dashboard
+- [x] Quick Settings tile & home-screen widget
+- [x] Onboarding, splash screen, themed icon
+- [ ] Cast media to TV using Cast/DIAL protocols
+- [ ] Desktop/tablet layouts
 
 ## 🤝 Contributing
 

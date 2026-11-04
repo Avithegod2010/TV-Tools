@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -57,6 +58,7 @@ import com.tvtools.app.ui.common.InfoCard
 fun ToolsTab(
     onOpenFiles: () -> Unit,
     onOpenMirror: () -> Unit,
+    onOpenStorage: () -> Unit,
     viewModel: ToolsViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
@@ -90,7 +92,7 @@ fun ToolsTab(
                     title = "Install",
                     icon = { Icon(Icons.Default.Download, null) },
                     modifier = Modifier.weight(1f),
-                    onClick = { apkPicker.launch("application/vnd.android.package-archive") },
+                    onClick = { apkPicker.launch("*/*") },
                 )
                 ToolAction(
                     title = "Upload to\nDownloads",
@@ -151,6 +153,40 @@ fun ToolsTab(
                     Icon(
                         Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Storage analyzer banner
+            Card(
+                onClick = onOpenStorage,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+                ),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.Folder, null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp),
+                    )
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Storage analyzer", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Find what's filling up your TV and clean it",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

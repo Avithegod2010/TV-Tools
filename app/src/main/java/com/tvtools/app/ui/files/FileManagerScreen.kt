@@ -4,7 +4,9 @@ import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,22 +20,28 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -57,7 +65,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -73,55 +83,80 @@ fun FileManagerScreen(
     viewModel: FilesViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
+    val preview by viewModel.preview.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
     var renameTarget by remember { mutableStateOf<FileItem?>(null) }
     var deleteTarget by remember { mutableStateOf<FileItem?>(null) }
     var showMkdir by remember { mutableStateOf(false) }
+    var transferMove by remember { mutableStateOf(false) }
+    var showTransfer by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        viewModel.messages.collect { snackbar.showSnackbar(it) }
-    }
+    LaunchedEffect(Unit) { viewModel.messages.collect { snackbar.showSnackbar(it) } }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let(viewModel::upload)
     }
 
+    val selecting = ui.selection.isNotEmpty()
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("File manager", fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = { if (viewModel.isAtRoot) onBack() else viewModel.up() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showMkdir = true }) {
-                        Icon(Icons.Default.Create, "New folder")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
+            if (selecting) {
+                TopAppBar(
+                    title = { Text("${ui.selection.size} selected") },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(Icons.Default.Check, "Done")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.selectAll() }) {
+                            Icon(Icons.Default.SelectAll, "Select all")
+                        }
+                        IconButton(onClick = { viewModel.downloadSelected() }) {
+                            Icon(Icons.Default.Download, "Download")
+                        }
+                        IconButton(onClick = { transferMove = false; showTransfer = true }) {
+                            Icon(Icons.Default.Folder, "Copy to")
+                        }
+                        IconButton(onClick = { viewModel.deleteSelected() }) {
+                            Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    ),
+                )
+            } else {
+                TopAppBar(
+                    title = { Text("File manager", fontWeight = FontWeight.SemiBold) },
+                    navigationIcon = {
+                        IconButton(onClick = { if (viewModel.isAtRoot) onBack() else viewModel.up() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { showMkdir = true }) {
+                            Icon(Icons.Default.Create, "New folder")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
+                )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { picker.launch("*/*") },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ) {
-                Icon(Icons.Default.Add, "Upload file")
-            }
+            ) { Icon(Icons.Default.Add, "Upload file") }
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
+        Column(Modifier.fillMaxSize().padding(padding)) {
             Breadcrumbs(
                 path = ui.path,
                 onNavigate = { viewModel.navigateTo(it) },
@@ -131,9 +166,7 @@ fun FileManagerScreen(
             if (ui.uploadProgress >= 0f) {
                 LinearProgressIndicator(
                     progress = { ui.uploadProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 )
                 Spacer(Modifier.height(4.dp))
             }
@@ -145,15 +178,19 @@ fun FileManagerScreen(
                     modifier = Modifier.padding(24.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                else -> LazyColumn(Modifier.fillMaxSize()) {
+                else -> LazyColumn(Modifier.weight(1f)) {
                     items(ui.entries, key = { it.path }) { item ->
                         FileRow(
                             item = item,
+                            selected = item.path in ui.selection,
+                            selecting = selecting,
                             onClick = {
-                                if (item.isDir) viewModel.navigateTo(item.path)
-                                else viewModel.download(item)
+                                if (selecting) viewModel.toggleSelection(item.path)
+                                else if (item.isDir) viewModel.navigateTo(item.path)
+                                else viewModel.preview(item)
                             },
-                            onDownload = { viewModel.download(item) },
+                            onLongClick = { viewModel.toggleSelection(item.path) },
+                            onDownload = { viewModel.enqueueDownload(item) },
                             onRename = { renameTarget = item },
                             onDelete = { deleteTarget = item },
                         )
@@ -161,7 +198,43 @@ fun FileManagerScreen(
                     item { Spacer(Modifier.height(90.dp)) }
                 }
             }
+
+            if (ui.downloadLabel != null || ui.queueRemaining > 0) {
+                Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer)) {
+                    LinearProgressIndicator(
+                        progress = { if (ui.downloadProgress >= 0f) ui.downloadProgress else 0f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Download, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            buildString {
+                                append(ui.downloadLabel ?: "Downloading…")
+                                if (ui.queueRemaining > 0) append("  (+${ui.queueRemaining} queued)")
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    if (showTransfer) {
+        TextInputDialog(
+            title = if (transferMove) "Move selected to" else "Copy selected to",
+            initial = "/sdcard/Download",
+            confirmLabel = if (transferMove) "Move" else "Copy",
+            onDismiss = { showTransfer = false },
+            onConfirm = { dest ->
+                if (transferMove) viewModel.moveSelected(dest) else viewModel.copySelected(dest)
+                showTransfer = false
+            },
+        )
     }
 
     renameTarget?.let { target ->
@@ -178,7 +251,12 @@ fun FileManagerScreen(
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text("Delete ${target.name}?") },
-            text = { Text(if (target.isDir) "The folder and all its contents will be deleted from the TV." else "The file will be deleted from the TV.") },
+            text = {
+                Text(
+                    if (target.isDir) "The folder and all its contents will be deleted from the TV."
+                    else "The file will be deleted from the TV."
+                )
+            },
             confirmButton = {
                 Button(onClick = { viewModel.delete(target); deleteTarget = null }) { Text("Delete") }
             },
@@ -195,15 +273,54 @@ fun FileManagerScreen(
             onConfirm = { viewModel.mkdir(it); showMkdir = false },
         )
     }
+
+    preview?.let { p ->
+        PreviewDialog(p, onDismiss = { viewModel.dismissPreview() })
+    }
 }
 
 @Composable
-private fun Breadcrumbs(
-    path: String,
-    onNavigate: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    // "/sdcard/Movies/atv" -> Home > Movies > atv
+private fun PreviewDialog(p: FilePreview, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Preview") },
+        text = {
+            when (p) {
+                is FilePreview.Image -> {
+                    val bmp = remember(p.file.absolutePath) {
+                        BitmapFactory.decodeFile(p.file.absolutePath)?.asImageBitmap()
+                    }
+                    if (bmp != null) {
+                        Image(
+                            bitmap = bmp,
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                        )
+                    } else {
+                        Text("Couldn't decode image")
+                    }
+                }
+                is FilePreview.Text -> {
+                    Text(
+                        p.content,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .height(360.dp)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                    )
+                }
+                is FilePreview.Message -> Text(p.text)
+            }
+        },
+    )
+}
+
+@Composable
+private fun Breadcrumbs(path: String, onNavigate: (String) -> Unit, modifier: Modifier = Modifier) {
     val rel = path.removePrefix("/sdcard").trim('/')
     val parts = if (rel.isBlank()) emptyList() else rel.split("/")
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -220,7 +337,7 @@ private fun Breadcrumbs(
             val target = accum
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
+                null,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -240,7 +357,10 @@ private fun Breadcrumbs(
 @Composable
 private fun FileRow(
     item: FileItem,
+    selected: Boolean,
+    selecting: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onDownload: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
@@ -248,10 +368,20 @@ private fun FileRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .background(
+                if (selected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+                else MaterialTheme.colorScheme.surface
+            )
+            .pointerInput(item.path, selecting) {
+                detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
+            }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selecting) {
+            Checkbox(checked = selected, onCheckedChange = { onClick() })
+            Spacer(Modifier.width(4.dp))
+        }
         FileThumb(item)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -269,28 +399,30 @@ private fun FileRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        var menuOpen by remember { mutableStateOf(false) }
-        Box {
-            IconButton(onClick = { menuOpen = true }) {
-                Icon(Icons.Default.MoreVert, "Actions")
-            }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                if (!item.isDir) {
+        if (!selecting) {
+            var menuOpen by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(Icons.Default.MoreVert, "Actions")
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    if (!item.isDir) {
+                        DropdownMenuItem(
+                            text = { Text("Download") },
+                            leadingIcon = { Icon(Icons.Default.Download, null) },
+                            onClick = { menuOpen = false; onDownload() },
+                        )
+                    }
                     DropdownMenuItem(
-                        text = { Text("Download") },
-                        leadingIcon = { Icon(Icons.Default.Download, null) },
-                        onClick = { menuOpen = false; onDownload() },
+                        text = { Text("Rename") },
+                        onClick = { menuOpen = false; onRename() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        leadingIcon = { Icon(Icons.Default.Delete, null) },
+                        onClick = { menuOpen = false; onDelete() },
                     )
                 }
-                DropdownMenuItem(
-                    text = { Text("Rename") },
-                    onClick = { menuOpen = false; onRename() },
-                )
-                DropdownMenuItem(
-                    text = { Text("Delete") },
-                    leadingIcon = { Icon(Icons.Default.Delete, null) },
-                    onClick = { menuOpen = false; onDelete() },
-                )
             }
         }
     }
@@ -305,44 +437,30 @@ private fun FileThumb(item: FileItem) {
             bitmap = bitmap,
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(8.dp)),
+            modifier = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)),
         )
         item.isDir -> Icon(
             Icons.Default.Folder,
-            contentDescription = null,
+            null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(42.dp),
         )
-        else -> FileGlyph(name = item.name)
-    }
-}
-
-@Composable
-private fun FileGlyph(name: String) {
-    val ext = name.substringAfterLast('.', "").uppercase().take(4)
-    Box(
-        modifier = Modifier
-            .size(42.dp)
-            .clip(RoundedCornerShape(8.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        androidx.compose.foundation.layout.Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+        else -> Box(
+            modifier = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                Icons.Default.Download, contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
-            Text(
-                ext,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = androidx.compose.ui.unit.TextUnit(8f, androidx.compose.ui.unit.TextUnitType.Sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Default.Download, null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    item.name.substringAfterLast('.', "").uppercase().take(4),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -359,9 +477,7 @@ private fun TextInputDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = {
-            OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true)
-        },
+        text = { OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true) },
         confirmButton = {
             Button(onClick = { onConfirm(text) }, enabled = text.isNotBlank()) { Text(confirmLabel) }
         },

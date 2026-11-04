@@ -29,6 +29,7 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accent: Accent = Accent.GREEN,
     val haptics: Boolean = true,
+    val onboardingDone: Boolean = false,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -36,6 +37,7 @@ class SettingsRepository(private val context: Context) {
     private val KEY_MODE = stringPreferencesKey("theme_mode")
     private val KEY_ACCENT = stringPreferencesKey("accent")
     private val KEY_HAPTICS = booleanPreferencesKey("haptics")
+    private val KEY_ONBOARDING = booleanPreferencesKey("onboarding_done")
 
     private val _state = MutableStateFlow(AppSettings())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
@@ -51,6 +53,7 @@ class SettingsRepository(private val context: Context) {
                 accent = runCatching { Accent.valueOf(p[KEY_ACCENT] ?: "GREEN") }
                     .getOrDefault(Accent.GREEN),
                 haptics = p[KEY_HAPTICS] ?: true,
+                onboardingDone = p[KEY_ONBOARDING] ?: false,
             )
         }
     }
@@ -68,5 +71,10 @@ class SettingsRepository(private val context: Context) {
     fun setHaptics(enabled: Boolean) {
         _state.value = _state.value.copy(haptics = enabled)
         scope.launch { context.settingsStore.edit { it[KEY_HAPTICS] = enabled } }
+    }
+
+    fun setOnboardingDone() {
+        _state.value = _state.value.copy(onboardingDone = true)
+        scope.launch { context.settingsStore.edit { it[KEY_ONBOARDING] = true } }
     }
 }

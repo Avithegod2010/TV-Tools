@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -26,14 +27,18 @@ import androidx.navigation.navArgument
 import com.tvtools.app.ui.common.LocalHapticsEnabled
 import com.tvtools.app.ui.device.DeviceScreen
 import com.tvtools.app.ui.files.FileManagerScreen
+import com.tvtools.app.ui.apps.BackupsScreen
 import com.tvtools.app.ui.home.HomeScreen
 import com.tvtools.app.ui.mirror.MirrorScreen
+import com.tvtools.app.ui.onboarding.OnboardingScreen
 import com.tvtools.app.ui.share.ShareToTvDialog
+import com.tvtools.app.ui.storage.StorageScreen
 import com.tvtools.app.ui.theme.TvToolsTheme
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         AppServices.init(applicationContext)
         handleShareIntent(intent)
@@ -43,7 +48,11 @@ class MainActivity : ComponentActivity() {
             TvToolsTheme(settings = settings) {
                 CompositionLocalProvider(LocalHapticsEnabled provides settings.haptics) {
                     Surface(modifier = Modifier.fillMaxSize()) {
-                        AppNav()
+                        if (settings.onboardingDone) {
+                            AppNav()
+                        } else {
+                            OnboardingScreen(onDone = { AppServices.settings.setOnboardingDone() })
+                        }
                     }
                 }
             }
@@ -70,6 +79,7 @@ class MainActivity : ComponentActivity() {
             AppServices.pendingShare.value = uri to intent.type
         }
     }
+
 }
 
 @Composable
@@ -106,10 +116,18 @@ private fun AppNav() {
                 onBack = { nav.popBackStack("home", inclusive = false) },
                 onOpenFiles = { nav.navigate("files") },
                 onOpenMirror = { nav.navigate("mirror/${Uri.encode(name)}") },
+                onOpenBackups = { nav.navigate("backups") },
+                onOpenStorage = { nav.navigate("storage") },
             )
         }
         composable("files") {
             FileManagerScreen(onBack = { nav.popBackStack() })
+        }
+        composable("backups") {
+            BackupsScreen(onBack = { nav.popBackStack() })
+        }
+        composable("storage") {
+            StorageScreen(onBack = { nav.popBackStack() })
         }
         composable(
             route = "mirror/{name}",

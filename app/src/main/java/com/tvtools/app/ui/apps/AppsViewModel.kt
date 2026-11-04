@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
 import com.tvtools.app.TvToolsApp
+import com.tvtools.app.data.BackupManager
 import com.tvtools.app.data.TvApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -32,6 +33,8 @@ data class AppsUiState(
     val onlyRunning: Boolean = false,
     val runningPkgs: Set<String> = emptySet(),
     val busyPkg: String? = null,
+    val busyLabel: String? = null,
+    val selection: Set<String> = emptySet(),
 ) {
     val visible: List<TvApp>
         get() {
@@ -125,22 +128,27 @@ class AppsViewModel : ViewModel() {
         }
     }
 
-    /** One `stat` call for all APK paths → map path -> bytes. */
+    /**
+     * `stat` APK paths in small chunks → map path -> bytes.
+     * Chunking matters: some TV adbd builds choke on long shell service strings.
+     */
     private suspend fun fetchSizes(paths: List<String>): Map<String, Long> {
         if (paths.isEmpty()) return emptyMap()
-        val quoted = paths.joinToString(" ") { "'" + it.replace("'", "'\\''") + "'" }
-        return try {
-            val out = adb.exec("stat -c '%s %n' $quoted 2>/dev/null", timeoutMs = 60_000)
-            out.replace("\r\n", "\n").lineSequence()
-                .mapNotNull { line ->
-                    val size = line.substringBefore(' ').toLongOrNull() ?: return@mapNotNull null
+        val result = HashMap<String, Long>()
+        paths.chunked(20).forEach { chunk ->
+            val quoted = chunk.joinToString(" ") { "'" + it.replace("'", "'\\''") + "'" }
+            try {
+                val out = adb.exec("stat -c '%s %n' $quoted 2>/dev/null", timeoutMs = 30_000)
+                out.replace("\r\n", "\n").lineSequence().forEach { line ->
+                    val size = line.substringBefore(' ').toLongOrNull() ?: return@forEach
                     val path = line.substringAfter(' ')
-                    path to size
+                    result[path] = size
                 }
-                .toMap()
-        } catch (_: Exception) {
-            emptyMap()
+            } catch (_: Exception) {
+                // try the remaining chunks anyway
+            }
         }
+        return result
     }
 
     private fun loadRunningPkgs() {
@@ -260,6 +268,41 @@ class AppsViewModel : ViewModel() {
     // ---------------- filters ----------------
 
     fun setSearch(q: String) { _ui.value = _ui.value.copy(search = q) }
+
+    // ---------------- selection & backup ----------------
+
+    fun toggleSelection(pkg: String) {
+        val sel = _ui.value.selection
+        _ui.value = _ui.value.copy(selection = if (pkg in sel) sel - pkg else sel + pkg)
+    }
+
+    fun clearSelection() {
+        _ui.value = _ui.value.copy(selection = emptySet())
+    }
+
+    fun backupSelected() {
+        val apps = _ui.value.apps.filter { it.packageName in _ui.value.selection }
+        if (apps.isEmpty() || _ui.value.busyLabel != null) return
+        viewModelScope.launch {
+            var ok = 0
+            apps.forEachIndexed { index, app ->
+                _ui.value = _ui.value.copy(busyLabel = "Backing up ${index + 1}/${apps.size}: ${app.label ?: app.packageName}")
+                try {
+                    BackupManager(context).create(AppServices.adb, app)
+                    ok++
+                } catch (e: Exception) {
+                    _messages.emit("Backup failed for ${app.packageName}: ${e.message}")
+                }
+            }
+            _ui.value = _ui.value.copy(busyLabel = null)
+            clearSelection()
+            _messages.emit("✅ Backed up $ok app(s) — see App backups")
+        }
+    }
+
+    fun selectAll() {
+        _ui.value = _ui.value.copy(selection = _ui.value.visible.map { it.packageName }.toSet())
+    }
     fun toggleSort() {
         _ui.value = _ui.value.copy(sort = if (_ui.value.sort == AppSort.NAME) AppSort.SIZE else AppSort.NAME)
     }

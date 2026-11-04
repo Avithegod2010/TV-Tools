@@ -2,7 +2,10 @@ package com.tvtools.app.ui.apps
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,8 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -34,6 +39,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -54,7 +60,7 @@ import com.tvtools.app.data.TvApp
 import com.tvtools.app.ui.common.formatBytes
 
 @Composable
-fun AppsTab(viewModel: AppsViewModel = viewModel()) {
+fun AppsTab(onOpenBackups: () -> Unit, viewModel: AppsViewModel = viewModel()) {
     val ui by viewModel.ui.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
@@ -64,6 +70,44 @@ fun AppsTab(viewModel: AppsViewModel = viewModel()) {
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (ui.selection.isNotEmpty()) {
+                    Text(
+                        "${ui.selection.size} selected",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = viewModel::selectAll) { Text("All") }
+                    TextButton(onClick = viewModel::backupSelected) { Text("Backup") }
+                    TextButton(onClick = viewModel::clearSelection) { Text("Cancel") }
+                } else {
+                    Text(
+                        "Installed apps",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onOpenBackups) {
+                        Icon(Icons.Default.Folder, contentDescription = "App backups")
+                    }
+                }
+            }
+
+            ui.busyLabel?.let { label ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                }
+            }
+
             OutlinedTextField(
                 value = ui.search,
                 onValueChange = viewModel::setSearch,
@@ -105,6 +149,13 @@ fun AppsTab(viewModel: AppsViewModel = viewModel()) {
                         AppRow(
                             app = app,
                             busy = ui.busyPkg == app.packageName,
+                            selected = app.packageName in ui.selection,
+                            selecting = ui.selection.isNotEmpty(),
+                            onClick = {
+                                if (ui.selection.isNotEmpty()) viewModel.toggleSelection(app.packageName)
+                                else viewModel.launch(app)
+                            },
+                            onLongClick = { viewModel.toggleSelection(app.packageName) },
                             onAction = { action -> handleAction(action, app, viewModel) },
                             onVisible = { viewModel.ensureDetails(app) },
                         )
@@ -140,6 +191,10 @@ private fun handleAction(action: AppAction, app: TvApp, vm: AppsViewModel) {
 private fun AppRow(
     app: TvApp,
     busy: Boolean,
+    selected: Boolean,
+    selecting: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onAction: (AppAction) -> Unit,
     onVisible: () -> Unit,
 ) {
@@ -147,9 +202,20 @@ private fun AppRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(
+                if (selected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+                else MaterialTheme.colorScheme.surface
+            )
+            .pointerInput(app.packageName, selecting) {
+                detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
+            }
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selecting) {
+            Checkbox(checked = selected, onCheckedChange = { onClick() })
+            Spacer(Modifier.width(2.dp))
+        }
         AppIcon(app)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

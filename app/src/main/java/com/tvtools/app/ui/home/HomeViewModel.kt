@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val devices: List<TvDevice> = emptyList(),
+    val savedDevices: List<TvDevice> = emptyList(),
     val scanning: Boolean = true,
     val lastConnected: TvDevice? = null,
     val connectingTo: TvDevice? = null,
@@ -53,7 +54,7 @@ class HomeViewModel : ViewModel() {
         startDiscovery()
         viewModelScope.launch {
             val last = prefs.loadLastDevice()
-            _ui.value = _ui.value.copy(lastConnected = last)
+            _ui.value = _ui.value.copy(lastConnected = last, savedDevices = prefs.loadDevices())
             // Auto-reconnect: quietly try the last TV (twice) so the app is usable immediately.
             if (last != null && !adb.isConnected) {
                 _ui.value = _ui.value.copy(connectingTo = last)
@@ -76,7 +77,12 @@ class HomeViewModel : ViewModel() {
                 if (connected) {
                     val friendly = friendlyName(last)
                     prefs.saveLastDevice(friendly)
-                    _ui.value = _ui.value.copy(connectingTo = null, lastConnected = friendly)
+                    prefs.saveDevice(friendly)
+                    _ui.value = _ui.value.copy(
+                        connectingTo = null,
+                        lastConnected = friendly,
+                        savedDevices = prefs.loadDevices(),
+                    )
                     _events.emit(HomeEvent.Connected(friendly))
                 } else {
                     _ui.value = _ui.value.copy(connectingTo = null)
@@ -88,6 +94,14 @@ class HomeViewModel : ViewModel() {
             if (adb.isConnected) {
                 adb.getMacAddress()?.let { prefs.saveLastMac(it) }
             }
+        }
+    }
+
+    /** Remove a saved TV from the dashboard (does not affect the last-connected card). */
+    fun removeSavedDevice(host: String) {
+        viewModelScope.launch {
+            prefs.removeDevice(host)
+            _ui.value = _ui.value.copy(savedDevices = prefs.loadDevices())
         }
     }
 
@@ -136,7 +150,12 @@ class HomeViewModel : ViewModel() {
                 AdbClient.ConnectResult.Success -> {
                     val friendly = friendlyName(device)
                     prefs.saveLastDevice(friendly)
-                    _ui.value = _ui.value.copy(connectingTo = null, lastConnected = friendly)
+                    prefs.saveDevice(friendly)
+                    _ui.value = _ui.value.copy(
+                        connectingTo = null,
+                        lastConnected = friendly,
+                        savedDevices = prefs.loadDevices(),
+                    )
                     _events.emit(HomeEvent.Connected(friendly))
                 }
                 AdbClient.ConnectResult.PairingRequired -> {
@@ -200,7 +219,12 @@ class HomeViewModel : ViewModel() {
                 AdbClient.ConnectResult.Success -> {
                     val friendly = friendlyName(target)
                     prefs.saveLastDevice(friendly)
-                    _ui.value = _ui.value.copy(connectingTo = null, lastConnected = friendly)
+                    prefs.saveDevice(friendly)
+                    _ui.value = _ui.value.copy(
+                        connectingTo = null,
+                        lastConnected = friendly,
+                        savedDevices = prefs.loadDevices(),
+                    )
                     _events.emit(HomeEvent.Connected(friendly))
                 }
                 else -> {

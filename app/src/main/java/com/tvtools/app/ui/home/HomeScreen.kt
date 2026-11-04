@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -145,6 +148,37 @@ fun HomeScreen(
                     onClick = { haptics(); viewModel.connect(last) },
                 )
                 Spacer(Modifier.height(20.dp))
+            }
+
+            if (ui.savedDevices.isNotEmpty()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        "My TVs",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        "hold to remove",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(ui.savedDevices, key = { it.host }) { saved ->
+                        SavedDeviceChip(
+                            device = saved,
+                            connecting = ui.connectingTo?.host == saved.host,
+                            onClick = { haptics(); viewModel.connect(saved) },
+                            onLongClick = { viewModel.removeSavedDevice(saved.host) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
             }
 
             Row(
@@ -330,6 +364,59 @@ fun HomeScreen(
                 )
             },
         )
+    }
+}
+
+@Composable
+private fun SavedDeviceChip(
+    device: TvDevice,
+    connecting: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+        ),
+        modifier = Modifier
+            .width(190.dp)
+            .pointerInput(device.host) {
+                detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
+            },
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.Tv, null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    device.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                Text(
+                    device.host,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+            if (connecting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    strokeCap = StrokeCap.Round,
+                )
+            }
+        }
     }
 }
 

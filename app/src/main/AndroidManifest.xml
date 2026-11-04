@@ -13,7 +13,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.TvTools"
+        android:theme="@style/Theme.TvTools.Starting"
         tools:targetApi="34">
 
         <activity
@@ -47,5 +47,29 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Quick Settings tile -->
+        <service
+            android:name=".tile.RemoteTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_remote"
+            android:label="TV Remote"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Home-screen remote widget -->
+        <receiver
+            android:name=".widget.RemoteWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/remote_widget_info" />
+        </receiver>
     </application>
 </manifest>

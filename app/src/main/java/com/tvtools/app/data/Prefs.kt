@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 
@@ -50,5 +51,39 @@ class Prefs(private val context: Context) {
 
     suspend fun loadLastMac(): String? {
         return context.dataStore.data.first()[KEY_MAC]
+    }
+
+    // ---------------- multi-TV dashboard ----------------
+
+    private val KEY_SAVED = stringSetPreferencesKey("saved_devices")
+
+    suspend fun saveDevice(device: TvDevice) {
+        context.dataStore.edit { p ->
+            val entry = "${device.name}|${device.host}|${device.port}|${device.proto.name}"
+            val others = p[KEY_SAVED].orEmpty()
+                .filterNot { it.substringAfter('|').substringBefore('|') == device.host }
+            p[KEY_SAVED] = (others + entry).toSet()
+        }
+    }
+
+    suspend fun loadDevices(): List<TvDevice> {
+        return context.dataStore.data.first()[KEY_SAVED].orEmpty().mapNotNull { raw ->
+            val parts = raw.split('|')
+            if (parts.size < 4) return@mapNotNull null
+            TvDevice(
+                name = parts[0],
+                host = parts[1],
+                port = parts[2].toIntOrNull() ?: 5555,
+                proto = runCatching { DeviceProto.valueOf(parts[3]) }.getOrDefault(DeviceProto.TCP),
+            )
+        }
+    }
+
+    suspend fun removeDevice(host: String) {
+        context.dataStore.edit { p ->
+            p[KEY_SAVED] = p[KEY_SAVED].orEmpty()
+                .filterNot { it.split('|').getOrNull(1) == host }
+                .toSet()
+        }
     }
 }

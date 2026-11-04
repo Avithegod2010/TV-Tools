@@ -49,6 +49,15 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 - ADB private key + cert stay in app-private storage (`files/adbkeys`).
 - ADB TLS uses the library's trust-all manager (inherent to ADB pairing).
 
+## Feature map (v1.2)
+- Backup/restore: `data/BackupManager.kt` (APK paths via `pm path`, metadata in `meta.txt`), `ui/apps/BackupsScreen.kt`; split install via `AdbClient.installSplitApk` (`pm install-multiple`), `.apks/.xapk` unpacked in `ToolsViewModel`.
+- Storage analyzer: `ui/storage/` — `du -sk`, `find -size +50M` + batch `stat`.
+- Multi-TV: saved devices in `Prefs` (`stringSetPreferencesKey`), chips on Home.
+- File manager: multi-select + copy/move (`cp -r`/`mv`), previews, download queue in `FilesViewModel`.
+- QS tile: `tile/RemoteTileService.kt`; widget: `widget/RemoteWidgetProvider.kt` + `res/layout/widget_remote.xml` (signature permission guards the receiver).
+- Onboarding: `ui/onboarding/OnboardingScreen.kt` gated by `AppSettings.onboardingDone`; splash via core-splashscreen `Theme.TvTools.Starting`.
+- Signing: `keystore.properties` + `tvtools-release.jks` (both git-ignored), wired in `app/build.gradle.kts`.
+
 ## Conventions
 - All blocking ADB calls on `Dispatchers.IO`; UI via StateFlow.
 - Theme colors in `ui/theme/Theme.kt`.

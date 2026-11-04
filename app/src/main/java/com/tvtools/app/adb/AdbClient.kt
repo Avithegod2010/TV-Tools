@@ -285,6 +285,47 @@ class AdbClient(context: Context) {
             }
         }
 
+    /** All APK paths of a package (base + splits), in `pm path` order. */
+    suspend fun getPackagePaths(pkg: String): List<String> {
+        return exec("pm path $pkg", timeoutMs = 15_000)
+            .replace("\r\n", "\n").lineSequence()
+            .map { it.trim().removePrefix("package:") }
+            .filter { it.isNotBlank() }
+            .toList()
+    }
+
+    /**
+     * Install a split APK set (.apks/.xapk contents, or base + split files).
+     * Pushes every APK to /data/local/tmp and runs `pm install-multiple`.
+     */
+    suspend fun installSplitApk(apks: List<File>, onProgress: ((Long) -> Unit)? = null): String =
+        withContext(Dispatchers.IO) {
+            require(apks.isNotEmpty()) { "No APK files" }
+            val remotePaths = ArrayList<String>()
+            try {
+                var pushed = 0L
+                val total = apks.sumOf { it.length() }.coerceAtLeast(1)
+                apks.forEachIndexed { index, file ->
+                    val remote = "/data/local/tmp/tvtools_split_$index.apk"
+                    pushFile(file, remote) { done ->
+                        onProgress?.invoke(pushed + done)
+                    }
+                    pushed += file.length()
+                    onProgress?.invoke(pushed)
+                    remotePaths.add(remote)
+                }
+                exec(
+                    "pm install-multiple -r -g ${remotePaths.joinToString(" ")}",
+                    timeoutMs = 300_000,
+                )
+            } finally {
+                try {
+                    exec("rm -f ${remotePaths.joinToString(" ")} 2>/dev/null", timeoutMs = 20_000)
+                } catch (_: Exception) {
+                }
+            }
+        }
+
     suspend fun uninstallApp(pkg: String): String = exec("pm uninstall $pkg")
     suspend fun forceStopApp(pkg: String): String = exec("am force-stop $pkg")
     suspend fun clearAppData(pkg: String): String = exec("pm clear $pkg")
