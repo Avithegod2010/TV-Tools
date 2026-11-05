@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
@@ -362,6 +363,11 @@ fun HomeScreen(
                             text = { Text("Connect all saved TVs") },
                             leadingIcon = { Icon(Icons.Default.Refresh, null) },
                             onClick = { menuOpen = false; viewModel.connectAllSaved() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Rooms & groups") },
+                            leadingIcon = { Icon(Icons.Default.Home, null) },
+                            onClick = { menuOpen = false; onOpenTool("rooms") },
                         )
                         DropdownMenuItem(
                             text = { Text("Hotspot mode (no router)") },

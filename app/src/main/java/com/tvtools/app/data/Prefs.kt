@@ -129,4 +129,28 @@ class Prefs(private val context: Context) {
             ?.substringAfterLast('=')
             ?.toIntOrNull()
     }
+
+    // ---------------- rooms / groups ----------------
+
+    private val KEY_ROOMS = stringPreferencesKey("device_rooms")
+
+    suspend fun saveDeviceRoom(host: String, room: String) {
+        context.dataStore.edit { p ->
+            val current = p[KEY_ROOMS].orEmpty()
+                .split('\n')
+                .filter { it.isNotBlank() }
+                .filterNot { it.substringBeforeLast('=') == host }
+                .toMutableList()
+            val clean = room.trim().replace("\n", " ").replace("=", "-")
+            if (clean.isNotBlank()) current.add("$host=$clean")
+            p[KEY_ROOMS] = current.joinToString("\n")
+        }
+    }
+
+    suspend fun loadDeviceRooms(): Map<String, String> {
+        val raw = context.dataStore.data.first()[KEY_ROOMS].orEmpty()
+        return raw.split('\n')
+            .filter { it.contains('=') }
+            .associate { it.substringBeforeLast('=') to it.substringAfterLast('=') }
+    }
 }
