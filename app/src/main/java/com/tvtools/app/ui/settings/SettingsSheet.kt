@@ -150,6 +150,23 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             }
 
             Spacer(Modifier.height(18.dp))
+            SectionTitle("Connection")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Auto-connect", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Reconnect to your last TV on launch and when Wi-Fi returns",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.autoConnect,
+                    onCheckedChange = { repo.setAutoConnect(it) },
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
             SectionTitle("Remote")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 RemoteSkin.entries.forEach { skin ->

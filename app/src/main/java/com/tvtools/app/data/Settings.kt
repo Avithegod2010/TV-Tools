@@ -44,6 +44,7 @@ data class AppSettings(
     val remoteSkin: RemoteSkin = RemoteSkin.CIRCULAR,
     val appIcon: String = "default",
     val tvColor: Int = 0xFF166D32.toInt(),
+    val autoConnect: Boolean = true,
     val onboardingDone: Boolean = false,
     val automationCache: Boolean = false,
     val automationScreenshot: Boolean = false,
@@ -62,6 +63,7 @@ class SettingsRepository(private val context: Context) {
     private val KEY_SKIN = stringPreferencesKey("remote_skin")
     private val KEY_ICON = stringPreferencesKey("app_icon")
     private val KEY_TV_COLOR = androidx.datastore.preferences.core.intPreferencesKey("tv_color")
+    private val KEY_AUTO_CONNECT = booleanPreferencesKey("auto_connect")
 
     private val _state = MutableStateFlow(AppSettings())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
@@ -87,6 +89,7 @@ class SettingsRepository(private val context: Context) {
                     .getOrDefault(RemoteSkin.CIRCULAR),
                 appIcon = p[KEY_ICON] ?: "default",
                 tvColor = p[KEY_TV_COLOR] ?: 0xFF166D32.toInt(),
+                autoConnect = p[KEY_AUTO_CONNECT] ?: true,
             )
         }
     }
@@ -151,5 +154,10 @@ class SettingsRepository(private val context: Context) {
                 it[KEY_ACCENT] = Accent.TV.name
             }
         }
+    }
+
+    fun setAutoConnect(enabled: Boolean) {
+        _state.value = _state.value.copy(autoConnect = enabled)
+        scope.launch { context.settingsStore.edit { it[KEY_AUTO_CONNECT] = enabled } }
     }
 }

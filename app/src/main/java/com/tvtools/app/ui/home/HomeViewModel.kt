@@ -52,6 +52,8 @@ class HomeViewModel : ViewModel() {
     val events: SharedFlow<HomeEvent> = _events.asSharedFlow()
 
     private var discoveryJob: Job? = null
+    private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
+    private var autoConnectJob: Job? = null
 
     init {
         startDiscovery()
@@ -62,8 +64,8 @@ class HomeViewModel : ViewModel() {
                 savedDevices = prefs.loadDevices(),
                 lastThumbPath = last?.let { thumbFile(it.host)?.takeIf { f -> f.exists() }?.absolutePath },
             )
-            // Auto-reconnect: quietly try the last TV (twice) so the app is usable immediately.
-            if (last != null && !adb.isConnected) {
+            // Auto-reconnect (opt-in): try the last TV twice so the app is usable immediately.
+            if (last != null && !adb.isConnected && AppServices.settings.state.value.autoConnect) {
                 _ui.value = _ui.value.copy(connectingTo = last)
                 var connected = false
                 for (attempt in 0..1) {
@@ -102,6 +104,42 @@ class HomeViewModel : ViewModel() {
             if (adb.isConnected) {
                 adb.getMacAddress()?.let { prefs.saveLastMac(it) }
             }
+        }
+        registerNetworkWatcher()
+    }
+
+    /**
+     * Reconnect silently when Wi-Fi comes back. The callback also fires when the
+     * app opens, so wait a moment and skip if a manual connect is already running.
+     */
+    private fun registerNetworkWatcher() {
+        try {
+            val cm = TvToolsApp.instance.getSystemService(android.net.ConnectivityManager::class.java) ?: return
+            val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) {
+                    if (!AppServices.settings.state.value.autoConnect) return
+                    if (adb.isConnected) return
+                    autoConnectJob?.cancel()
+                    autoConnectJob = viewModelScope.launch {
+                        kotlinx.coroutines.delay(2_500)
+                        if (adb.isConnected || _ui.value.connectingTo != null) return@launch
+                        val last = prefs.loadLastDevice() ?: return@launch
+                        if (adb.connect(last.host, last.port) == AdbClient.ConnectResult.Success) {
+                            val friendly = friendlyName(last)
+                            prefs.saveLastDevice(friendly)
+                            prefs.saveDevice(friendly)
+                            applyDeviceAccent(last.host)
+                            _ui.value = _ui.value.copy(
+                                lastConnected = friendly,
+                                savedDevices = prefs.loadDevices(),
+                            )
+                        }
+                    }
+                }
+            }
+            cm.registerDefaultNetworkCallback(callback)
+            networkCallback = callback
+        } catch (_: Exception) {
         }
     }
 
@@ -314,5 +352,14 @@ class HomeViewModel : ViewModel() {
 
     override fun onCleared() {
         discoveryJob?.cancel()
+        autoConnectJob?.cancel()
+        try {
+            networkCallback?.let {
+                TvToolsApp.instance.getSystemService(android.net.ConnectivityManager::class.java)
+                    ?.unregisterNetworkCallback(it)
+            }
+        } catch (_: Exception) {
+        }
+        super.onCleared()
     }
 }
