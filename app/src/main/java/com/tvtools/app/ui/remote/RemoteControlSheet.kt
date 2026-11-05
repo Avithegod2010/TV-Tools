@@ -150,6 +150,8 @@ fun RemoteControlSheet(
     var showSleepTimer by remember { mutableStateOf(false) }
     var powerMessage by remember { mutableStateOf<String?>(null) }
     val sleepState by com.tvtools.app.data.SleepTimer.state.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var ringing by remember { mutableStateOf(false) }
 
     // Macro recorder
     var macros by remember { mutableStateOf<List<com.tvtools.app.data.Macro>>(emptyList()) }
@@ -200,6 +202,29 @@ fun RemoteControlSheet(
                 adb.keyEvent(step.keyCode)
             }
             replaying = null
+        }
+    }
+
+    /** Push a generated beep to the TV and let its default player ring for 12 s. */
+    fun ringTv() {
+        if (ringing) return
+        ringing = true
+        scope.launch {
+            val result = runCatching {
+                val file = java.io.File(context.cacheDir, "tvtools_ring.wav")
+                com.tvtools.app.util.BeepWav.write(file, 12)
+                adb.pushFile(file, "/sdcard/Download/tvtools_ring.wav")
+                adb.openFileOnTv("/sdcard/Download/tvtools_ring.wav", "audio/x-wav")
+            }
+            ringing = false
+            powerMessage = result.fold(
+                onSuccess = {
+                    "Ringing the TV for 12 seconds. Turn the TV volume up if it's quiet."
+                },
+                onFailure = {
+                    "Couldn't ring the TV: ${it.message}. No media player answered the beep."
+                },
+            )
         }
     }
 
@@ -454,7 +479,9 @@ fun RemoteControlSheet(
             sleepMinutesLeft = sleepState?.let {
                 ((it.remainingMs() + 59_999) / 60_000).toInt().coerceAtLeast(1)
             },
+            ringing = ringing,
             onSleepTimer = { showPowerMenu = false; showSleepTimer = true },
+            onRing = { showPowerMenu = false; ringTv() },
             onDismiss = { showPowerMenu = false },
             onSleep = { showPowerMenu = false; send(KEY_SLEEP) },
             onPowerToggle = { showPowerMenu = false; send(KEY_POWER) },
@@ -1315,9 +1342,11 @@ private fun SaveMacroDialog(
 private fun PowerMenuDialog(
     deviceName: String,
     sleepMinutesLeft: Int?,
+    ringing: Boolean,
     onDismiss: () -> Unit,
     onSleep: () -> Unit,
     onSleepTimer: () -> Unit,
+    onRing: () -> Unit,
     onPowerToggle: () -> Unit,
     onWake: () -> Unit,
     onRestart: () -> Unit,
@@ -1336,6 +1365,7 @@ private fun PowerMenuDialog(
                         if (sleepMinutesLeft != null) "Sleep timer — ${sleepMinutesLeft}m left"
                         else "Sleep timer…"
                     ) { onSleepTimer() }
+                    PowerRow(if (ringing) "Ringing the TV…" else "Ring TV (find my remote)") { onRing() }
                     PowerRow("Power button (toggle)") { onPowerToggle() }
                     PowerRow("Wake with Wake-on-LAN") { onWake() }
                     PowerRow("Ambient / screensaver mode") { onAmbient() }
