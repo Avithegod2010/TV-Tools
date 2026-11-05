@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,9 +56,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -84,6 +87,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tvtools.app.AppServices
@@ -155,12 +159,18 @@ fun RemoteControlSheet(
 
     // Which app is on the TV right now (drives the contextual shortcut row).
     var foregroundApp by remember { mutableStateOf<String?>(null) }
+    var nowPlaying by remember { mutableStateOf<com.tvtools.app.data.NowPlaying?>(null) }
 
     LaunchedEffect(Unit) {
+        var tick = 0
         while (true) {
-            val pkg = runCatching { adb.foregroundPackage() }.getOrNull()
-            if (pkg != null) foregroundApp = pkg
-            delay(5_000)
+            if (tick % 3 == 0) {
+                val pkg = runCatching { adb.foregroundPackage() }.getOrNull()
+                if (pkg != null) foregroundApp = pkg
+            }
+            nowPlaying = runCatching { adb.nowPlaying() }.getOrNull()
+            tick++
+            delay(4_000)
         }
     }
 
@@ -340,18 +350,32 @@ fun RemoteControlSheet(
                 ),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    MediaButton(Icons.Default.SkipPrevious, "Previous") { send(KEY_MEDIA_PREV) }
-                    MediaButton(Icons.Default.FastRewind, "Rewind") { send(KEY_MEDIA_REWIND) }
-                    MediaButton(Icons.Default.PlayArrow, "Play/Pause") { send(KEY_MEDIA_PLAY_PAUSE) }
-                    MediaButton(Icons.Default.FastForward, "Fast forward") { send(KEY_MEDIA_FF) }
-                    MediaButton(Icons.Default.SkipNext, "Next") { send(KEY_MEDIA_NEXT) }
+                Column(Modifier.fillMaxWidth()) {
+                    val track = nowPlaying
+                    if (track != null && (track.isPlaying || track.durationMs > 0)) {
+                        NowPlayingBlock(
+                            track = track,
+                            onSeek = { delta -> scope.launch { adb.seekRelative(delta) } },
+                            onPlayPause = { send(KEY_MEDIA_PLAY_PAUSE) },
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        MediaButton(Icons.Default.SkipPrevious, "Previous") { send(KEY_MEDIA_PREV) }
+                        MediaButton(Icons.Default.FastRewind, "Rewind") { send(KEY_MEDIA_REWIND) }
+                        MediaButton(Icons.Default.PlayArrow, "Play/Pause") { send(KEY_MEDIA_PLAY_PAUSE) }
+                        MediaButton(Icons.Default.FastForward, "Fast forward") { send(KEY_MEDIA_FF) }
+                        MediaButton(Icons.Default.SkipNext, "Next") { send(KEY_MEDIA_NEXT) }
+                    }
                 }
             }
 
@@ -1005,6 +1029,90 @@ private fun LiveKeyboardDialog(
 }
 
 private val EMOJI = listOf("😀", "😂", "❤️", "👍", "🔥", "🎉", "😮", "😢", "🙏", "✨")
+
+@Composable
+private fun NowPlayingBlock(
+    track: com.tvtools.app.data.NowPlaying,
+    onSeek: (Long) -> Unit,
+    onPlayPause: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    track.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (track.artist.isNotBlank()) {
+                    Text(
+                        track.artist,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Text(
+                if (track.isPlaying) "Playing" else "Paused",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (track.isPlaying) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        val duration = track.durationMs
+        if (duration > 0) {
+            val position = track.currentPositionMs().coerceIn(0, duration)
+            Spacer(Modifier.height(6.dp))
+            LinearProgressIndicator(
+                progress = { position.toFloat() / duration.toFloat() },
+                modifier = Modifier.fillMaxWidth().height(4.dp),
+            )
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    formatPlayback(position),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    formatPlayback(duration),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(
+                onClick = { onSeek(-10_000) },
+                contentPadding = PaddingValues(horizontal = 8.dp),
+            ) { Text("−10s") }
+            TextButton(
+                onClick = { onSeek(10_000) },
+                contentPadding = PaddingValues(horizontal = 8.dp),
+            ) { Text("+10s") }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onPlayPause) {
+                Text(if (track.isPlaying) "Pause" else "Play")
+            }
+        }
+    }
+}
+
+private fun formatPlayback(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, seconds)
+    else "%d:%02d".format(minutes, seconds)
+}
+
 
 /** Key codes: 84 = SEARCH, 86 = STOP, 87/88 = next/previous, 165 = INFO, 175 = CAPTIONS. */
 private data class AppShortcuts(val label: String, val keys: List<Pair<String, Int>>)
