@@ -342,4 +342,94 @@ class AdbClient(context: Context) {
 
     suspend fun openAppSettingsOnTv(pkg: String): String =
         exec("am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d package:$pkg")
+
+    // ---------------- remote extras ----------------
+
+    /** Send several key codes together (Android's `input keycombination`). */
+    suspend fun inputKeyCombo(vararg codes: Int): String {
+        return try {
+            exec("input keycombination ${codes.joinToString(" ")}", timeoutMs = 15_000)
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    /** Open the TV's Google Assistant / voice search. */
+    suspend fun assistant() {
+        val out = try {
+            exec("am start -a android.intent.action.VOICE_ASSIST", timeoutMs = 15_000)
+        } catch (_: Exception) {
+            ""
+        }
+        if (out.contains("Error", true) || out.contains("Exception", true) || out.isBlank()) {
+            keyEvent(219) // KEYCODE_ASSIST
+        }
+    }
+
+    suspend fun mouseMove(x: Int, y: Int) {
+        try {
+            exec("input motionevent MOVE $x $y", timeoutMs = 12_000)
+        } catch (_: Exception) {
+        }
+    }
+
+    suspend fun mouseDown(x: Int, y: Int) {
+        try {
+            exec("input motionevent DOWN $x $y", timeoutMs = 12_000)
+        } catch (_: Exception) {
+        }
+    }
+
+    suspend fun mouseUp(x: Int, y: Int) {
+        try {
+            exec("input motionevent UP $x $y", timeoutMs = 12_000)
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Package currently in the foreground (best effort across Android TV versions). */
+    suspend fun foregroundPackage(): String? {
+        val out = try {
+            exec(
+                "dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity|mFocusedApp' | head -5",
+                timeoutMs = 12_000,
+            )
+        } catch (_: Exception) {
+            ""
+        }
+        Regex("([a-zA-Z][\\w.]*)/[\\w.$]+").find(out)?.groupValues?.get(1)?.let { return it }
+        return Regex("package=([\\w.]+)").find(out)?.groupValues?.get(1)
+    }
+
+    /** Parse the active media session (title, artist, position, duration). */
+    suspend fun nowPlaying(): com.tvtools.app.data.NowPlaying? {
+        val dump = try {
+            exec("dumpsys media_session", timeoutMs = 20_000)
+        } catch (_: Exception) {
+            return null
+        }
+        return com.tvtools.app.data.parseMediaSession(dump)
+    }
+
+    /** Best-effort seek: players move in ~10 s steps for FF/rewind key events. */
+    suspend fun seekRelative(deltaMs: Long) {
+        val steps = (kotlin.math.abs(deltaMs) / 10_000).coerceIn(1, 30).toInt()
+        val key = if (deltaMs >= 0) 90 else 89
+        repeat(steps) { keyEvent(key) }
+    }
+
+    /** Set media volume (0–15) on the TV. */
+    suspend fun setMediaVolume(level: Int) {
+        val safe = level.coerceIn(0, 15)
+        try {
+            val out = exec("media volume --stream 3 --set $safe 2>&1", timeoutMs = 12_000)
+            if (out.contains("Error", true) || out.contains("Unknown", true)) {
+                exec("cmd media_session volume --stream 3 --set $safe 2>&1", timeoutMs = 12_000)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    suspend fun mediaCommand(command: String): String =
+        exec("cmd media_session dispatch $command", timeoutMs = 15_000)
 }

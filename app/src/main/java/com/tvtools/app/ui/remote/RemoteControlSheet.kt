@@ -44,12 +44,14 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -286,12 +288,11 @@ fun RemoteControlSheet(
     }
 
     if (showTextDialog) {
-        TextInputDialog(
+        LiveKeyboardDialog(
             onDismiss = { showTextDialog = false },
-            onSend = { text ->
-                showTextDialog = false
-                scope.launch { adb.inputText(text) }
-            },
+            onText = { chunk -> scope.launch { adb.inputText(chunk) } },
+            onKey = { code -> send(code) },
+            onCombo = { codes -> scope.launch { adb.inputKeyCombo(*codes.toIntArray()) } },
         )
     }
 
@@ -695,27 +696,100 @@ private fun CircleKey(
 }
 
 @Composable
-private fun TextInputDialog(onDismiss: () -> Unit, onSend: (String) -> Unit) {
+private fun LiveKeyboardDialog(
+    onDismiss: () -> Unit,
+    onText: (String) -> Unit,
+    onKey: (Int) -> Unit,
+    onCombo: (List<Int>) -> Unit,
+) {
     var text by remember { mutableStateOf("") }
+    var ctrl by remember { mutableStateOf(false) }
+    var alt by remember { mutableStateOf(false) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Send text to TV") },
+        title = { Text("Live keyboard") },
         text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("Text") },
-                placeholder = { Text("Type in a search box…") },
-                singleLine = false,
-                maxLines = 4,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { next ->
+                        val old = text
+                        when {
+                            next.length > old.length && next.startsWith(old) -> {
+                                onText(next.substring(old.length))
+                            }
+                            next.length < old.length && old.startsWith(next) -> {
+                                repeat(old.length - next.length) { onKey(67) } // DEL
+                            }
+                            next != old -> {
+                                repeat(old.length) { onKey(67) }
+                                onText(next)
+                            }
+                        }
+                        text = next
+                    },
+                    label = { Text("Type — sent as you type") },
+                    placeholder = { Text("Focus a search box on the TV first") },
+                    singleLine = false,
+                    maxLines = 3,
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(selected = ctrl, onClick = { ctrl = !ctrl }, label = { Text("Ctrl") })
+                    FilterChip(selected = alt, onClick = { alt = !alt }, label = { Text("Alt") })
+                    AssistChip(onClick = { onKey(111) }, label = { Text("Esc") })
+                    AssistChip(onClick = { onKey(61) }, label = { Text("Tab") })
+                    AssistChip(onClick = { onKey(66) }, label = { Text("Enter") })
+                    AssistChip(onClick = { onKey(67) }, label = { Text("Del") })
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    AssistChip(onClick = { onKey(19) }, label = { Text("↑") })
+                    AssistChip(onClick = { onKey(20) }, label = { Text("↓") })
+                    AssistChip(onClick = { onKey(21) }, label = { Text("←") })
+                    AssistChip(onClick = { onKey(22) }, label = { Text("→") })
+                    AssistChip(onClick = { onKey(KEY_DPAD_CENTER) }, label = { Text("OK") })
+                    AssistChip(onClick = { onKey(KEY_BACK) }, label = { Text("Back") })
+                }
+
+                if (ctrl || alt) {
+                    Text(
+                        if (ctrl) "Ctrl + letter" else "Alt + letter",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        items(26) { index ->
+                            val letter = ('A' + index)
+                            AssistChip(
+                                onClick = {
+                                    val meta = if (ctrl) 113 else 57 // META_CTRL_LEFT / META_ALT_LEFT
+                                    onCombo(listOf(meta, 29 + index))
+                                },
+                                label = { Text("$letter") },
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    "Emoji",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(EMOJI.size) { index ->
+                        AssistChip(onClick = { onText(EMOJI[index]) }, label = { Text(EMOJI[index]) })
+                    }
+                }
+            }
         },
-        confirmButton = {
-            Button(onClick = { onSend(text) }, enabled = text.isNotBlank()) { Text("Send") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
     )
 }
+
+private val EMOJI = listOf("😀", "😂", "❤️", "👍", "🔥", "🎉", "😮", "😢", "🙏", "✨")
 
 @Composable
 private fun PowerMenuDialog(
