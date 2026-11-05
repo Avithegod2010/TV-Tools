@@ -153,6 +153,17 @@ fun RemoteControlSheet(
     var lastStepAt by remember { mutableStateOf(0L) }
     var replaying by remember { mutableStateOf<String?>(null) }
 
+    // Which app is on the TV right now (drives the contextual shortcut row).
+    var foregroundApp by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val pkg = runCatching { adb.foregroundPackage() }.getOrNull()
+            if (pkg != null) foregroundApp = pkg
+            delay(5_000)
+        }
+    }
+
     LaunchedEffect(Unit) {
         macros = AppServices.prefs.loadMacros()
     }
@@ -345,6 +356,32 @@ fun RemoteControlSheet(
             }
 
             Spacer(Modifier.height(12.dp))
+
+            // Contextual shortcuts for the app currently on the TV
+            appSpecificKeys(foregroundApp)?.let { extras ->
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f)
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(
+                            "${extras.label} shortcuts",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            extras.keys.forEach { (label, code) ->
+                                AssistChip(onClick = { send(code) }, label = { Text(label) })
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
 
             // Volume + power
             Row(
@@ -968,6 +1005,44 @@ private fun LiveKeyboardDialog(
 }
 
 private val EMOJI = listOf("😀", "😂", "❤️", "👍", "🔥", "🎉", "😮", "😢", "🙏", "✨")
+
+/** Key codes: 84 = SEARCH, 86 = STOP, 87/88 = next/previous, 165 = INFO, 175 = CAPTIONS. */
+private data class AppShortcuts(val label: String, val keys: List<Pair<String, Int>>)
+
+private fun appSpecificKeys(packageName: String?): AppShortcuts? {
+    val pkg = packageName?.lowercase() ?: return null
+    return when {
+        "youtube" in pkg -> AppShortcuts(
+            "YouTube",
+            listOf("Search" to 84, "Stats" to 165, "Subtitles" to 175, "Stop" to 86),
+        )
+        "netflix" in pkg -> AppShortcuts(
+            "Netflix",
+            listOf("Search" to 84, "Play/pause" to 85, "Stop" to 86),
+        )
+        "kodi" in pkg -> AppShortcuts(
+            "Kodi",
+            listOf("Info" to 165, "Subtitles" to 175, "Stop" to 86, "Search" to 84),
+        )
+        "vlc" in pkg -> AppShortcuts(
+            "VLC",
+            listOf("Info" to 165, "Subtitles" to 175, "Stop" to 86),
+        )
+        "disney" in pkg -> AppShortcuts("Disney+", listOf("Search" to 84, "Stop" to 86))
+        "amazonvideo" in pkg || "primevideo" in pkg -> AppShortcuts(
+            "Prime Video",
+            listOf("Search" to 84, "Stop" to 86),
+        )
+        "spotify" in pkg -> AppShortcuts(
+            "Spotify",
+            listOf("Search" to 84, "Previous" to 88, "Next" to 87),
+        )
+        "plex" in pkg -> AppShortcuts("Plex", listOf("Info" to 165, "Stop" to 86))
+        "twitch" in pkg -> AppShortcuts("Twitch", listOf("Search" to 84))
+        else -> null
+    }
+}
+
 
 @Composable
 private fun MacroDialog(
