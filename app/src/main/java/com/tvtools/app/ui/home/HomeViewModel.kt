@@ -26,6 +26,7 @@ data class HomeUiState(
     val connectingTo: TvDevice? = null,
     val showAll: Boolean = false,
     val lastThumbPath: String? = null,
+    val batchStatus: Map<String, BatchState> = emptyMap(),
 ) {
     val visibleDevices: List<TvDevice>
         get() = if (showAll) devices
@@ -35,9 +36,13 @@ data class HomeUiState(
 sealed interface HomeEvent {
     data class Connected(val device: TvDevice) : HomeEvent
     data class Error(val message: String) : HomeEvent
+    data class Message(val text: String) : HomeEvent
     data class PairingRequested(val device: TvDevice) : HomeEvent
     data object PairSuccessConnect : HomeEvent
 }
+
+/** Result of the last batch check for a saved TV. */
+enum class BatchState { CHECKING, ONLINE, OFFLINE }
 
 class HomeViewModel : ViewModel() {
 
@@ -288,6 +293,66 @@ class HomeViewModel : ViewModel() {
     fun connectManual(host: String, port: Int) {
         val device = TvDevice(name = host, host = host, port = port, proto = DeviceProto.TCP)
         connect(device)
+    }
+
+    /**
+     * Probes every saved TV, connects to the responsive ones in turn (so names and
+     * ports refresh) and leaves the last responsive TV connected. One ADB socket
+     * means simultaneous sessions aren't possible, but this gives a live status
+     * map of the whole house in one tap.
+     */
+    fun connectAllSaved() {
+        val devices = _ui.value.savedDevices
+        if (devices.isEmpty()) {
+            _events.tryEmit(HomeEvent.Error("No saved TVs yet — connect to one first."))
+            return
+        }
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(batchStatus = devices.associate { it.host to BatchState.CHECKING })
+            var online = 0
+            var lastOnline: TvDevice? = null
+            for (device in devices) {
+                val reachable = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    tcpProbe(device.host, device.port)
+                }
+                if (!reachable) {
+                    _ui.value = _ui.value.copy(
+                        batchStatus = _ui.value.batchStatus + (device.host to BatchState.OFFLINE)
+                    )
+                    continue
+                }
+                online++
+                val result = adb.connect(device.host, device.port)
+                if (result == AdbClient.ConnectResult.Success) {
+                    val friendly = friendlyName(device)
+                    prefs.saveLastDevice(friendly)
+                    prefs.saveDevice(friendly)
+                    lastOnline = friendly
+                    _ui.value = _ui.value.copy(
+                        batchStatus = _ui.value.batchStatus + (device.host to BatchState.ONLINE),
+                        lastConnected = friendly,
+                        savedDevices = prefs.loadDevices(),
+                    )
+                } else {
+                    _ui.value = _ui.value.copy(
+                        batchStatus = _ui.value.batchStatus + (device.host to BatchState.OFFLINE)
+                    )
+                }
+            }
+            val text = when {
+                lastOnline == null -> "No saved TV answered. Check that the TVs are on and on this Wi-Fi."
+                online == 1 -> "1 TV online — connected to ${lastOnline.name}."
+                else -> "$online TVs online — currently connected to ${lastOnline.name}."
+            }
+            _events.emit(HomeEvent.Message(text))
+        }
+    }
+
+    private fun tcpProbe(host: String, port: Int): Boolean = try {
+        java.net.Socket().use { it.connect(java.net.InetSocketAddress(host, port), 900) }
+        true
+    } catch (_: Exception) {
+        false
     }
 
     /** Find the advertised pairing port for a host (if the TV is broadcasting one). */

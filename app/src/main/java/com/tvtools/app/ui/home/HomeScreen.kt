@@ -1,5 +1,6 @@
 package com.tvtools.app.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -96,6 +97,7 @@ fun HomeScreen(
             when (event) {
                 is HomeEvent.Connected -> onConnected(event.device)
                 is HomeEvent.Error -> snackbar.showSnackbar(event.message)
+                is HomeEvent.Message -> snackbar.showSnackbar(event.text)
                 is HomeEvent.PairingRequested -> pairingTarget = event.device
                 else -> {}
             }
@@ -193,6 +195,12 @@ fun HomeScreen(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
+                    TextButton(
+                        onClick = { haptics(); viewModel.connectAllSaved() },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
+                    ) {
+                        Text("Check all", style = MaterialTheme.typography.labelMedium)
+                    }
                     Text(
                         "hold to remove",
                         style = MaterialTheme.typography.labelSmall,
@@ -205,6 +213,7 @@ fun HomeScreen(
                         SavedDeviceChip(
                             device = saved,
                             connecting = ui.connectingTo?.host == saved.host,
+                            status = ui.batchStatus[saved.host],
                             onClick = { haptics(); viewModel.connect(saved) },
                             onLongClick = { viewModel.removeSavedDevice(saved.host) },
                         )
@@ -350,6 +359,11 @@ fun HomeScreen(
                             onClick = { menuOpen = false; onOpenTool("netmap") },
                         )
                         DropdownMenuItem(
+                            text = { Text("Connect all saved TVs") },
+                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                            onClick = { menuOpen = false; viewModel.connectAllSaved() },
+                        )
+                        DropdownMenuItem(
                             text = { Text("Hotspot mode (no router)") },
                             leadingIcon = { Icon(Icons.Default.Info, null) },
                             onClick = { menuOpen = false; onOpenTool("hotspot") },
@@ -419,6 +433,7 @@ fun HomeScreen(
 private fun SavedDeviceChip(
     device: TvDevice,
     connecting: Boolean,
+    status: BatchState?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -462,6 +477,19 @@ private fun SavedDeviceChip(
                     modifier = Modifier.size(16.dp),
                     strokeWidth = 2.dp,
                     strokeCap = StrokeCap.Round,
+                )
+            } else if (status != null) {
+                Box(
+                    Modifier
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            when (status) {
+                                BatchState.ONLINE -> MaterialTheme.colorScheme.primary
+                                BatchState.CHECKING -> MaterialTheme.colorScheme.tertiary
+                                BatchState.OFFLINE -> MaterialTheme.colorScheme.outline
+                            }
+                        )
                 )
             }
         }
