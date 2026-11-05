@@ -623,6 +623,44 @@ private fun ManualConnectDialog(
     )
 }
 
+/**
+ * Splits manual input into host + port. Accepts:
+ *  - `192.168.1.5` (uses [defaultPort])
+ *  - `192.168.1.5:5555`
+ *  - `fe80::1` / `2001:db8::1` (uses [defaultPort])
+ *  - `[fe80::1]:5555` (bracketed IPv6 with a port)
+ */
+private fun parseHostPort(raw: String, defaultPort: Int): Pair<String, Int> {
+    val text = raw.trim()
+        .removePrefix("adb://")
+        .removePrefix("tcp://")
+        .removeSuffix("/")
+    if (text.startsWith("[")) {
+        val close = text.indexOf(']')
+        if (close > 0) {
+            val host = text.substring(1, close)
+            val port = text.substring(close + 1)
+                .removePrefix(":")
+                .toIntOrNull()
+                ?: defaultPort
+            return host to port
+        }
+        return text.trim('[', ']') to defaultPort
+    }
+    // Bare IPv6 (more than one colon) has no port part.
+    if (text.count { it == ':' } > 1) return text to defaultPort
+    val colon = text.lastIndexOf(':')
+    if (colon > 0) {
+        val maybePort = text.substring(colon + 1).toIntOrNull()
+        if (maybePort != null) return text.substring(0, colon) to maybePort
+    }
+    return text to defaultPort
+}
+
+/** Shows IPv6 literals in brackets so host:port stays unambiguous. */
+private fun formatEndpoint(host: String, port: Int): String =
+    if (host.contains(':')) "[$host]:$port" else "$host:$port"
+
 @Composable
 private fun PairingDialog(
     target: TvDevice,
@@ -632,6 +670,15 @@ private fun PairingDialog(
     var host by remember { mutableStateOf(target.host) }
     var port by remember { mutableStateOf(target.port.takeIf { target.pairing }?.toString() ?: "") }
     var code by remember { mutableStateOf("") }
+    var rememberedPort by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(target.host) {
+        if (port.isBlank()) {
+            val saved = com.tvtools.app.AppServices.prefs.loadPairingPort(target.host)
+            rememberedPort = saved
+            if (saved != null) port = saved.toString()
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Pair with TV") },
@@ -657,6 +704,14 @@ private fun PairingDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
+                rememberedPort?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Remembered from last pairing ($it). Just enter the code — the port can change if the TV restarted.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = code,
@@ -669,7 +724,10 @@ private fun PairingDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onPair(host, port.toIntOrNull() ?: 0, code) },
+                onClick = {
+                    val (parsedHost, parsedPort) = parseHostPort(host, port.toIntOrNull() ?: 0)
+                    onPair(parsedHost, if (parsedPort > 0) parsedPort else port.toIntOrNull() ?: 0, code)
+                },
                 enabled = host.isNotBlank() && (port.toIntOrNull() ?: 0) > 0 && code.length == 6,
             ) { Text("Pair & connect") }
         },

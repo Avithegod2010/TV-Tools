@@ -218,9 +218,18 @@ class HomeViewModel : ViewModel() {
                 .catch { _ui.value = _ui.value.copy(scanning = false) }
                 .collect { event ->
                     _ui.value = _ui.value.copy(devices = event.devices, scanning = event.scanning)
+                    // Remember advertised pairing ports so re-pairing only needs the code.
+                    event.devices.filter { it.pairing }.forEach { advert ->
+                        val key = "${advert.host}:${advert.port}"
+                        if (pairingPortsSaved.add(key)) {
+                            viewModelScope.launch { prefs.savePairingPort(advert.host, advert.port) }
+                        }
+                    }
                 }
         }
     }
+
+    private val pairingPortsSaved = mutableSetOf<String>()
 
     fun setShowAll(showAll: Boolean) {
         _ui.value = _ui.value.copy(showAll = showAll)
@@ -290,7 +299,9 @@ class HomeViewModel : ViewModel() {
                 )
                 return@launch
             }
-            // Paired! Find the connect port via mDNS (may take a moment to appear).
+            // Paired! Remember the port so re-pairing is one tap next time.
+            prefs.savePairingPort(host, pairingPort)
+            // Find the connect port via mDNS (may take a moment to appear).
             var target = findConnectAdvert(host)
             var waited = 0
             while (target == null && waited < 6_000) {

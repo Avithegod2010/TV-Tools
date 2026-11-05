@@ -104,4 +104,29 @@ class Prefs(private val context: Context) {
         val raw = context.dataStore.data.first()[KEY_ACCENTS].orEmpty()
         return raw.split('\n').firstOrNull { it.startsWith("$host=") }?.substringAfter('=')
     }
+
+    // ---------------- pairing-port memory ----------------
+
+    private val KEY_PAIRING_PORTS = stringPreferencesKey("pairing_ports")
+
+    /** Remember the pairing port shown on the TV so re-pairing needs only the code. */
+    suspend fun savePairingPort(host: String, port: Int) {
+        context.dataStore.edit { p ->
+            val current = p[KEY_PAIRING_PORTS].orEmpty()
+                .split('\n')
+                .filter { it.isNotBlank() }
+                .filterNot { it.substringBeforeLast('=') == host }
+                .toMutableList()
+            current.add("$host=$port")
+            p[KEY_PAIRING_PORTS] = current.joinToString("\n")
+        }
+    }
+
+    suspend fun loadPairingPort(host: String): Int? {
+        val raw = context.dataStore.data.first()[KEY_PAIRING_PORTS].orEmpty()
+        return raw.split('\n')
+            .firstOrNull { it.startsWith("$host=") }
+            ?.substringAfterLast('=')
+            ?.toIntOrNull()
+    }
 }
