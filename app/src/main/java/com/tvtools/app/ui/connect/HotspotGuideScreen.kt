@@ -44,7 +44,11 @@ fun HotspotGuideScreen(onBack: () -> Unit) {
         )
         for (intent in candidates) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (context.startActivity(intent) != null) return
+            try {
+                context.startActivity(intent)
+                return
+            } catch (_: Exception) {
+            }
         }
     }
 

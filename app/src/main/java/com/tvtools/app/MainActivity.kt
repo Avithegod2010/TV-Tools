@@ -173,6 +173,9 @@ private fun AppNav() {
                 },
             )
         }
+        composable("hotspot") {
+            com.tvtools.app.ui.connect.HotspotGuideScreen(onBack = { nav.popBackStack() })
+        }
         composable("cast") { CastScreen(onBack = { nav.popBackStack() }) }
         composable("speed") { SpeedTestScreen(onBack = { nav.popBackStack() }) }
         composable("livetv") { LiveTvScreen(onBack = { nav.popBackStack() }) }

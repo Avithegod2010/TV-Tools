@@ -350,6 +350,11 @@ fun HomeScreen(
                             onClick = { menuOpen = false; onOpenTool("netmap") },
                         )
                         DropdownMenuItem(
+                            text = { Text("Hotspot mode (no router)") },
+                            leadingIcon = { Icon(Icons.Default.Info, null) },
+                            onClick = { menuOpen = false; onOpenTool("hotspot") },
+                        )
+                        DropdownMenuItem(
                             text = { Text("Settings") },
                             leadingIcon = { Icon(Icons.Default.Settings, null) },
                             onClick = { menuOpen = false; showSettings = true },
@@ -446,7 +451,7 @@ private fun SavedDeviceChip(
                     maxLines = 1,
                 )
                 Text(
-                    device.host,
+                    formatEndpoint(device.host, device.port),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -509,9 +514,7 @@ private fun DeviceCard(
                 )
                 Text(
                     buildString {
-                        append(device.host)
-                        append(":")
-                        append(device.port)
+                        append(formatEndpoint(device.host, device.port))
                         if (device.pairing) append("  •  pairing")
                         else if (device.proto == com.tvtools.app.data.DeviceProto.TLS) append("  •  wireless debugging")
                     },
@@ -586,9 +589,9 @@ private fun ManualConnectDialog(
                     value = host,
                     onValueChange = { host = it.trim() },
                     label = { Text("IP address") },
-                    placeholder = { Text("192.168.1.50") },
+                    placeholder = { Text("192.168.1.50 or [fe80::1]:5555") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -600,7 +603,8 @@ private fun ManualConnectDialog(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "5555 for Fire TV & network ADB. For Android 11+ use the port shown in Wireless debugging.",
+                    "5555 for Fire TV & network ADB. For Android 11+ use the port shown in Wireless debugging. " +
+                        "IPv6 addresses can include the port: [fe80::1]:5555.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -608,8 +612,11 @@ private fun ManualConnectDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onConnect(host, port.toIntOrNull() ?: 5555) },
-                enabled = host.count { it == '.' } == 3,
+                onClick = {
+                    val (parsedHost, parsedPort) = parseHostPort(host, port.toIntOrNull() ?: 5555)
+                    onConnect(parsedHost, parsedPort)
+                },
+                enabled = host.isNotBlank() && (host.contains(':') || host.count { it == '.' } == 3),
             ) { Text("Connect") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
