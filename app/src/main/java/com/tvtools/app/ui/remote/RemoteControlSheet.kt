@@ -81,6 +81,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -369,7 +370,7 @@ fun RemoteControlSheet(
                     }
                     RemoteMode.TOUCHPAD -> TouchPad(onSend = ::send)
                     RemoteMode.GAMEPAD -> GamepadPad(onSend = ::send)
-                    RemoteMode.GESTURE -> GesturePad(onSend = ::send)
+                    RemoteMode.GESTURE -> GestureMode(onSend = ::send)
                 }
             }
 
@@ -859,6 +860,119 @@ private fun GesturePad(onSend: (Int) -> Unit) {
                 lastAction,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+// ---------------- Air mouse (gesture mode) ----------------
+
+@Composable
+private fun GestureMode(onSend: (Int) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val adb = AppServices.adb
+    var airMouse by remember { mutableStateOf(false) }
+    var sensorReady by remember { mutableStateOf(true) }
+    val screen = remember { intArrayOf(1920, 1080) }
+    val pointer = remember { intArrayOf(960, 540) }
+
+    LaunchedEffect(Unit) {
+        runCatching { adb.getScreenSize() }.onSuccess { (w, h) ->
+            screen[0] = w
+            screen[1] = h
+            pointer[0] = w / 2
+            pointer[1] = h / 2
+        }
+    }
+
+    DisposableEffect(airMouse) {
+        if (!airMouse) return@DisposableEffect onDispose {}
+        val manager = context.getSystemService(android.content.Context.SENSOR_SERVICE)
+            as? android.hardware.SensorManager
+        val sensor = manager?.getDefaultSensor(android.hardware.Sensor.TYPE_GYROSCOPE)
+            ?: manager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+        if (manager == null || sensor == null) {
+            sensorReady = false
+            airMouse = false
+            return@DisposableEffect onDispose {}
+        }
+        val gyro = sensor.type == android.hardware.Sensor.TYPE_GYROSCOPE
+        var accX = 0f
+        var accY = 0f
+        var lastSent = 0L
+        val listener = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                // Gyro reports rad/s; accelerometer reports gravity on each axis.
+                val rawX = if (gyro) -event.values[1] else event.values[0] / 9.81f
+                val rawY = if (gyro) event.values[0] else event.values[1] / 9.81f
+                accX += rawX
+                accY += rawY
+                val now = android.os.SystemClock.uptimeMillis()
+                if (now - lastSent < 120L) return
+                lastSent = now
+                val gain = if (gyro) 260f else 26f
+                val stepX = (accX * gain).coerceIn(-60f, 60f)
+                val stepY = (accY * gain).coerceIn(-60f, 60f)
+                accX = 0f
+                accY = 0f
+                pointer[0] = (pointer[0] + stepX.toInt()).coerceIn(0, screen[0])
+                pointer[1] = (pointer[1] + stepY.toInt()).coerceIn(0, screen[1])
+                val x = pointer[0]
+                val y = pointer[1]
+                scope.launch { runCatching { adb.mouseMove(x, y) } }
+            }
+
+            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+        }
+        manager.registerListener(
+            listener,
+            sensor,
+            android.hardware.SensorManager.SENSOR_DELAY_GAME,
+        )
+        // Show the cursor straight away.
+        scope.launch { runCatching { adb.mouseMove(pointer[0], pointer[1]) } }
+        onDispose {
+            manager.unregisterListener(listener)
+        }
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        GesturePad(onSend = onSend)
+        Spacer(Modifier.height(8.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(
+                selected = airMouse,
+                onClick = { airMouse = !airMouse },
+                label = { Text("Air mouse") },
+            )
+            if (airMouse) {
+                OutlinedButton(onClick = {
+                    val x = pointer[0]
+                    val y = pointer[1]
+                    scope.launch {
+                        runCatching {
+                            adb.mouseDown(x, y)
+                            delay(60)
+                            adb.mouseUp(x, y)
+                        }
+                    }
+                }) { Text("Click") }
+                Text(
+                    "Tilt the phone",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (!sensorReady) {
+            Text(
+                "This phone has no motion sensor for air mouse.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
     }
