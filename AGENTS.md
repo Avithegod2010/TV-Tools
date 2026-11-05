@@ -49,6 +49,14 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 - ADB private key + cert stay in app-private storage (`files/adbkeys`).
 - ADB TLS uses the library's trust-all manager (inherent to ADB pairing).
 
+## Feature map (v1.6)
+- Connect: `ui/connect/QrHandoffScreen`, `NetworkMapScreen`, `HotspotGuideScreen`, `ConnectionDoctorScreen`, `MdnsBrowserScreen`, `RoomsScreen`; routes `qr`, `netmap`, `hotspot`, `doctor`, `mdns`, `rooms`.
+- `Prefs`: pairing-port memory, rooms, macros, quick-key layout.
+- `Settings`: autoConnect, wakeEnabled/wakeMinutes/wakeOnWifi, guestMode, bubble.
+- Remote (`RemoteControlSheet`): live keyboard, voice typing (RecognizerIntent), Assistant key, macro recorder, per-app shortcut row, now playing + seek, sleep timer, ring TV, custom quick keys, gesture pad, gyro air mouse, multi-touch trackpad, physical gamepad via `onPreviewKeyEvent`, broadcast mode, key history/undo.
+- `data/SleepTimer`, `data/Macro`, `data/QuickKey`, `data/MediaSession`, `util/BeepWav`, `service/OverlayBubbleService` (SYSTEM_ALERT_WINDOW + FGS specialUse).
+- `AdbClient` extras: `inputKeyCombo`, `assistant`, `mouseMove/Down/Up`, `foregroundPackage`, `nowPlaying`, `seekRelative`, `setMediaVolume`, `getMediaVolume`, `mediaCommand`.
+
 ## Feature map (v1.5)
 - Visuals: Home live thumbnail (`DeviceViewModel` writes `files/tvthumbs/<hosthash>.png` every 20s; HomeViewModel loads it), radar `RadarScan` Canvas, animated logo (`graphicsLayer`), shared-element device title (`SharedTransitionLayout` in MainActivity → Home/Device params).
 - Themes: `ThemeMode.AMOLED` (pure black), `AUTO` (7–19h), `Accent.TV` from `AppSettings.tvColor` (SettingsSheet "Match TV colors" captures a screencap and extracts a saturated color).

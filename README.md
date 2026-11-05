@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.5-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-1.6-166d32" alt="Version" />
   </p>
 </div>
 
@@ -24,7 +24,9 @@
 
 | | |
 |---|---|
-| 📡 **Wireless ADB** | Auto-discovery (mDNS + LAN scan), Android 11+ pairing codes, Fire TV legacy ADB, auto-reconnect, **multi-TV dashboard** |
+| 📡 **Wireless ADB** | Auto-discovery (mDNS + LAN scan), Android 11+ pairing codes, Fire TV legacy ADB, auto-reconnect, **multi-TV dashboard**, **QR handoff**, **IPv6 + custom ports**, **remembered pairing ports**, **batch "check all"**, **connection doctor**, **mDNS browser** |
+| 🏠 **Multi-TV** | **Rooms & groups** with a group remote, **broadcast keys** from the main remote, **daily Wake-on-LAN** schedule, **wake when Wi-Fi returns**, **guest mode** for handing over the phone |
+| 🎛 **Remote** | Modern remote sheet: D-Pad ↔ **multi-touch pad** ↔ **gesture pad** ↔ gamepad, **live keyboard** with Ctrl/Alt combos, **voice typing**, **Assistant key**, **macro recorder**, **per-app shortcuts**, **now playing + seek**, **sleep timer with volume fade**, **ring the TV**, **quick keys**, **history + undo**, **air mouse**, **physical controller support**, **floating bubble** |
 | 🛠 **Tools** | Install APK / **.apks / .xapk**, **long-press Install to send a phone app to the TV**, upload files, **multi-file & folder upload on long-press**, clear caches, live screenshots, **storage analyzer**, **screen recording** |
 | 📺 **Screen mirroring** | Live TV view with tap & swipe control, LIVE fps counter, on-screen back/home/menu keys |
 | 📤 **Share to TV** | Send photos, videos or APKs from Android's share sheet — the app uploads and opens/installs them |
@@ -32,7 +34,6 @@
 | 💾 **Backup & restore** | **Bulk backup any apps (base + splits)** with metadata, one-tap restore via `pm install-multiple` |
 | 🗂 **File manager** | Browse TV storage, thumbnails, upload, **multi-select**, copy/move, image/text previews, **download queue** |
 | 💻 **Shell** | Interactive ADB shell with CTRL+C, clear and copy |
-| 🎛 **Remote** | Modern remote sheet: D-Pad ↔ touchpad ↔ **gamepad**, **channel +/− and 0–9 pad**, media keys, volume, text input, power menu |
 | 🎵 **Music manager** | Browse and manage TV music — play on the TV, download, delete, upload |
 | 🖥 **Screen record** | Record the TV screen (15/30/60 s) and save it to your phone's Movies |
 | ⚡ **Power** | Sleep, power toggle, restart, and Wake-on-LAN |
@@ -106,6 +107,11 @@ keyPassword=…
 - [x] DLNA casting, SFTP, speed test, live TV, mouse & keyboard
 - [x] Health monitor, kids mode, users, launchpad, automations
 - [x] App data backup + encrypted backup export/import
+- [x] QR handoff, connection doctor, mDNS browser, IPv6 & custom ports
+- [x] Rooms & groups, broadcast keys, wake schedule, guest mode
+- [x] Live keyboard, voice typing, macros, per-app remotes, now playing
+- [x] Gesture pad, air mouse, multi-touch pad, gamepad, sleep timer, ring TV
+- [x] Quick keys, key history + undo, floating remote bubble
 - [ ] Desktop/tablet layouts
 - [ ] Cast media with Google Cast (requires Cast SDK receiver)
 
