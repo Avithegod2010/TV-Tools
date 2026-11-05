@@ -209,4 +209,21 @@ class Prefs(private val context: Context) {
                 if (steps.isEmpty()) null else Macro(name, steps)
             }
     }
+
+    // ---------------- quick-key layout ----------------
+
+    private val KEY_QUICK_KEYS = stringPreferencesKey("quick_keys")
+
+    /** Null means "never customised" so first run still gets a sensible default row. */
+    suspend fun loadQuickKeys(): List<String>? {
+        val prefs = context.dataStore.data.first()
+        if (KEY_QUICK_KEYS !in prefs) return null
+        val raw = prefs[KEY_QUICK_KEYS].orEmpty()
+        if (raw.isBlank()) return emptyList()
+        return raw.split(',').map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    suspend fun saveQuickKeys(ids: List<String>) {
+        context.dataStore.edit { p -> p[KEY_QUICK_KEYS] = ids.joinToString(",") }
+    }
 }

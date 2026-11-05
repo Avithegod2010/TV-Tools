@@ -16,20 +16,25 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Home
@@ -53,6 +58,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
@@ -63,6 +70,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.SegmentedButton
@@ -162,6 +170,10 @@ fun RemoteControlSheet(
     var lastStepAt by remember { mutableStateOf(0L) }
     var replaying by remember { mutableStateOf<String?>(null) }
 
+    // Quick-key strip
+    var quickKeys by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showQuickKeyEditor by remember { mutableStateOf(false) }
+
     // Which app is on the TV right now (drives the contextual shortcut row).
     var foregroundApp by remember { mutableStateOf<String?>(null) }
     var nowPlaying by remember { mutableStateOf<com.tvtools.app.data.NowPlaying?>(null) }
@@ -181,6 +193,8 @@ fun RemoteControlSheet(
 
     LaunchedEffect(Unit) {
         macros = AppServices.prefs.loadMacros()
+        quickKeys = AppServices.prefs.loadQuickKeys()
+            ?: com.tvtools.app.data.QuickKeys.defaultIds
     }
 
     fun send(code: Int) {
@@ -237,6 +251,7 @@ fun RemoteControlSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -366,6 +381,28 @@ fun RemoteControlSheet(
                 TextButton(onClick = { send(KEY_CH_DOWN) }) { Text("CH−") }
                 TextButton(onClick = { send(KEY_CH_UP) }) { Text("CH+") }
                 TextButton(onClick = { showNumberPad = true }) { Text("0–9") }
+            }
+
+            // Quick keys the user picked
+            if (quickKeys.isNotEmpty()) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    items(quickKeys.size) { index ->
+                        val key = com.tvtools.app.data.QuickKeys.byId(quickKeys[index])
+                        if (key != null) {
+                            AssistChip(onClick = { send(key.keyCode) }, label = { Text(key.label) })
+                        }
+                    }
+                    item {
+                        AssistChip(
+                            onClick = { showQuickKeyEditor = true },
+                            label = { Text("Edit") },
+                            leadingIcon = { Icon(Icons.Default.Edit, null, Modifier.size(14.dp)) },
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -527,6 +564,18 @@ fun RemoteControlSheet(
             onDismissRequest = { powerMessage = null },
             confirmButton = { TextButton(onClick = { powerMessage = null }) { Text("OK") } },
             text = { Text(msg) },
+        )
+    }
+
+    if (showQuickKeyEditor) {
+        QuickKeyEditorDialog(
+            selected = quickKeys,
+            onDismiss = { showQuickKeyEditor = false },
+            onSave = { ids ->
+                quickKeys = ids
+                scope.launch { AppServices.prefs.saveQuickKeys(ids) }
+                showQuickKeyEditor = false
+            },
         )
     }
 
@@ -1080,6 +1129,126 @@ private fun LiveKeyboardDialog(
 }
 
 private val EMOJI = listOf("😀", "😂", "❤️", "👍", "🔥", "🎉", "😮", "😢", "🙏", "✨")
+
+@Composable
+private fun QuickKeyEditorDialog(
+    selected: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (List<String>) -> Unit,
+) {
+    var list by remember { mutableStateOf(selected) }
+    var showAdd by remember { mutableStateOf(false) }
+    val available = com.tvtools.app.data.QuickKeys.catalog.filter { it.id !in list }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Quick keys") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "These buttons sit under the remote. Reorder with the arrows, or remove the ones you never use.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (list.isEmpty()) {
+                    Text(
+                        "No quick keys yet — add one below.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Column(
+                    Modifier
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    list.forEachIndexed { index, id ->
+                        val key = com.tvtools.app.data.QuickKeys.byId(id)
+                        if (key != null) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        key.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.weight(1f).padding(start = 12.dp),
+                                    )
+                                    IconButton(
+                                        onClick = { list = swapQuickKey(list, index, index - 1) },
+                                        enabled = index > 0,
+                                    ) {
+                                        Icon(
+                                            Icons.Default.KeyboardArrowUp,
+                                            contentDescription = "Move up",
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { list = swapQuickKey(list, index, index + 1) },
+                                        enabled = index < list.lastIndex,
+                                    ) {
+                                        Icon(
+                                            Icons.Default.KeyboardArrowDown,
+                                            contentDescription = "Move down",
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        list = list.filterIndexed { i, _ -> i != index }
+                                    }) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove ${key.label}",
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Box {
+                    OutlinedButton(
+                        onClick = { showAdd = true },
+                        enabled = available.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add key")
+                    }
+                    DropdownMenu(expanded = showAdd, onDismissRequest = { showAdd = false }) {
+                        available.forEach { key ->
+                            DropdownMenuItem(
+                                text = { Text(key.label) },
+                                onClick = {
+                                    list = list + key.id
+                                    showAdd = false
+                                },
+                            )
+                        }
+                    }
+                }
+                TextButton(onClick = { list = com.tvtools.app.data.QuickKeys.defaultIds }) {
+                    Text("Reset to default")
+                }
+            }
+        },
+        confirmButton = { Button(onClick = { onSave(list) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+private fun swapQuickKey(list: List<String>, from: Int, to: Int): List<String> {
+    if (from !in list.indices || to !in list.indices) return list
+    return list.toMutableList().also {
+        val tmp = it[from]
+        it[from] = it[to]
+        it[to] = tmp
+    }
+}
 
 @Composable
 private fun NowPlayingBlock(
