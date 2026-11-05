@@ -39,3 +39,9 @@ object QuickKeys {
 
     fun byId(id: String): QuickKey? = catalog.firstOrNull { it.id == id }
 }
+
+internal fun decodeQuickKeyIds(raw: String): List<String> =
+    if (raw.isBlank()) emptyList()
+    else raw.split(',').map { it.trim() }.filter { it.isNotBlank() }
+
+internal fun encodeQuickKeyIds(ids: List<String>): String = ids.joinToString(",")

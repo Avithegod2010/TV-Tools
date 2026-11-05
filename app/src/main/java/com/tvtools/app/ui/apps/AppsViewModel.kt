@@ -88,26 +88,13 @@ class AppsViewModel : ViewModel() {
                 // NOTE: APK paths on modern Android contain '=' chars (/data/app/~~xxx==/...),
                 // so parse in Kotlin and split at the LAST '=' — never in shell.
                 val listing = adb.exec("pm list packages -f", timeoutMs = 60_000)
-                val entries = listing.replace("\r\n", "\n").lineSequence()
-                    .map { it.trim() }
-                    .filter { it.startsWith("package:") && it.contains('=') }
-                    .mapNotNull { line ->
-                        val rest = line.removePrefix("package:")
-                        val path = rest.substringBeforeLast('=', "").trim()
-                        val pkg = rest.substringAfterLast('=').trim()
-                        if (pkg.isBlank() || path.isBlank()) return@mapNotNull null
-                        pkg to path
-                    }
-                    .distinctBy { it.first }
-                    .toList()
+                val entries = parsePackageListing(listing)
 
                 // Batch-stat all APKs in a single shell roundtrip.
                 val sizes = fetchSizes(entries.map { it.second })
 
                 val apps = entries.map { (pkg, path) ->
-                    val system = path.startsWith("/system") || path.startsWith("/vendor") ||
-                        path.startsWith("/product") || path.startsWith("/apex") ||
-                        path.startsWith("/system_ext") || path.startsWith("/odm")
+                    val system = isSystemApkPath(path)
                     TvApp(
                         packageName = pkg,
                         apkPath = path,

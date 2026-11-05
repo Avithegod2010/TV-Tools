@@ -163,20 +163,15 @@ class Prefs(private val context: Context) {
      * Names are sanitised so the separators stay unambiguous.
      */
     suspend fun saveMacro(macro: Macro) {
-        val name = macro.name.trim()
-            .replace("\n", " ")
-            .replace('|', '-')
-            .replace(',', ' ')
-            .take(40)
-        if (name.isBlank() || macro.steps.isEmpty()) return
-        val encoded = macro.steps.joinToString(",") { "${it.keyCode}:${it.delayMs}" }
+        val line = encodeMacroLine(macro) ?: return
+        val name = line.substringBefore('|')
         context.dataStore.edit { p ->
             val lines = p[KEY_MACROS].orEmpty()
                 .split('\n')
                 .filter { it.isNotBlank() }
                 .filterNot { it.substringBefore('|') == name }
                 .toMutableList()
-            lines.add("$name|$encoded")
+            lines.add(line)
             p[KEY_MACROS] = lines.joinToString("\n")
         }
     }
@@ -194,20 +189,8 @@ class Prefs(private val context: Context) {
     suspend fun loadMacros(): List<Macro> {
         val raw = context.dataStore.data.first()[KEY_MACROS].orEmpty()
         return raw.split('\n')
-            .filter { it.contains('|') }
-            .mapNotNull { line ->
-                val name = line.substringBefore('|').trim()
-                if (name.isBlank()) return@mapNotNull null
-                val steps = line.substringAfter('|')
-                    .split(',')
-                    .mapNotNull { part ->
-                        val code = part.substringBefore(':').trim().toIntOrNull()
-                            ?: return@mapNotNull null
-                        val delay = part.substringAfter(':', "0").trim().toLongOrNull() ?: 0L
-                        MacroStep(code, delay.coerceIn(0, 10_000))
-                    }
-                if (steps.isEmpty()) null else Macro(name, steps)
-            }
+            .filter { it.isNotBlank() }
+            .mapNotNull { decodeMacroLine(it) }
     }
 
     // ---------------- quick-key layout ----------------
@@ -218,12 +201,11 @@ class Prefs(private val context: Context) {
     suspend fun loadQuickKeys(): List<String>? {
         val prefs = context.dataStore.data.first()
         if (KEY_QUICK_KEYS !in prefs) return null
-        val raw = prefs[KEY_QUICK_KEYS].orEmpty()
-        if (raw.isBlank()) return emptyList()
-        return raw.split(',').map { it.trim() }.filter { it.isNotBlank() }
+        return decodeQuickKeyIds(prefs[KEY_QUICK_KEYS].orEmpty())
+            .filter { QuickKeys.byId(it) != null }
     }
 
     suspend fun saveQuickKeys(ids: List<String>) {
-        context.dataStore.edit { p -> p[KEY_QUICK_KEYS] = ids.joinToString(",") }
+        context.dataStore.edit { p -> p[KEY_QUICK_KEYS] = encodeQuickKeyIds(ids) }
     }
 }
