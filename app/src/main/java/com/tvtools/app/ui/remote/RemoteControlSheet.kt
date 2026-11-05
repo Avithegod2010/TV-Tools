@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.focusable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
@@ -94,8 +95,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -210,6 +213,32 @@ fun RemoteControlSheet(
         scope.launch { adb.keyEvent(code) }
     }
 
+    /** Maps a physical controller to TV key codes. Returns true when handled. */
+    fun gamepadToTv(event: android.view.KeyEvent): Boolean {
+        val mapped = when (event.keyCode) {
+            android.view.KeyEvent.KEYCODE_BUTTON_A -> KEY_DPAD_CENTER
+            android.view.KeyEvent.KEYCODE_BUTTON_B -> KEY_BACK
+            android.view.KeyEvent.KEYCODE_BUTTON_X -> KEY_MENU
+            android.view.KeyEvent.KEYCODE_BUTTON_Y -> KEY_HOME
+            android.view.KeyEvent.KEYCODE_BUTTON_L1 -> KEY_MEDIA_REWIND
+            android.view.KeyEvent.KEYCODE_BUTTON_R1 -> KEY_MEDIA_FF
+            android.view.KeyEvent.KEYCODE_BUTTON_L2 -> KEY_VOL_DOWN
+            android.view.KeyEvent.KEYCODE_BUTTON_R2 -> KEY_VOL_UP
+            android.view.KeyEvent.KEYCODE_BUTTON_START -> KEY_MEDIA_PLAY_PAUSE
+            android.view.KeyEvent.KEYCODE_BUTTON_THUMBL -> KEY_MUTE
+            android.view.KeyEvent.KEYCODE_DPAD_UP -> KEY_DPAD_UP
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> KEY_DPAD_DOWN
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> KEY_DPAD_LEFT
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> KEY_DPAD_RIGHT
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER -> KEY_DPAD_CENTER
+            else -> return false
+        }
+        if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            send(mapped)
+        }
+        return true
+    }
+
     fun replayMacro(macro: com.tvtools.app.data.Macro) {
         if (replaying != null) return
         replaying = macro.name
@@ -246,6 +275,10 @@ fun RemoteControlSheet(
     }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) {
+        runCatching { focusRequester.requestFocus() }
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -254,6 +287,9 @@ fun RemoteControlSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .focusable()
+                .onPreviewKeyEvent { event -> gamepadToTv(event.nativeKeyEvent) }
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp),
@@ -1151,6 +1187,13 @@ private fun GamepadPad(onSend: (Int) -> Unit) {
             NavPill(Icons.Default.KeyboardArrowLeft, "Select") { onSend(KEY_GAMEPAD_SELECT) }
             NavPill(Icons.Default.KeyboardArrowRight, "Start") { onSend(KEY_GAMEPAD_START) }
         }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Physical controller: A = OK · B = back · X = menu · Y = home",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
