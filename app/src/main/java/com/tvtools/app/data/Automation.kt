@@ -52,9 +52,19 @@ class ScreenshotWorker(context: Context, params: WorkerParameters) : CoroutineWo
     }
 }
 
+/** Sends a Wake-on-LAN magic packet to the last TV's saved MAC. */
+class WakeWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val mac = AppServices.prefs.loadLastMac() ?: return Result.success()
+        val sent = com.tvtools.app.util.Wol.send(mac)
+        return if (sent) Result.success() else Result.retry()
+    }
+}
+
 object AutomationScheduler {
     private const val CACHE_WORK = "daily_cache_trim"
     private const val SHOT_WORK = "daily_screenshot"
+    private const val WAKE_WORK = "daily_wake_tv"
 
     fun setCacheTrim(enabled: Boolean) {
         val wm = WorkManager.getInstance(TvToolsApp.instance)
@@ -74,5 +84,27 @@ object AutomationScheduler {
         }
         val request = PeriodicWorkRequestBuilder<ScreenshotWorker>(24, TimeUnit.HOURS).build()
         wm.enqueueUniquePeriodicWork(SHOT_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
+    }
+
+    /** Daily Wake-on-LAN at [minutes] past midnight (local time). */
+    fun setWake(enabled: Boolean, minutes: Int) {
+        val wm = WorkManager.getInstance(TvToolsApp.instance)
+        if (!enabled) {
+            wm.cancelUniqueWork(WAKE_WORK)
+            return
+        }
+        val now = java.util.Calendar.getInstance()
+        val target = (now.clone() as java.util.Calendar).apply {
+            set(java.util.Calendar.HOUR_OF_DAY, (minutes / 60).coerceIn(0, 23))
+            set(java.util.Calendar.MINUTE, (minutes % 60).coerceIn(0, 59))
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+            if (timeInMillis <= now.timeInMillis) add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        val delayMs = (target.timeInMillis - now.timeInMillis).coerceAtLeast(0)
+        val request = PeriodicWorkRequestBuilder<WakeWorker>(24, TimeUnit.HOURS)
+            .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
+            .build()
+        wm.enqueueUniquePeriodicWork(WAKE_WORK, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, request)
     }
 }

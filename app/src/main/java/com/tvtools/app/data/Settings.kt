@@ -45,6 +45,9 @@ data class AppSettings(
     val appIcon: String = "default",
     val tvColor: Int = 0xFF166D32.toInt(),
     val autoConnect: Boolean = true,
+    val wakeEnabled: Boolean = false,
+    val wakeMinutes: Int = 7 * 60,
+    val wakeOnWifi: Boolean = false,
     val onboardingDone: Boolean = false,
     val automationCache: Boolean = false,
     val automationScreenshot: Boolean = false,
@@ -64,6 +67,9 @@ class SettingsRepository(private val context: Context) {
     private val KEY_ICON = stringPreferencesKey("app_icon")
     private val KEY_TV_COLOR = androidx.datastore.preferences.core.intPreferencesKey("tv_color")
     private val KEY_AUTO_CONNECT = booleanPreferencesKey("auto_connect")
+    private val KEY_WAKE_ENABLED = booleanPreferencesKey("wake_enabled")
+    private val KEY_WAKE_MINUTES = androidx.datastore.preferences.core.intPreferencesKey("wake_minutes")
+    private val KEY_WAKE_ON_WIFI = booleanPreferencesKey("wake_on_wifi")
 
     private val _state = MutableStateFlow(AppSettings())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
@@ -90,7 +96,13 @@ class SettingsRepository(private val context: Context) {
                 appIcon = p[KEY_ICON] ?: "default",
                 tvColor = p[KEY_TV_COLOR] ?: 0xFF166D32.toInt(),
                 autoConnect = p[KEY_AUTO_CONNECT] ?: true,
+                wakeEnabled = p[KEY_WAKE_ENABLED] ?: false,
+                wakeMinutes = p[KEY_WAKE_MINUTES] ?: (7 * 60),
+                wakeOnWifi = p[KEY_WAKE_ON_WIFI] ?: false,
             )
+            if (_state.value.wakeEnabled) {
+                AutomationScheduler.setWake(true, _state.value.wakeMinutes)
+            }
         }
     }
 
@@ -159,5 +171,23 @@ class SettingsRepository(private val context: Context) {
     fun setAutoConnect(enabled: Boolean) {
         _state.value = _state.value.copy(autoConnect = enabled)
         scope.launch { context.settingsStore.edit { it[KEY_AUTO_CONNECT] = enabled } }
+    }
+
+    fun setWakeEnabled(enabled: Boolean) {
+        _state.value = _state.value.copy(wakeEnabled = enabled)
+        AutomationScheduler.setWake(enabled, _state.value.wakeMinutes)
+        scope.launch { context.settingsStore.edit { it[KEY_WAKE_ENABLED] = enabled } }
+    }
+
+    fun setWakeMinutes(minutes: Int) {
+        val clamped = minutes.coerceIn(0, 23 * 60 + 59)
+        _state.value = _state.value.copy(wakeMinutes = clamped)
+        if (_state.value.wakeEnabled) AutomationScheduler.setWake(true, clamped)
+        scope.launch { context.settingsStore.edit { it[KEY_WAKE_MINUTES] = clamped } }
+    }
+
+    fun setWakeOnWifi(enabled: Boolean) {
+        _state.value = _state.value.copy(wakeOnWifi = enabled)
+        scope.launch { context.settingsStore.edit { it[KEY_WAKE_ON_WIFI] = enabled } }
     }
 }

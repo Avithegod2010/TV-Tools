@@ -74,6 +74,9 @@ class HomeViewModel : ViewModel() {
                         connected = true
                         break
                     }
+                    if (attempt == 1 && AppServices.settings.state.value.wakeOnWifi) {
+                        prefs.loadLastMac()?.let { com.tvtools.app.util.Wol.send(it) }
+                    }
                     when (adb.connect(last.host, last.port)) {
                         AdbClient.ConnectResult.Success -> {
                             connected = true
@@ -124,7 +127,17 @@ class HomeViewModel : ViewModel() {
                         kotlinx.coroutines.delay(2_500)
                         if (adb.isConnected || _ui.value.connectingTo != null) return@launch
                         val last = prefs.loadLastDevice() ?: return@launch
-                        if (adb.connect(last.host, last.port) == AdbClient.ConnectResult.Success) {
+                        var ok = adb.connect(last.host, last.port) == AdbClient.ConnectResult.Success
+                        if (!ok && AppServices.settings.state.value.wakeOnWifi) {
+                            // Back on the home Wi-Fi but the TV is asleep — send a wake packet and retry.
+                            val mac = prefs.loadLastMac()
+                            if (mac != null) {
+                                com.tvtools.app.util.Wol.send(mac)
+                                kotlinx.coroutines.delay(5_000)
+                                ok = adb.connect(last.host, last.port) == AdbClient.ConnectResult.Success
+                            }
+                        }
+                        if (ok) {
                             val friendly = friendlyName(last)
                             prefs.saveLastDevice(friendly)
                             prefs.saveDevice(friendly)
