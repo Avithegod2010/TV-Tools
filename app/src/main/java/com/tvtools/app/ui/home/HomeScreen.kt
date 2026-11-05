@@ -376,6 +376,11 @@ fun HomeScreen(
                             onClick = { menuOpen = false; onOpenTool("rooms") },
                         )
                         DropdownMenuItem(
+                            text = { Text("Connection doctor") },
+                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                            onClick = { menuOpen = false; onOpenTool("doctor") },
+                        )
+                        DropdownMenuItem(
                             text = { Text("Hotspot mode (no router)") },
                             leadingIcon = { Icon(Icons.Default.Info, null) },
                             onClick = { menuOpen = false; onOpenTool("hotspot") },

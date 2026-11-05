@@ -179,6 +179,14 @@ private fun AppNav() {
         composable("rooms") {
             com.tvtools.app.ui.connect.RoomsScreen(onBack = { nav.popBackStack() })
         }
+        composable("doctor") {
+            com.tvtools.app.ui.connect.ConnectionDoctorScreen(
+                onBack = { nav.popBackStack() },
+                onConnected = { name ->
+                    nav.navigate("device/${Uri.encode(name)}") { popUpTo("home") }
+                },
+            )
+        }
         composable("cast") { CastScreen(onBack = { nav.popBackStack() }) }
         composable("speed") { SpeedTestScreen(onBack = { nav.popBackStack() }) }
         composable("livetv") { LiveTvScreen(onBack = { nav.popBackStack() }) }
