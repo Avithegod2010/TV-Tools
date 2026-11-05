@@ -135,7 +135,7 @@ private const val KEY_GAMEPAD_Y = 100
 private const val KEY_GAMEPAD_START = 108
 private const val KEY_GAMEPAD_SELECT = 109
 
-private enum class RemoteMode { DPAD, TOUCHPAD, GAMEPAD }
+private enum class RemoteMode { DPAD, TOUCHPAD, GAMEPAD, GESTURE }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -334,18 +334,23 @@ fun RemoteControlSheet(
                     SegmentedButton(
                         selected = mode == RemoteMode.DPAD,
                         onClick = { mode = RemoteMode.DPAD },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 4),
                     ) { Text("D-Pad") }
                     SegmentedButton(
                         selected = mode == RemoteMode.TOUCHPAD,
                         onClick = { mode = RemoteMode.TOUCHPAD },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 4),
                     ) { Text("Touch") }
                     SegmentedButton(
                         selected = mode == RemoteMode.GAMEPAD,
                         onClick = { mode = RemoteMode.GAMEPAD },
-                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 4),
                     ) { Text("Game") }
+                    SegmentedButton(
+                        selected = mode == RemoteMode.GESTURE,
+                        onClick = { mode = RemoteMode.GESTURE },
+                        shape = SegmentedButtonDefaults.itemShape(index = 3, count = 4),
+                    ) { Text("Gest.") }
                 }
             }
 
@@ -364,6 +369,7 @@ fun RemoteControlSheet(
                     }
                     RemoteMode.TOUCHPAD -> TouchPad(onSend = ::send)
                     RemoteMode.GAMEPAD -> GamepadPad(onSend = ::send)
+                    RemoteMode.GESTURE -> GesturePad(onSend = ::send)
                 }
             }
 
@@ -747,6 +753,112 @@ private fun TouchPad(onSend: (Int) -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+// ---------------- Gesture pad ----------------
+
+@Composable
+private fun GesturePad(onSend: (Int) -> Unit) {
+    val haptics = rememberHaptics()
+    var dragTotal by remember { mutableStateOf(Offset.Zero) }
+    var lastAction by remember { mutableStateOf("Swipe in a direction") }
+
+    Box(
+        modifier = Modifier
+            .size(260.dp)
+            .background(
+                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                CircleShape,
+            )
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    haptics()
+                    lastAction = "OK"
+                    onSend(KEY_DPAD_CENTER)
+                })
+            }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { dragTotal = Offset.Zero },
+                    onDrag = { change, drag ->
+                        change.consume()
+                        dragTotal += drag
+                    },
+                    onDragEnd = {
+                        val threshold = 60.dp.toPx()
+                        val dx = dragTotal.x
+                        val dy = dragTotal.y
+                        if (abs(dx) < threshold && abs(dy) < threshold) {
+                            lastAction = "Too short — swipe further"
+                            return@detectDragGestures
+                        }
+                        haptics()
+                        if (abs(dx) > abs(dy)) {
+                            if (dx > 0) {
+                                lastAction = "Menu"
+                                onSend(KEY_MENU)
+                            } else {
+                                lastAction = "Back"
+                                onSend(KEY_BACK)
+                            }
+                        } else {
+                            if (dy < 0) {
+                                lastAction = "Volume +"
+                                onSend(KEY_VOL_UP)
+                            } else {
+                                lastAction = "Home"
+                                onSend(KEY_HOME)
+                            }
+                        }
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            "Volume +",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp),
+        )
+        Text(
+            "Home",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
+        )
+        Text(
+            "Back",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 22.dp),
+        )
+        Text(
+            "Menu",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp),
+        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Default.TouchApp,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(30.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Tap = OK",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                lastAction,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
