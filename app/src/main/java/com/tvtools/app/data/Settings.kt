@@ -49,6 +49,7 @@ data class AppSettings(
     val wakeMinutes: Int = 7 * 60,
     val wakeOnWifi: Boolean = false,
     val guestMode: Boolean = false,
+    val bubble: Boolean = false,
     val onboardingDone: Boolean = false,
     val automationCache: Boolean = false,
     val automationScreenshot: Boolean = false,
@@ -72,6 +73,7 @@ class SettingsRepository(private val context: Context) {
     private val KEY_WAKE_MINUTES = androidx.datastore.preferences.core.intPreferencesKey("wake_minutes")
     private val KEY_WAKE_ON_WIFI = booleanPreferencesKey("wake_on_wifi")
     private val KEY_GUEST = booleanPreferencesKey("guest_mode")
+    private val KEY_BUBBLE = booleanPreferencesKey("overlay_bubble")
 
     private val _state = MutableStateFlow(AppSettings())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
@@ -102,6 +104,7 @@ class SettingsRepository(private val context: Context) {
                 wakeMinutes = p[KEY_WAKE_MINUTES] ?: (7 * 60),
                 wakeOnWifi = p[KEY_WAKE_ON_WIFI] ?: false,
                 guestMode = p[KEY_GUEST] ?: false,
+                bubble = p[KEY_BUBBLE] ?: false,
             )
             if (_state.value.wakeEnabled) {
                 AutomationScheduler.setWake(true, _state.value.wakeMinutes)
@@ -197,5 +200,10 @@ class SettingsRepository(private val context: Context) {
     fun setGuestMode(enabled: Boolean) {
         _state.value = _state.value.copy(guestMode = enabled)
         scope.launch { context.settingsStore.edit { it[KEY_GUEST] = enabled } }
+    }
+
+    fun setBubble(enabled: Boolean) {
+        _state.value = _state.value.copy(bubble = enabled)
+        scope.launch { context.settingsStore.edit { it[KEY_BUBBLE] = enabled } }
     }
 }

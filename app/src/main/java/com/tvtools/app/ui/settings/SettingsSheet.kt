@@ -58,6 +58,22 @@ fun SettingsSheet(onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var matchStatus by remember { mutableStateOf<String?>(null) }
 
+    val overlayPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (android.provider.Settings.canDrawOverlays(context)) {
+            repo.setBubble(true)
+            com.tvtools.app.service.OverlayBubbleService.start(context)
+            android.widget.Toast.makeText(context, "Remote bubble is on", android.widget.Toast.LENGTH_SHORT).show()
+        } else {
+            android.widget.Toast.makeText(
+                context,
+                "Overlay permission is needed for the bubble",
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.93f),
@@ -180,6 +196,38 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 Switch(
                     checked = settings.guestMode,
                     onCheckedChange = { repo.setGuestMode(it) },
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Floating bubble")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Remote bubble", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "A draggable shortcut over other apps — tap it to jump back to the remote",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.bubble,
+                    onCheckedChange = { enabled ->
+                        if (!enabled) {
+                            repo.setBubble(false)
+                            com.tvtools.app.service.OverlayBubbleService.stop(context)
+                        } else if (android.provider.Settings.canDrawOverlays(context)) {
+                            repo.setBubble(true)
+                            com.tvtools.app.service.OverlayBubbleService.start(context)
+                        } else {
+                            overlayPermissionLauncher.launch(
+                                android.content.Intent(
+                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}"),
+                                )
+                            )
+                        }
+                    },
                 )
             }
 
