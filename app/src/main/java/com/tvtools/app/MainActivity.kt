@@ -117,6 +117,7 @@ private fun AppNav() {
             HomeScreen(
                 sharedScope = this@SharedTransitionLayout,
                 animatedScope = this,
+                onOpenTool = { route -> nav.navigate(route) },
                 onConnected = { device ->
                     nav.navigate("device/${Uri.encode(device.name)}")
                 },
@@ -155,6 +156,14 @@ private fun AppNav() {
         }
         composable("gallery") {
             com.tvtools.app.ui.gallery.GalleryScreen(onBack = { nav.popBackStack() })
+        }
+        composable("qr") {
+            com.tvtools.app.ui.connect.QrHandoffScreen(
+                onBack = { nav.popBackStack() },
+                onConnected = { name ->
+                    nav.navigate("device/${Uri.encode(name)}") { popUpTo("home") }
+                },
+            )
         }
         composable("cast") { CastScreen(onBack = { nav.popBackStack() }) }
         composable("speed") { SpeedTestScreen(onBack = { nav.popBackStack() }) }

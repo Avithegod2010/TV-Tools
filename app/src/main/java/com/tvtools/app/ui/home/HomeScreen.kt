@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -76,6 +77,7 @@ import com.tvtools.app.ui.settings.SettingsSheet
 @Composable
 fun HomeScreen(
     onConnected: (TvDevice) -> Unit,
+    onOpenTool: (String) -> Unit = {},
     sharedScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedScope: androidx.compose.animation.AnimatedContentScope? = null,
     viewModel: HomeViewModel = viewModel(),
@@ -336,6 +338,11 @@ fun HomeScreen(
                             text = { Text("Wake last TV (WOL only)") },
                             leadingIcon = { Icon(Icons.Default.PowerSettingsNew, null) },
                             onClick = { menuOpen = false; viewModel.wakeLastTv() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share TV via QR") },
+                            leadingIcon = { Icon(Icons.Default.Share, null) },
+                            onClick = { menuOpen = false; onOpenTool("qr") },
                         )
                         DropdownMenuItem(
                             text = { Text("Settings") },

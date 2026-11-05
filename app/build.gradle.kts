@@ -82,6 +82,7 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("com.github.mwiede:jsch:0.2.17")
+    implementation("com.google.zxing:core:3.5.3")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
