@@ -294,10 +294,51 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             )
 
             Spacer(Modifier.height(18.dp))
+            SectionTitle("Diagnostics")
+            var lastCrash by remember { mutableStateOf<String?>(null) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                lastCrash = com.tvtools.app.data.Diagnostics.lastCrash(context)
+            }
+            Text(
+                if (lastCrash == null) "No crashes recorded. Reports stay on this phone."
+                else "A crash report was saved locally. Copy it into a bug report if you like.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = {
+                    val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                    clipboard?.setPrimaryClip(
+                        android.content.ClipData.newPlainText(
+                            "TV Tools diagnostics",
+                            com.tvtools.app.data.Diagnostics.copyReport(context),
+                        )
+                    )
+                    android.widget.Toast.makeText(
+                        context,
+                        "Diagnostics copied — nothing was uploaded",
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }) { Text("Copy diagnostics") }
+                if (lastCrash != null) {
+                    TextButton(onClick = {
+                        com.tvtools.app.data.Diagnostics.clear(context)
+                        lastCrash = null
+                    }) { Text("Clear crash") }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
-            Text("TV Tools • v1.5", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "TV Tools • v" + runCatching {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                }.getOrNull().orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.height(28.dp))
         }
     }
