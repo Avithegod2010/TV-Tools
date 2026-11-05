@@ -153,4 +153,60 @@ class Prefs(private val context: Context) {
             .filter { it.contains('=') }
             .associate { it.substringBeforeLast('=') to it.substringAfterLast('=') }
     }
+
+    // ---------------- remote macros ----------------
+
+    private val KEY_MACROS = stringPreferencesKey("remote_macros")
+
+    /**
+     * Stored one macro per line as `name|code:delay,code:delay`.
+     * Names are sanitised so the separators stay unambiguous.
+     */
+    suspend fun saveMacro(macro: Macro) {
+        val name = macro.name.trim()
+            .replace("\n", " ")
+            .replace('|', '-')
+            .replace(',', ' ')
+            .take(40)
+        if (name.isBlank() || macro.steps.isEmpty()) return
+        val encoded = macro.steps.joinToString(",") { "${it.keyCode}:${it.delayMs}" }
+        context.dataStore.edit { p ->
+            val lines = p[KEY_MACROS].orEmpty()
+                .split('\n')
+                .filter { it.isNotBlank() }
+                .filterNot { it.substringBefore('|') == name }
+                .toMutableList()
+            lines.add("$name|$encoded")
+            p[KEY_MACROS] = lines.joinToString("\n")
+        }
+    }
+
+    suspend fun deleteMacro(name: String) {
+        context.dataStore.edit { p ->
+            p[KEY_MACROS] = p[KEY_MACROS].orEmpty()
+                .split('\n')
+                .filter { it.isNotBlank() }
+                .filterNot { it.substringBefore('|') == name }
+                .joinToString("\n")
+        }
+    }
+
+    suspend fun loadMacros(): List<Macro> {
+        val raw = context.dataStore.data.first()[KEY_MACROS].orEmpty()
+        return raw.split('\n')
+            .filter { it.contains('|') }
+            .mapNotNull { line ->
+                val name = line.substringBefore('|').trim()
+                if (name.isBlank()) return@mapNotNull null
+                val steps = line.substringAfter('|')
+                    .split(',')
+                    .mapNotNull { part ->
+                        val code = part.substringBefore(':').trim().toIntOrNull()
+                            ?: return@mapNotNull null
+                        val delay = part.substringAfter(':', "0").trim().toLongOrNull() ?: 0L
+                        MacroStep(code, delay.coerceIn(0, 10_000))
+                    }
+                if (steps.isEmpty()) null else Macro(name, steps)
+            }
+    }
 }

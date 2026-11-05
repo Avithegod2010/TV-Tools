@@ -26,6 +26,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Home
@@ -141,8 +144,39 @@ fun RemoteControlSheet(
     var showNumberPad by remember { mutableStateOf(false) }
     var powerMessage by remember { mutableStateOf<String?>(null) }
 
+    // Macro recorder
+    var macros by remember { mutableStateOf<List<com.tvtools.app.data.Macro>>(emptyList()) }
+    var showMacros by remember { mutableStateOf(false) }
+    var showSaveMacro by remember { mutableStateOf(false) }
+    var macroRecording by remember { mutableStateOf(false) }
+    var recordedSteps by remember { mutableStateOf<List<com.tvtools.app.data.MacroStep>>(emptyList()) }
+    var lastStepAt by remember { mutableStateOf(0L) }
+    var replaying by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        macros = AppServices.prefs.loadMacros()
+    }
+
     fun send(code: Int) {
+        if (macroRecording) {
+            val now = System.currentTimeMillis()
+            val gap = if (recordedSteps.isEmpty()) 0L else (now - lastStepAt).coerceIn(0, 10_000)
+            recordedSteps = recordedSteps + com.tvtools.app.data.MacroStep(code, gap)
+            lastStepAt = now
+        }
         scope.launch { adb.keyEvent(code) }
+    }
+
+    fun replayMacro(macro: com.tvtools.app.data.Macro) {
+        if (replaying != null) return
+        replaying = macro.name
+        scope.launch {
+            for (step in macro.steps) {
+                if (step.delayMs > 0) delay(step.delayMs)
+                adb.keyEvent(step.keyCode)
+            }
+            replaying = null
+        }
     }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -175,6 +209,9 @@ fun RemoteControlSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                IconButton(onClick = { showMacros = true }) {
+                    Icon(Icons.Default.Bolt, contentDescription = "Macros")
+                }
                 IconButton(onClick = { showTextDialog = true }) {
                     Icon(Icons.Default.Keyboard, contentDescription = "Send text")
                 }
@@ -188,23 +225,64 @@ fun RemoteControlSheet(
 
             Spacer(Modifier.height(8.dp))
 
-            // Mode switch
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = mode == RemoteMode.DPAD,
-                    onClick = { mode = RemoteMode.DPAD },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
-                ) { Text("D-Pad") }
-                SegmentedButton(
-                    selected = mode == RemoteMode.TOUCHPAD,
-                    onClick = { mode = RemoteMode.TOUCHPAD },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
-                ) { Text("Touch") }
-                SegmentedButton(
-                    selected = mode == RemoteMode.GAMEPAD,
-                    onClick = { mode = RemoteMode.GAMEPAD },
-                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
-                ) { Text("Game") }
+            // Mode switch — replaced by the recorder bar while recording so the sheet height stays stable.
+            if (macroRecording) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            Modifier
+                                .size(10.dp)
+                                .background(MaterialTheme.colorScheme.error, CircleShape)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Recording macro",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                "${recordedSteps.size} key(s) — press the remote, then save",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(onClick = { showSaveMacro = true }, enabled = recordedSteps.isNotEmpty()) {
+                            Text("Save")
+                        }
+                        IconButton(onClick = {
+                            macroRecording = false
+                            recordedSteps = emptyList()
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = "Discard recording")
+                        }
+                    }
+                }
+            } else {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = mode == RemoteMode.DPAD,
+                        onClick = { mode = RemoteMode.DPAD },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
+                    ) { Text("D-Pad") }
+                    SegmentedButton(
+                        selected = mode == RemoteMode.TOUCHPAD,
+                        onClick = { mode = RemoteMode.TOUCHPAD },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
+                    ) { Text("Touch") }
+                    SegmentedButton(
+                        selected = mode == RemoteMode.GAMEPAD,
+                        onClick = { mode = RemoteMode.GAMEPAD },
+                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                    ) { Text("Game") }
+                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -354,6 +432,47 @@ fun RemoteControlSheet(
             onDismissRequest = { powerMessage = null },
             confirmButton = { TextButton(onClick = { powerMessage = null }) { Text("OK") } },
             text = { Text(msg) },
+        )
+    }
+
+    if (showMacros) {
+        MacroDialog(
+            macros = macros,
+            replaying = replaying,
+            onReplay = { macro -> replayMacro(macro) },
+            onDelete = { macro ->
+                scope.launch {
+                    AppServices.prefs.deleteMacro(macro.name)
+                    macros = AppServices.prefs.loadMacros()
+                }
+            },
+            onRecord = {
+                showMacros = false
+                recordedSteps = emptyList()
+                lastStepAt = 0
+                macroRecording = true
+            },
+            onDismiss = { showMacros = false },
+        )
+    }
+
+    if (showSaveMacro) {
+        SaveMacroDialog(
+            defaultName = "Macro ${macros.size + 1}",
+            stepCount = recordedSteps.size,
+            onDismiss = { showSaveMacro = false },
+            onSave = { name ->
+                val macro = com.tvtools.app.data.Macro(name, recordedSteps)
+                scope.launch {
+                    AppServices.prefs.saveMacro(macro)
+                    macros = AppServices.prefs.loadMacros()
+                    showSaveMacro = false
+                    macroRecording = false
+                    recordedSteps = emptyList()
+                    lastStepAt = 0
+                    powerMessage = "Saved \"${macro.name}\" — replay it from the bolt icon."
+                }
+            },
         )
     }
 }
@@ -849,6 +968,141 @@ private fun LiveKeyboardDialog(
 }
 
 private val EMOJI = listOf("😀", "😂", "❤️", "👍", "🔥", "🎉", "😮", "😢", "🙏", "✨")
+
+@Composable
+private fun MacroDialog(
+    macros: List<com.tvtools.app.data.Macro>,
+    replaying: String?,
+    onReplay: (com.tvtools.app.data.Macro) -> Unit,
+    onDelete: (com.tvtools.app.data.Macro) -> Unit,
+    onRecord: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var confirmDelete by remember { mutableStateOf<com.tvtools.app.data.Macro?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Macros") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Record a few presses — open an app, start an episode — then replay them with one tap.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (macros.isEmpty()) {
+                    Text(
+                        "No macros yet. Tap \"Record new\", press keys on the remote, then save.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        macros.forEach { macro ->
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(
+                                    Modifier.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            macro.name,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                        Text(
+                                            macro.label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    if (replaying == macro.name) {
+                                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                        Spacer(Modifier.width(12.dp))
+                                    } else {
+                                        IconButton(onClick = { onReplay(macro) }) {
+                                            Icon(
+                                                Icons.Default.PlayArrow,
+                                                contentDescription = "Replay ${macro.name}",
+                                            )
+                                        }
+                                    }
+                                    IconButton(onClick = { confirmDelete = macro }) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete ${macro.name}",
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Text(
+                    "Pauses between presses are kept, so menus have time to open.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onRecord, enabled = replaying == null) { Text("Record new") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+
+    confirmDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { confirmDelete = null },
+            title = { Text("Delete \"${target.name}\"?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(target)
+                    confirmDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancel") } },
+        )
+    }
+}
+
+@Composable
+private fun SaveMacroDialog(
+    defaultName: String,
+    stepCount: Int,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var name by remember { mutableStateOf(defaultName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Save macro") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(40) },
+                    label = { Text("Name") },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "$stepCount key press(es) recorded, including the pauses between them.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
 
 @Composable
 private fun PowerMenuDialog(
