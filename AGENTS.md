@@ -49,6 +49,19 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 - ADB private key + cert stay in app-private storage (`files/adbkeys`).
 - ADB TLS uses the library's trust-all manager (inherent to ADB pairing).
 
+## Feature map (v1.5)
+- Visuals: Home live thumbnail (`DeviceViewModel` writes `files/tvthumbs/<hosthash>.png` every 20s; HomeViewModel loads it), radar `RadarScan` Canvas, animated logo (`graphicsLayer`), shared-element device title (`SharedTransitionLayout` in MainActivity → Home/Device params).
+- Themes: `ThemeMode.AMOLED` (pure black), `AUTO` (7–19h), `Accent.TV` from `AppSettings.tvColor` (SettingsSheet "Match TV colors" captures a screencap and extracts a saturated color).
+- Per-TV accents: `Prefs.saveDeviceAccent/loadDeviceAccent`; applied on connect; "Save accent for this TV" in the device menu.
+- Remote skins: `RemoteSkin` (Classic/Circular/Minimal/Gamepad-first) in `RemoteControlSheet`.
+- Launcher icons: activity-aliases `.MainDefault/.MainRemote/.MainMono`; `SettingsSheet.setLauncherIcon` toggles components.
+- Haptics/sounds: `Haptics.kt` uses `View.performHapticFeedback` with strength profiles + `AudioManager.FX_KEY_CLICK`.
+- Gallery: `ui/gallery/GalleryScreen` (files in `files/screenshots`; ToolsViewModel copies each capture).
+- Files: grid/list toggle (`FilesUiState.grid`).
+- Health: animated `ArcGauge` rings in `Labs.HealthCard`.
+- Widgets: full remote + compact 2×1 (`CompactRemoteWidgetProvider`).
+- Typography: `AppTypography` in `Theme.kt`.
+
 ## Feature map (v1.4)
 - `ui/labs/Labs.kt`: DLNA cast (SSDP + AVTransport SOAP + single-file HTTP server), speed test (8 MB push/pull + ping), live TV (`dumpsys tv_input`), mouse/keyboard (`input motionevent`), health monitor (sparklines), users (`pm list users` + `am switch-user`), IR (`ConsumerIrManager`), kids mode (disable/enable user apps), launchpad (favorites + launch).
 - `ui/labs/SftpScreen.kt`: SFTP browser via jsch — browse and push files straight to the TV.

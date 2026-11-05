@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.4-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-1.5-166d32" alt="Version" />
   </p>
 </div>
 
@@ -41,6 +41,9 @@
 | 🧩 **System integration** | **Quick Settings tile** ("TV Remote") + **home-screen remote widget**, onboarding, splash screen |
 | 🧪 **Labs** | **DLNA casting**, **SFTP browser**, **speed test**, **live TV inputs**, **mouse & keyboard**, **health monitor**, **TV users**, **kids mode**, **launchpad**, **automations** |
 | 🔐 **Data & safety** | App **data backup** (external), **encrypted export/import** of backups, ambient mode, screen-timeout control, **wake & reconnect** |
+| ✨ **Visuals** | Live TV thumbnail on the device card, **radar discovery animation**, **shared-element transitions**, AMOLED mode, auto day/night, **glass sheets**, animated logo |
+| 🎨 **Customization** | **Per-TV accent colors**, **palette matched from the TV screen**, 4 remote skins, **3 launcher icon variants**, haptic profiles, key sounds, custom typography |
+| 🖼 **Gallery & files** | **Screenshot gallery** with timeline view, **grid/list file manager**, health rings |
 
 ## 🔐 Privacy & security
 
