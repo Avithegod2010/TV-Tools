@@ -165,6 +165,14 @@ private fun AppNav() {
                 },
             )
         }
+        composable("netmap") {
+            com.tvtools.app.ui.connect.NetworkMapScreen(
+                onBack = { nav.popBackStack() },
+                onConnected = { name ->
+                    nav.navigate("device/${Uri.encode(name)}") { popUpTo("home") }
+                },
+            )
+        }
         composable("cast") { CastScreen(onBack = { nav.popBackStack() }) }
         composable("speed") { SpeedTestScreen(onBack = { nav.popBackStack() }) }
         composable("livetv") { LiveTvScreen(onBack = { nav.popBackStack() }) }

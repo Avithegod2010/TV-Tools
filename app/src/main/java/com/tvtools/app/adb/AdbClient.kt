@@ -26,6 +26,10 @@ class AdbClient(context: Context) {
     var connectedDevice: ConnectedDevice? = null
         private set
 
+    /** Duration of the last successful ADB handshake, in milliseconds (0 = unknown). */
+    var lastConnectMs: Long = 0
+        private set
+
     val isConnected: Boolean get() = manager.isConnected
 
     // ---------------- connection ----------------
@@ -48,8 +52,10 @@ class AdbClient(context: Context) {
     suspend fun connect(host: String, port: Int): ConnectResult = withContext(Dispatchers.IO) {
         try {
             if (manager.isConnected) manager.disconnect()
+            val started = System.currentTimeMillis()
             val ok = manager.connect(host, port)
             if (ok) {
+                lastConnectMs = System.currentTimeMillis() - started
                 connectedDevice = ConnectedDevice(host, port)
                 ConnectResult.Success
             } else ConnectResult.Error("Connection refused")

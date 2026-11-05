@@ -345,6 +345,11 @@ fun HomeScreen(
                             onClick = { menuOpen = false; onOpenTool("qr") },
                         )
                         DropdownMenuItem(
+                            text = { Text("Network map") },
+                            leadingIcon = { Icon(Icons.Default.Info, null) },
+                            onClick = { menuOpen = false; onOpenTool("netmap") },
+                        )
+                        DropdownMenuItem(
                             text = { Text("Settings") },
                             leadingIcon = { Icon(Icons.Default.Settings, null) },
                             onClick = { menuOpen = false; showSettings = true },
