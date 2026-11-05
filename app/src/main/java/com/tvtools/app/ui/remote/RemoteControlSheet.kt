@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -706,7 +708,6 @@ private fun DPadPad(onSend: (Int) -> Unit) {
 @Composable
 private fun TouchPad(onSend: (Int) -> Unit) {
     val haptics = rememberHaptics()
-    var dragTotal by remember { mutableStateOf(Offset.Zero) }
 
     Box(
         modifier = Modifier
@@ -717,27 +718,95 @@ private fun TouchPad(onSend: (Int) -> Unit) {
                 RoundedCornerShape(28.dp),
             )
             .pointerInput(Unit) {
-                detectTapGestures(onTap = { onSend(KEY_DPAD_CENTER) })
-            }
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { dragTotal = Offset.Zero },
-                    onDrag = { change, drag ->
-                        change.consume()
-                        dragTotal += drag
-                        val threshold = 70.dp.toPx()
-                        if (abs(dragTotal.x) > threshold || abs(dragTotal.y) > threshold) {
-                            val key = if (abs(dragTotal.x) > abs(dragTotal.y)) {
-                                if (dragTotal.x > 0) KEY_DPAD_RIGHT else KEY_DPAD_LEFT
-                            } else {
-                                if (dragTotal.y > 0) KEY_DPAD_DOWN else KEY_DPAD_UP
-                            }
-                            onSend(key)
-                            haptics()
-                            dragTotal = Offset.Zero
+                val swipeThreshold = 60.dp.toPx()
+                val scrollThreshold = 30.dp.toPx()
+                val pinchThreshold = 36.dp.toPx()
+                awaitEachGesture {
+                    val first = awaitFirstDown(requireUnconsumed = false)
+                    val startedAt = android.os.SystemClock.uptimeMillis()
+                    var lastCentroid = first.position
+                    var maxPointers = 1
+                    var travel = 0f
+                    var dragAcc = Offset.Zero
+                    var scrollAcc = 0f
+                    var pinchBase = 0f
+                    var pinchAcc = 0f
+                    var didNavigate = false
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val pressed = event.changes.filter { it.pressed }
+                        if (pressed.isEmpty()) {
+                            event.changes.forEach { it.consume() }
+                            break
                         }
-                    },
-                )
+                        maxPointers = maxOf(maxPointers, pressed.size)
+                        val centroid = pressed.fold(Offset.Zero) { acc, change -> acc + change.position } /
+                            pressed.size.toFloat()
+                        val delta = centroid - lastCentroid
+                        lastCentroid = centroid
+                        travel += delta.getDistance()
+
+                        if (pressed.size == 1) {
+                            pinchBase = 0f
+                            pinchAcc = 0f
+                            dragAcc += delta
+                            if (abs(dragAcc.x) > swipeThreshold || abs(dragAcc.y) > swipeThreshold) {
+                                val key = if (abs(dragAcc.x) > abs(dragAcc.y)) {
+                                    if (dragAcc.x > 0) KEY_DPAD_RIGHT else KEY_DPAD_LEFT
+                                } else {
+                                    if (dragAcc.y > 0) KEY_DPAD_DOWN else KEY_DPAD_UP
+                                }
+                                onSend(key)
+                                haptics()
+                                dragAcc = Offset.Zero
+                                didNavigate = true
+                            }
+                        } else {
+                            dragAcc = Offset.Zero
+                            // Two fingers: vertical scroll
+                            if (abs(delta.y) > 1.5f) {
+                                scrollAcc += delta.y
+                                if (abs(scrollAcc) > scrollThreshold) {
+                                    onSend(if (scrollAcc > 0) KEY_DPAD_DOWN else KEY_DPAD_UP)
+                                    haptics()
+                                    scrollAcc = 0f
+                                    didNavigate = true
+                                }
+                            }
+                            // Pinch: volume
+                            if (pressed.size == 2) {
+                                val span = (pressed[0].position - pressed[1].position).getDistance()
+                                if (pinchBase == 0f) {
+                                    pinchBase = span
+                                } else {
+                                    pinchAcc += span - pinchBase
+                                    pinchBase = span
+                                    if (abs(pinchAcc) > pinchThreshold) {
+                                        onSend(if (pinchAcc > 0) KEY_VOL_UP else KEY_VOL_DOWN)
+                                        haptics()
+                                        pinchAcc = 0f
+                                        didNavigate = true
+                                    }
+                                }
+                            } else {
+                                pinchBase = 0f
+                                pinchAcc = 0f
+                            }
+                        }
+                        event.changes.forEach { it.consume() }
+                    }
+
+                    val duration = android.os.SystemClock.uptimeMillis() - startedAt
+                    if (!didNavigate && duration < 320 && travel < swipeThreshold / 2) {
+                        haptics()
+                        when (maxPointers) {
+                            2 -> onSend(KEY_BACK)
+                            3 -> onSend(KEY_HOME)
+                            else -> onSend(KEY_DPAD_CENTER)
+                        }
+                    }
+                }
             },
         contentAlignment = Alignment.Center,
     ) {
@@ -746,12 +815,25 @@ private fun TouchPad(onSend: (Int) -> Unit) {
                 Icons.Default.TouchApp,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(34.dp),
+                modifier = Modifier.size(30.dp),
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
-                "Swipe to navigate · Tap to select",
+                "Drag to navigate · Tap to select",
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "2 fingers: scroll · pinch: volume",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                "2-finger tap: back · 3-finger tap: home",
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
