@@ -178,6 +178,9 @@ fun RemoteControlSheet(
                 IconButton(onClick = { showTextDialog = true }) {
                     Icon(Icons.Default.Keyboard, contentDescription = "Send text")
                 }
+                IconButton(onClick = { scope.launch { adb.assistant() } }) {
+                    Icon(Icons.Default.Mic, contentDescription = "Google Assistant on the TV")
+                }
                 IconButton(onClick = onOpenMirror) {
                     Icon(Icons.Default.Cast, contentDescription = "Screen mirroring")
                 }
@@ -705,6 +708,39 @@ private fun LiveKeyboardDialog(
     var text by remember { mutableStateOf("") }
     var ctrl by remember { mutableStateOf(false) }
     var alt by remember { mutableStateOf(false) }
+    var voiceError by remember { mutableStateOf<String?>(null) }
+
+    val voiceLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val spoken = result.data
+            ?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+            ?.trim()
+        if (result.resultCode == android.app.Activity.RESULT_OK && !spoken.isNullOrBlank()) {
+            val chunk = if (text.isBlank()) spoken else " $spoken"
+            text += chunk
+            onText(chunk)
+            voiceError = null
+        } else if (result.resultCode == android.app.Activity.RESULT_OK) {
+            voiceError = "No speech recognized — try again."
+        }
+    }
+
+    fun startVoice() {
+        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak — text goes to the TV")
+        }
+        try {
+            voiceLauncher.launch(intent)
+        } catch (_: Exception) {
+            voiceError = "No speech recognition app on this phone."
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -734,6 +770,29 @@ private fun LiveKeyboardDialog(
                     singleLine = false,
                     maxLines = 3,
                 )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AssistChip(
+                        onClick = { startVoice() },
+                        label = { Text("Speak to type") },
+                        leadingIcon = { Icon(Icons.Default.Mic, null, Modifier.size(16.dp)) },
+                    )
+                    Text(
+                        "Uses the phone's speech recognizer, then sends the text.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                voiceError?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(selected = ctrl, onClick = { ctrl = !ctrl }, label = { Text("Ctrl") })
