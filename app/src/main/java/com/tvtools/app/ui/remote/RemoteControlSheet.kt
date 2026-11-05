@@ -69,6 +69,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -146,7 +147,9 @@ fun RemoteControlSheet(
     var showTextDialog by remember { mutableStateOf(false) }
     var showPowerMenu by remember { mutableStateOf(false) }
     var showNumberPad by remember { mutableStateOf(false) }
+    var showSleepTimer by remember { mutableStateOf(false) }
     var powerMessage by remember { mutableStateOf<String?>(null) }
+    val sleepState by com.tvtools.app.data.SleepTimer.state.collectAsState()
 
     // Macro recorder
     var macros by remember { mutableStateOf<List<com.tvtools.app.data.Macro>>(emptyList()) }
@@ -448,6 +451,10 @@ fun RemoteControlSheet(
     if (showPowerMenu) {
         PowerMenuDialog(
             deviceName = deviceName,
+            sleepMinutesLeft = sleepState?.let {
+                ((it.remainingMs() + 59_999) / 60_000).toInt().coerceAtLeast(1)
+            },
+            onSleepTimer = { showPowerMenu = false; showSleepTimer = true },
             onDismiss = { showPowerMenu = false },
             onSleep = { showPowerMenu = false; send(KEY_SLEEP) },
             onPowerToggle = { showPowerMenu = false; send(KEY_POWER) },
@@ -493,6 +500,23 @@ fun RemoteControlSheet(
             onDismissRequest = { powerMessage = null },
             confirmButton = { TextButton(onClick = { powerMessage = null }) { Text("OK") } },
             text = { Text(msg) },
+        )
+    }
+
+    if (showSleepTimer) {
+        SleepTimerDialog(
+            activeMinutesLeft = sleepState?.let {
+                ((it.remainingMs() + 59_999) / 60_000).toInt().coerceAtLeast(1)
+            },
+            onStart = { minutes, fade ->
+                com.tvtools.app.data.SleepTimer.start(minutes, if (fade) 20 else 0)
+                showSleepTimer = false
+            },
+            onCancelTimer = {
+                com.tvtools.app.data.SleepTimer.cancel()
+                showSleepTimer = false
+            },
+            onDismiss = { showSleepTimer = false },
         )
     }
 
@@ -1290,8 +1314,10 @@ private fun SaveMacroDialog(
 @Composable
 private fun PowerMenuDialog(
     deviceName: String,
+    sleepMinutesLeft: Int?,
     onDismiss: () -> Unit,
     onSleep: () -> Unit,
+    onSleepTimer: () -> Unit,
     onPowerToggle: () -> Unit,
     onWake: () -> Unit,
     onRestart: () -> Unit,
@@ -1306,6 +1332,10 @@ private fun PowerMenuDialog(
             text = {
                 Column {
                     PowerRow("Turn screen off (sleep)") { onSleep() }
+                    PowerRow(
+                        if (sleepMinutesLeft != null) "Sleep timer — ${sleepMinutesLeft}m left"
+                        else "Sleep timer…"
+                    ) { onSleepTimer() }
                     PowerRow("Power button (toggle)") { onPowerToggle() }
                     PowerRow("Wake with Wake-on-LAN") { onWake() }
                     PowerRow("Ambient / screensaver mode") { onAmbient() }
@@ -1324,6 +1354,69 @@ private fun PowerMenuDialog(
             dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text("Cancel") } },
         )
     }
+}
+
+@Composable
+private fun SleepTimerDialog(
+    activeMinutesLeft: Int?,
+    onStart: (minutes: Int, fade: Boolean) -> Unit,
+    onCancelTimer: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val presets = listOf(15, 30, 45, 60, 90)
+    var minutes by remember { mutableStateOf(30) }
+    var fade by remember { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Sleep timer") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Fades the volume over the last 20 seconds, then puts the TV to sleep.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (activeMinutesLeft != null) {
+                    Text(
+                        "Timer running — sleeping in about $activeMinutesLeft min.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(presets.size) { index ->
+                        val preset = presets[index]
+                        FilterChip(
+                            selected = minutes == preset,
+                            onClick = { minutes = preset },
+                            label = { Text("$preset min") },
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Fade volume out", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Ramps down from the TV's current level",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = fade, onCheckedChange = { fade = it })
+                }
+                if (activeMinutesLeft != null) {
+                    TextButton(onClick = onCancelTimer) { Text("Cancel running timer") }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onStart(minutes, fade) }) {
+                Text(if (activeMinutesLeft != null) "Restart timer" else "Start")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
 }
 
 @Composable

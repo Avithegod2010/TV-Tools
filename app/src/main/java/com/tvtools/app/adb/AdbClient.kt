@@ -430,6 +430,23 @@ class AdbClient(context: Context) {
         }
     }
 
+    /** Current media volume (0–15), or null when the TV doesn't report it. */
+    suspend fun getMediaVolume(): Int? {
+        val outputs = listOf(
+            "cmd media_session volume --stream 3 --get 2>&1",
+            "media volume --stream 3 --get 2>&1",
+        )
+        for (command in outputs) {
+            val out = try {
+                exec(command, timeoutMs = 10_000)
+            } catch (_: Exception) {
+                ""
+            }
+            Regex("volume is (\\d+)").find(out)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
+        }
+        return null
+    }
+
     suspend fun mediaCommand(command: String): String =
         exec("cmd media_session dispatch $command", timeoutMs = 15_000)
 }
