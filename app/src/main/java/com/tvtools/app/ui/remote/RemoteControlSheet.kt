@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -192,6 +193,10 @@ fun RemoteControlSheet(
     var broadcastBusy by remember { mutableStateOf(false) }
     val broadcastQueue = remember { kotlinx.coroutines.channels.Channel<Int>(64) }
 
+    // Recent presses (session only) for the history / undo dialog.
+    var keyHistory by remember { mutableStateOf<List<KeyPress>>(emptyList()) }
+    var showHistory by remember { mutableStateOf(false) }
+
     // Which app is on the TV right now (drives the contextual shortcut row).
     var foregroundApp by remember { mutableStateOf<String?>(null) }
     var nowPlaying by remember { mutableStateOf<com.tvtools.app.data.NowPlaying?>(null) }
@@ -252,11 +257,27 @@ fun RemoteControlSheet(
             recordedSteps = recordedSteps + com.tvtools.app.data.MacroStep(code, gap)
             lastStepAt = now
         }
+        keyHistory = (keyHistory + KeyPress(code, keyLabel(code), System.currentTimeMillis()))
+            .takeLast(30)
         if (broadcastSelection != null) {
             broadcastQueue.trySend(code)
             return
         }
         scope.launch { adb.keyEvent(code) }
+    }
+
+    fun undoLast() {
+        val last = keyHistory.lastOrNull() ?: return
+        val inverse = when (last.code) {
+            KEY_VOL_UP -> KEY_VOL_DOWN
+            KEY_VOL_DOWN -> KEY_VOL_UP
+            KEY_CH_UP -> KEY_CH_DOWN
+            KEY_CH_DOWN -> KEY_CH_UP
+            KEY_MUTE -> KEY_MUTE
+            KEY_MEDIA_PLAY_PAUSE -> KEY_MEDIA_PLAY_PAUSE
+            else -> KEY_BACK
+        }
+        send(inverse)
     }
 
     /** Maps a physical controller to TV key codes. Returns true when handled. */
@@ -487,6 +508,13 @@ fun RemoteControlSheet(
                         leadingIcon = { Icon(Icons.Default.Groups, null, Modifier.size(14.dp)) },
                     )
                 }
+                item {
+                    AssistChip(
+                        onClick = { showHistory = true },
+                        label = { Text("History") },
+                        leadingIcon = { Icon(Icons.Default.History, null, Modifier.size(14.dp)) },
+                    )
+                }
                 items(quickKeys.size) { index ->
                     val key = com.tvtools.app.data.QuickKeys.byId(quickKeys[index])
                     if (key != null) {
@@ -661,6 +689,25 @@ fun RemoteControlSheet(
             onDismissRequest = { powerMessage = null },
             confirmButton = { TextButton(onClick = { powerMessage = null }) { Text("OK") } },
             text = { Text(msg) },
+        )
+    }
+
+    if (showHistory) {
+        KeyHistoryDialog(
+            history = keyHistory,
+            onUndo = {
+                undoLast()
+                showHistory = false
+            },
+            onClear = {
+                keyHistory = emptyList()
+                showHistory = false
+            },
+            onSendAgain = { press ->
+                send(press.code)
+                showHistory = false
+            },
+            onDismiss = { showHistory = false },
         )
     }
 
@@ -1545,6 +1592,105 @@ private fun LiveKeyboardDialog(
 }
 
 private val EMOJI = listOf("😀", "😂", "❤️", "👍", "🔥", "🎉", "😮", "😢", "🙏", "✨")
+
+private data class KeyPress(val code: Int, val label: String, val at: Long)
+
+private fun keyLabel(code: Int): String = when (code) {
+    KEY_HOME -> "Home"
+    KEY_BACK -> "Back"
+    KEY_DPAD_UP -> "Up"
+    KEY_DPAD_DOWN -> "Down"
+    KEY_DPAD_LEFT -> "Left"
+    KEY_DPAD_RIGHT -> "Right"
+    KEY_DPAD_CENTER -> "OK"
+    KEY_VOL_UP -> "Volume +"
+    KEY_VOL_DOWN -> "Volume −"
+    KEY_MUTE -> "Mute"
+    KEY_MENU -> "Menu"
+    KEY_MEDIA_PLAY_PAUSE -> "Play/pause"
+    KEY_MEDIA_NEXT -> "Next"
+    KEY_MEDIA_PREV -> "Previous"
+    KEY_MEDIA_REWIND -> "Rewind"
+    KEY_MEDIA_FF -> "Fast forward"
+    KEY_CH_UP -> "Channel +"
+    KEY_CH_DOWN -> "Channel −"
+    KEY_POWER -> "Power"
+    KEY_SLEEP -> "Sleep"
+    KEY_WAKE -> "Wake"
+    84 -> "Search"
+    86 -> "Stop"
+    165 -> "Info"
+    175 -> "Subtitles"
+    176 -> "Settings"
+    178 -> "TV input"
+    219 -> "Assistant"
+    else -> com.tvtools.app.data.QuickKeys.catalog
+        .firstOrNull { it.keyCode == code }?.label ?: "Key $code"
+}
+
+@Composable
+private fun KeyHistoryDialog(
+    history: List<KeyPress>,
+    onUndo: () -> Unit,
+    onClear: () -> Unit,
+    onSendAgain: (KeyPress) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val formatter = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Key history") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "Session only. Undo sends a sensible inverse: volume and channel flip, mute and play toggle, everything else goes back.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (history.isEmpty()) {
+                    Text("Nothing pressed yet.", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    Column(
+                        Modifier
+                            .heightIn(max = 300.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        history.asReversed().forEach { press ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSendAgain(press) }
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    press.label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    formatter.format(java.util.Date(press.at)),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onUndo, enabled = history.isNotEmpty()) { Text("Undo last") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onClear, enabled = history.isNotEmpty()) { Text("Clear") }
+                TextButton(onClick = onDismiss) { Text("Close") }
+            }
+        },
+    )
+}
 
 private const val ALL_BROADCAST = "All TVs"
 
