@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -75,6 +77,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -106,6 +109,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tvtools.app.AppServices
+import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.ui.common.rememberHaptics
 import com.tvtools.app.util.Wol
 import kotlinx.coroutines.delay
@@ -180,6 +184,14 @@ fun RemoteControlSheet(
     var quickKeys by remember { mutableStateOf<List<String>>(emptyList()) }
     var showQuickKeyEditor by remember { mutableStateOf(false) }
 
+    // Multi-TV broadcast
+    var savedDevices by remember { mutableStateOf<List<com.tvtools.app.data.TvDevice>>(emptyList()) }
+    var deviceRooms by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var broadcastSelection by remember { mutableStateOf<String?>(null) }
+    var showBroadcastDialog by remember { mutableStateOf(false) }
+    var broadcastBusy by remember { mutableStateOf(false) }
+    val broadcastQueue = remember { kotlinx.coroutines.channels.Channel<Int>(64) }
+
     // Which app is on the TV right now (drives the contextual shortcut row).
     var foregroundApp by remember { mutableStateOf<String?>(null) }
     var nowPlaying by remember { mutableStateOf<com.tvtools.app.data.NowPlaying?>(null) }
@@ -187,11 +199,13 @@ fun RemoteControlSheet(
     LaunchedEffect(Unit) {
         var tick = 0
         while (true) {
-            if (tick % 3 == 0) {
-                val pkg = runCatching { adb.foregroundPackage() }.getOrNull()
-                if (pkg != null) foregroundApp = pkg
+            if (broadcastSelection == null) {
+                if (tick % 3 == 0) {
+                    val pkg = runCatching { adb.foregroundPackage() }.getOrNull()
+                    if (pkg != null) foregroundApp = pkg
+                }
+                nowPlaying = runCatching { adb.nowPlaying() }.getOrNull()
             }
-            nowPlaying = runCatching { adb.nowPlaying() }.getOrNull()
             tick++
             delay(4_000)
         }
@@ -201,6 +215,34 @@ fun RemoteControlSheet(
         macros = AppServices.prefs.loadMacros()
         quickKeys = AppServices.prefs.loadQuickKeys()
             ?: com.tvtools.app.data.QuickKeys.defaultIds
+        savedDevices = AppServices.prefs.loadDevices()
+        deviceRooms = AppServices.prefs.loadDeviceRooms()
+    }
+
+    // Single worker so broadcast presses queue instead of fighting over the ADB socket.
+    LaunchedEffect(Unit) {
+        for (code in broadcastQueue) {
+            val selection = broadcastSelection ?: continue
+            val all = AppServices.prefs.loadDevices()
+            val rooms = AppServices.prefs.loadDeviceRooms()
+            savedDevices = all
+            deviceRooms = rooms
+            val targets = if (selection == ALL_BROADCAST) all
+            else all.filter { rooms[it.host] == selection }
+            if (targets.isEmpty()) continue
+
+            broadcastBusy = true
+            val origin = adb.connectedDevice
+            if (origin != null) runCatching { adb.keyEvent(code) }
+            for (device in targets) {
+                if (origin != null && device.host == origin.host) continue
+                if (adb.connect(device.host, device.port) == AdbClient.ConnectResult.Success) {
+                    runCatching { adb.keyEvent(code) }
+                }
+            }
+            if (origin != null) runCatching { adb.connect(origin.host, origin.port) }
+            broadcastBusy = false
+        }
     }
 
     fun send(code: Int) {
@@ -209,6 +251,10 @@ fun RemoteControlSheet(
             val gap = if (recordedSteps.isEmpty()) 0L else (now - lastStepAt).coerceIn(0, 10_000)
             recordedSteps = recordedSteps + com.tvtools.app.data.MacroStep(code, gap)
             lastStepAt = now
+        }
+        if (broadcastSelection != null) {
+            broadcastQueue.trySend(code)
+            return
         }
         scope.launch { adb.keyEvent(code) }
     }
@@ -428,25 +474,31 @@ fun RemoteControlSheet(
                 TextButton(onClick = { showNumberPad = true }) { Text("0–9") }
             }
 
-            // Quick keys the user picked
-            if (quickKeys.isNotEmpty()) {
-                androidx.compose.foundation.lazy.LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    items(quickKeys.size) { index ->
-                        val key = com.tvtools.app.data.QuickKeys.byId(quickKeys[index])
-                        if (key != null) {
-                            AssistChip(onClick = { send(key.keyCode) }, label = { Text(key.label) })
-                        }
+            // Quick keys + broadcast target
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                item {
+                    FilterChip(
+                        selected = broadcastSelection != null,
+                        onClick = { showBroadcastDialog = true },
+                        label = { Text(if (broadcastBusy) "Sending…" else "Broadcast") },
+                        leadingIcon = { Icon(Icons.Default.Groups, null, Modifier.size(14.dp)) },
+                    )
+                }
+                items(quickKeys.size) { index ->
+                    val key = com.tvtools.app.data.QuickKeys.byId(quickKeys[index])
+                    if (key != null) {
+                        AssistChip(onClick = { send(key.keyCode) }, label = { Text(key.label) })
                     }
-                    item {
-                        AssistChip(
-                            onClick = { showQuickKeyEditor = true },
-                            label = { Text("Edit") },
-                            leadingIcon = { Icon(Icons.Default.Edit, null, Modifier.size(14.dp)) },
-                        )
-                    }
+                }
+                item {
+                    AssistChip(
+                        onClick = { showQuickKeyEditor = true },
+                        label = { Text("Edit") },
+                        leadingIcon = { Icon(Icons.Default.Edit, null, Modifier.size(14.dp)) },
+                    )
                 }
             }
 
@@ -609,6 +661,19 @@ fun RemoteControlSheet(
             onDismissRequest = { powerMessage = null },
             confirmButton = { TextButton(onClick = { powerMessage = null }) { Text("OK") } },
             text = { Text(msg) },
+        )
+    }
+
+    if (showBroadcastDialog) {
+        BroadcastDialog(
+            devices = savedDevices,
+            rooms = deviceRooms,
+            selected = broadcastSelection,
+            onSelect = { selection ->
+                broadcastSelection = selection
+                showBroadcastDialog = false
+            },
+            onDismiss = { showBroadcastDialog = false },
         )
     }
 
@@ -1480,6 +1545,65 @@ private fun LiveKeyboardDialog(
 }
 
 private val EMOJI = listOf("😀", "😂", "❤️", "👍", "🔥", "🎉", "😮", "😢", "🙏", "✨")
+
+private const val ALL_BROADCAST = "All TVs"
+
+@Composable
+private fun BroadcastDialog(
+    devices: List<com.tvtools.app.data.TvDevice>,
+    rooms: Map<String, String>,
+    selected: String?,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val roomNames = rooms.values.filter { it.isNotBlank() }.distinct().sorted()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Broadcast keys") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "Every key press is also sent to the TVs in the chosen group. " +
+                        "ADB allows one connection at a time, so presses arrive a moment apart.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                BroadcastRow("Off (this TV only)", selected == null) { onSelect(null) }
+                if (devices.isNotEmpty()) {
+                    BroadcastRow("All TVs (${devices.size})", selected == ALL_BROADCAST) {
+                        onSelect(ALL_BROADCAST)
+                    }
+                }
+                roomNames.forEach { room ->
+                    val count = devices.count { rooms[it.host] == room }
+                    BroadcastRow("$room ($count)", selected == room) { onSelect(room) }
+                }
+                if (devices.isEmpty()) {
+                    Text(
+                        "No saved TVs yet — connect to another TV first.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+@Composable
+private fun BroadcastRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+    }
+}
 
 @Composable
 private fun QuickKeyEditorDialog(
