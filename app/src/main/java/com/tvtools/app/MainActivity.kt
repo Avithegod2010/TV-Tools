@@ -187,6 +187,9 @@ private fun AppNav() {
                 },
             )
         }
+        composable("mdns") {
+            com.tvtools.app.ui.connect.MdnsBrowserScreen(onBack = { nav.popBackStack() })
+        }
         composable("cast") { CastScreen(onBack = { nav.popBackStack() }) }
         composable("speed") { SpeedTestScreen(onBack = { nav.popBackStack() }) }
         composable("livetv") { LiveTvScreen(onBack = { nav.popBackStack() }) }

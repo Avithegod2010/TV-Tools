@@ -381,6 +381,11 @@ fun HomeScreen(
                             onClick = { menuOpen = false; onOpenTool("doctor") },
                         )
                         DropdownMenuItem(
+                            text = { Text("mDNS service browser") },
+                            leadingIcon = { Icon(Icons.Default.Info, null) },
+                            onClick = { menuOpen = false; onOpenTool("mdns") },
+                        )
+                        DropdownMenuItem(
                             text = { Text("Hotspot mode (no router)") },
                             leadingIcon = { Icon(Icons.Default.Info, null) },
                             onClick = { menuOpen = false; onOpenTool("hotspot") },
