@@ -85,6 +85,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
+    val settings by com.tvtools.app.AppServices.settings.state.collectAsState()
+    val guestMode = settings.guestMode
     val snackbar = remember { SnackbarHostState() }
     val haptics = rememberHaptics()
 
@@ -313,25 +315,29 @@ fun HomeScreen(
                 item { Spacer(Modifier.height(8.dp)) }
             }
 
-            // Bottom bar: manual add + More
+            // Bottom bar: manual add + More (hidden in guest mode)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (!guestMode) {
                 TextButton(onClick = { showManualDialog = true }) {
                     Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text("Add IP")
                 }
+                }
                 Spacer(Modifier.weight(1f))
                 var menuOpen by remember { mutableStateOf(false) }
                 Box {
+                    if (!guestMode) {
                     TextButton(onClick = { menuOpen = true }) {
                         Icon(Icons.Default.MoreVert, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("More")
+                    }
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(

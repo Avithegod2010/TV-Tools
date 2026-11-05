@@ -9,9 +9,14 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Apps
@@ -23,6 +28,7 @@ import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,10 +36,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -74,15 +83,27 @@ fun DeviceScreen(
     onOpenLab: (String) -> Unit,
     viewModel: DeviceViewModel = viewModel(),
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember {
+        mutableIntStateOf(if (com.tvtools.app.AppServices.settings.state.value.guestMode) 1 else 0)
+    }
     var showRemote by remember { mutableStateOf(false) }
+    var showExitGuest by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val ctx = com.tvtools.app.TvToolsApp.instance
+    val settings by com.tvtools.app.AppServices.settings.state.collectAsState()
+    val guest = settings.guestMode
 
     LaunchedEffect(Unit) {
         viewModel.disconnected.collect { onBack() }
+    }
+
+    LaunchedEffect(guest) {
+        if (guest) {
+            if (selectedTab != 1 && selectedTab != 3) selectedTab = 1
+            showRemote = true
+        }
     }
 
     Scaffold(
@@ -133,6 +154,7 @@ fun DeviceScreen(
                                 leadingIcon = { Icon(Icons.Default.SettingsRemote, null) },
                                 onClick = { menuOpen = false; showRemote = true },
                             )
+                            if (!guest) {
                             DropdownMenuItem(
                                 text = { Text("Screen mirroring") },
                                 leadingIcon = { Icon(Icons.Default.Cast, null) },
@@ -158,6 +180,13 @@ fun DeviceScreen(
                                     }
                                 },
                             )
+                            }
+                            if (guest) {
+                                DropdownMenuItem(
+                                    text = { Text("Exit guest mode") },
+                                    onClick = { menuOpen = false; showExitGuest = true },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Disconnect") },
                                 onClick = { menuOpen = false; viewModel.disconnect() },
@@ -172,24 +201,28 @@ fun DeviceScreen(
         },
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                NavigationBarItem(
-                    selected = selectedTab == 0,
-                    onClick = { haptics(); selectedTab = 0 },
-                    icon = { Icon(Icons.Default.Build, null) },
-                    label = { Text("Tools") },
-                )
+                if (!guest) {
+                    NavigationBarItem(
+                        selected = selectedTab == 0,
+                        onClick = { haptics(); selectedTab = 0 },
+                        icon = { Icon(Icons.Default.Build, null) },
+                        label = { Text("Tools") },
+                    )
+                }
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { haptics(); selectedTab = 1 },
                     icon = { Icon(Icons.Default.Apps, null) },
                     label = { Text("Apps") },
                 )
-                NavigationBarItem(
-                    selected = selectedTab == 2,
-                    onClick = { haptics(); selectedTab = 2 },
-                    icon = { Icon(Icons.Default.Terminal, null) },
-                    label = { Text("Shell") },
-                )
+                if (!guest) {
+                    NavigationBarItem(
+                        selected = selectedTab == 2,
+                        onClick = { haptics(); selectedTab = 2 },
+                        icon = { Icon(Icons.Default.Terminal, null) },
+                        label = { Text("Shell") },
+                    )
+                }
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = { haptics(); selectedTab = 3 },
@@ -199,12 +232,32 @@ fun DeviceScreen(
             }
         },
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            AnimatedContent(
+            if (guest) {
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(0.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Guest mode · remote & apps only",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { showExitGuest = true }) { Text("Exit") }
+                    }
+                }
+            }
+            Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+                AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
                     val dir = if (targetState > initialState) 1 else -1
@@ -222,12 +275,30 @@ fun DeviceScreen(
                         onOpenGallery = onOpenGallery,
                         onOpenLab = onOpenLab,
                     )
-                    1 -> AppsTab(onOpenBackups = onOpenBackups)
+                    1 -> AppsTab(onOpenBackups = onOpenBackups, guest = guest)
                     2 -> ShellTab()
                     3 -> InfoTab(viewModel = viewModel)
                 }
             }
+            }
         }
+    }
+
+    if (showExitGuest) {
+        AlertDialog(
+            onDismissRequest = { showExitGuest = false },
+            title = { Text("Exit guest mode?") },
+            text = { Text("This brings back Tools, Shell, Files and app management.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    com.tvtools.app.AppServices.settings.setGuestMode(false)
+                    showExitGuest = false
+                }) { Text("Exit guest mode") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitGuest = false }) { Text("Stay") }
+            },
+        )
     }
 
     if (showRemote) {

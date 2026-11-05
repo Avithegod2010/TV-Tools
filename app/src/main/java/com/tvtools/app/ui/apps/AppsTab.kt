@@ -62,7 +62,7 @@ import com.tvtools.app.data.TvApp
 import com.tvtools.app.ui.common.formatBytes
 
 @Composable
-fun AppsTab(onOpenBackups: () -> Unit, viewModel: AppsViewModel = viewModel()) {
+fun AppsTab(onOpenBackups: () -> Unit, guest: Boolean = false, viewModel: AppsViewModel = viewModel()) {
     val ui by viewModel.ui.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
@@ -99,13 +99,18 @@ fun AppsTab(onOpenBackups: () -> Unit, viewModel: AppsViewModel = viewModel()) {
                         )
                         Spacer(Modifier.width(6.dp))
                     }
-                    IconButton(onClick = onOpenBackups) {
-                        Icon(Icons.Default.Folder, contentDescription = "App backups")
+                    IconButton(onClick = onOpenBackups, enabled = !guest) {
+                        Icon(
+                            Icons.Default.Folder,
+                            contentDescription = if (guest) "Backups hidden in guest mode" else "App backups",
+                            tint = if (guest) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
 
-            if (ui.selection.isNotEmpty()) {
+            if (ui.selection.isNotEmpty() && !guest) {
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     verticalAlignment = Alignment.CenterVertically,
@@ -179,9 +184,10 @@ fun AppsTab(onOpenBackups: () -> Unit, viewModel: AppsViewModel = viewModel()) {
                                 if (ui.selection.isNotEmpty()) viewModel.toggleSelection(app.packageName)
                                 else viewModel.launch(app)
                             },
-                            onLongClick = { viewModel.toggleSelection(app.packageName) },
+                            onLongClick = { if (!guest) viewModel.toggleSelection(app.packageName) },
                             onAction = { action -> handleAction(action, app, viewModel) },
                             onVisible = { viewModel.ensureDetails(app) },
+                            guest = guest,
                         )
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
@@ -221,6 +227,7 @@ private fun AppRow(
     onLongClick: () -> Unit,
     onAction: (AppAction) -> Unit,
     onVisible: () -> Unit,
+    guest: Boolean,
 ) {
     LaunchedEffect(app.packageName) { onVisible() }
     Row(
@@ -280,6 +287,9 @@ private fun AppRow(
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(text = { Text("Launch") }, onClick = { menuOpen = false; onAction(AppAction.LAUNCH) })
+                    if (guest) {
+                        DropdownMenuItem(text = { Text("Permissions (on TV)") }, onClick = { menuOpen = false; onAction(AppAction.PERMISSIONS) })
+                    } else {
                     if (!app.isSystemApp) {
                         DropdownMenuItem(text = { Text("Uninstall") }, onClick = { menuOpen = false; onAction(AppAction.UNINSTALL) })
                     }
@@ -294,6 +304,7 @@ private fun AppRow(
                         text = { Text(if (app.enabled) "Disable" else "Enable") },
                         onClick = { menuOpen = false; onAction(AppAction.TOGGLE) },
                     )
+                    }
                 }
             }
         }

@@ -167,6 +167,23 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             }
 
             Spacer(Modifier.height(18.dp))
+            SectionTitle("Guest mode")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Hand over the phone safely", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Shows only the remote and the app launcher — hides Tools, Shell, Files and destructive app actions",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.guestMode,
+                    onCheckedChange = { repo.setGuestMode(it) },
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
             SectionTitle("Remote")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 RemoteSkin.entries.forEach { skin ->
