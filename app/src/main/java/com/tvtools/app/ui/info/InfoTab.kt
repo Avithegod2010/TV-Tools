@@ -52,6 +52,8 @@ fun InfoTab(viewModel: DeviceViewModel) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        ConnectionQualityCard()
+
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             InfoCard(Modifier.weight(1f)) {
                 CardTitle("Device")
