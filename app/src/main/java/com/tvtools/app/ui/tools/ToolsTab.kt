@@ -78,6 +78,7 @@ fun ToolsTab(
     onOpenMirror: () -> Unit,
     onOpenStorage: () -> Unit,
     onOpenMusic: () -> Unit,
+    onOpenLab: (String) -> Unit,
     viewModel: ToolsViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
@@ -175,6 +176,48 @@ fun ToolsTab(
                 subtitle = "Record the TV screen and save it to your phone",
                 onClick = { showRecordDialog = true },
             )
+
+            Text(
+                "Labs",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            val labs = listOf(
+                "cast" to "Cast media (DLNA)",
+                "speed" to "Speed test",
+                "livetv" to "Live TV inputs",
+                "mouse" to "Mouse & keyboard",
+                "health" to "TV health",
+                "users" to "TV users",
+                "sftp" to "SFTP browser",
+                "ir" to "IR blaster",
+                "kids" to "Kids mode",
+                "launchpad" to "Launchpad",
+                "automations" to "Automations",
+            )
+            labs.chunked(2).forEach { pair ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    pair.forEach { (route, label) ->
+                        Card(
+                            onClick = { haptics(); onOpenLab(route) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ),
+                        ) {
+                            Text(
+                                label,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
 
             ui.busyLabel?.let { label ->
                 InfoCard(Modifier.fillMaxWidth()) {

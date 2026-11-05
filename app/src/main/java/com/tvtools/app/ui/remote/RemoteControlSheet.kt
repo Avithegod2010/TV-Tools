@@ -323,6 +323,16 @@ fun RemoteControlSheet(
                     }
                 }
             },
+            onAmbient = {
+                showPowerMenu = false
+                scope.launch { powerMessage = com.tvtools.app.ui.labs.ambientStart(adb) }
+            },
+            onTimeout = {
+                showPowerMenu = false
+                scope.launch {
+                    powerMessage = com.tvtools.app.ui.labs.setScreenTimeout(adb, 30 * 60 * 1000)
+                }
+            },
         )
     }
 
@@ -659,6 +669,8 @@ private fun PowerMenuDialog(
     onPowerToggle: () -> Unit,
     onWake: () -> Unit,
     onRestart: () -> Unit,
+    onAmbient: () -> Unit,
+    onTimeout: () -> Unit,
 ) {
     var confirmRestart by remember { mutableStateOf(false) }
     if (!confirmRestart) {
@@ -670,6 +682,8 @@ private fun PowerMenuDialog(
                     PowerRow("Turn screen off (sleep)") { onSleep() }
                     PowerRow("Power button (toggle)") { onPowerToggle() }
                     PowerRow("Wake with Wake-on-LAN") { onWake() }
+                    PowerRow("Ambient / screensaver mode") { onAmbient() }
+                    PowerRow("Screen timeout → 30 min") { onTimeout() }
                     PowerRow("Restart TV") { confirmRestart = true }
                 }
             },

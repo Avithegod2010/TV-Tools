@@ -63,4 +63,64 @@ class BackupsViewModel : ViewModel() {
             _messages.emit("Deleted backup of ${backup.label}")
         }
     }
+
+    fun restoreData(backup: AppBackup) {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(busy = true, busyLabel = "Restoring data of ${backup.label}…")
+            try {
+                val ok = manager.restoreDataBackup(adb, backup)
+                _messages.emit(if (ok) "✅ Data restored for ${backup.label}" else "No data archive for this app")
+            } catch (e: Exception) {
+                _messages.emit("Data restore failed: ${e.message}")
+            } finally {
+                _ui.value = _ui.value.copy(busy = false)
+            }
+        }
+    }
+
+    fun exportEncrypted(passphrase: String, share: (java.io.File) -> Unit) {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(busy = true, busyLabel = "Encrypting backups…")
+            try {
+                val out = java.io.File(
+                    com.tvtools.app.TvToolsApp.instance.cacheDir,
+                    "tv-tools-backup-${System.currentTimeMillis()}.tvtools"
+                )
+                withContext(Dispatchers.IO) {
+                    com.tvtools.app.data.BackupCrypto.export(manager.rootDir(), out, passphrase.toCharArray())
+                }
+                _messages.emit("✅ Encrypted backup created")
+                share(out)
+            } catch (e: Exception) {
+                _messages.emit("Export failed: ${e.message}")
+            } finally {
+                _ui.value = _ui.value.copy(busy = false)
+            }
+        }
+    }
+
+    fun importEncrypted(uri: android.net.Uri, passphrase: String) {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(busy = true, busyLabel = "Decrypting backup…")
+            try {
+                val context = com.tvtools.app.TvToolsApp.instance
+                val tmp = java.io.File(context.cacheDir, "import.tvtools")
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        tmp.outputStream().use { input.copyTo(it) }
+                    }
+                }
+                val count = withContext(Dispatchers.IO) {
+                    com.tvtools.app.data.BackupCrypto.import(tmp, manager.rootDir(), passphrase.toCharArray())
+                }
+                tmp.delete()
+                _messages.emit("✅ Imported $count file(s)")
+                refresh()
+            } catch (e: Exception) {
+                _messages.emit("Import failed: ${e.message}")
+            } finally {
+                _ui.value = _ui.value.copy(busy = false)
+            }
+        }
+    }
 }

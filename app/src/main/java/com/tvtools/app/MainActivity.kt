@@ -29,6 +29,17 @@ import com.tvtools.app.ui.device.DeviceScreen
 import com.tvtools.app.ui.files.FileManagerScreen
 import com.tvtools.app.ui.apps.BackupsScreen
 import com.tvtools.app.ui.home.HomeScreen
+import com.tvtools.app.ui.labs.AutomationsScreen
+import com.tvtools.app.ui.labs.CastScreen
+import com.tvtools.app.ui.labs.HealthScreen
+import com.tvtools.app.ui.labs.IrScreen
+import com.tvtools.app.ui.labs.KidsScreen
+import com.tvtools.app.ui.labs.LaunchpadScreen
+import com.tvtools.app.ui.labs.LiveTvScreen
+import com.tvtools.app.ui.labs.MouseKeyboardScreen
+import com.tvtools.app.ui.labs.SftpScreen
+import com.tvtools.app.ui.labs.SpeedTestScreen
+import com.tvtools.app.ui.labs.UsersScreen
 import com.tvtools.app.ui.mirror.MirrorScreen
 import com.tvtools.app.ui.music.MusicScreen
 import com.tvtools.app.ui.onboarding.OnboardingScreen
@@ -120,6 +131,7 @@ private fun AppNav() {
                 onOpenBackups = { nav.navigate("backups") },
                 onOpenStorage = { nav.navigate("storage") },
                 onOpenMusic = { nav.navigate("music") },
+                onOpenLab = { route -> nav.navigate(route) },
             )
         }
         composable("files") {
@@ -134,6 +146,17 @@ private fun AppNav() {
         composable("music") {
             MusicScreen(onBack = { nav.popBackStack() })
         }
+        composable("cast") { CastScreen(onBack = { nav.popBackStack() }) }
+        composable("speed") { SpeedTestScreen(onBack = { nav.popBackStack() }) }
+        composable("livetv") { LiveTvScreen(onBack = { nav.popBackStack() }) }
+        composable("mouse") { MouseKeyboardScreen(onBack = { nav.popBackStack() }) }
+        composable("health") { HealthScreen(onBack = { nav.popBackStack() }) }
+        composable("users") { UsersScreen(onBack = { nav.popBackStack() }) }
+        composable("sftp") { SftpScreen(onBack = { nav.popBackStack() }) }
+        composable("ir") { IrScreen(onBack = { nav.popBackStack() }) }
+        composable("kids") { KidsScreen(onBack = { nav.popBackStack() }) }
+        composable("launchpad") { LaunchpadScreen(onBack = { nav.popBackStack() }) }
+        composable("automations") { AutomationsScreen(onBack = { nav.popBackStack() }) }
         composable(
             route = "mirror/{name}",
             arguments = listOf(navArgument("name") { type = NavType.StringType }),

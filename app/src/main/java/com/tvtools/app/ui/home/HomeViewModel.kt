@@ -105,6 +105,47 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    /** Wake the TV (WOL if a MAC is stored) and retry connecting for ~25s. */
+    fun wakeAndReconnect() {
+        viewModelScope.launch {
+            val last = prefs.loadLastDevice()
+            if (last == null) {
+                _events.emit(HomeEvent.Error("No TV saved yet — connect once first."))
+                return@launch
+            }
+            val mac = prefs.loadLastMac()
+            if (mac != null) com.tvtools.app.util.Wol.send(mac)
+            _ui.value = _ui.value.copy(connectingTo = last)
+            repeat(8) { attempt ->
+                kotlinx.coroutines.delay(if (attempt == 0) 1500 else 3000)
+                if (adb.isConnected) {
+                    val friendly = friendlyName(last)
+                    prefs.saveLastDevice(friendly)
+                    _ui.value = _ui.value.copy(connectingTo = null, lastConnected = friendly)
+                    _events.emit(HomeEvent.Connected(friendly))
+                    return@launch
+                }
+                when (adb.connect(last.host, last.port)) {
+                    AdbClient.ConnectResult.Success -> {
+                        val friendly = friendlyName(last)
+                        prefs.saveLastDevice(friendly)
+                        _ui.value = _ui.value.copy(connectingTo = null, lastConnected = friendly)
+                        _events.emit(HomeEvent.Connected(friendly))
+                        return@launch
+                    }
+                    AdbClient.ConnectResult.PairingRequired -> {
+                        _ui.value = _ui.value.copy(connectingTo = null)
+                        _events.emit(HomeEvent.Error("The TV needs pairing again. Tap the TV to pair."))
+                        return@launch
+                    }
+                    is AdbClient.ConnectResult.Error -> Unit
+                }
+            }
+            _ui.value = _ui.value.copy(connectingTo = null)
+            _events.emit(HomeEvent.Error("Couldn't reach the TV. Make sure it's on and ADB/Wireless debugging is enabled."))
+        }
+    }
+
     /** Wake the last TV with a Wake-on-LAN magic packet. */
     fun wakeLastTv() {
         viewModelScope.launch {

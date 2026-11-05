@@ -66,6 +66,7 @@ class AppsViewModel : ViewModel() {
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages: SharedFlow<String> = _messages.asSharedFlow()
 
+    private val backupManager = BackupManager(context)
     private val iconDir = File(context.cacheDir, "app_icons").apply { mkdirs() }
     private val apkTmpDir = File(context.cacheDir, "apk_tmp").apply { mkdirs() }
 
@@ -304,7 +305,7 @@ class AppsViewModel : ViewModel() {
             apps.forEachIndexed { index, app ->
                 _ui.value = _ui.value.copy(busyLabel = "Backing up ${index + 1}/${apps.size}: ${app.label ?: app.packageName}")
                 try {
-                    BackupManager(context).create(AppServices.adb, app)
+                    backupManager.create(AppServices.adb, app)
                     ok++
                 } catch (e: Exception) {
                     _messages.emit("Backup failed for ${app.packageName}: ${e.message}")
@@ -318,6 +319,24 @@ class AppsViewModel : ViewModel() {
 
     fun selectAll() {
         _ui.value = _ui.value.copy(selection = _ui.value.visible.map { it.packageName }.toSet())
+    }
+
+    /** External app-data backup (best effort; internal /data/data needs root). */
+    fun backupDataSelected() {
+        val apps = selectedApps()
+        if (apps.isEmpty() || _ui.value.busyLabel != null) return
+        viewModelScope.launch {
+            var ok = 0
+            apps.forEachIndexed { i, app ->
+                _ui.value = _ui.value.copy(busyLabel = "Data ${i + 1}/${apps.size}: ${app.label ?: app.packageName}")
+                try {
+                    if (backupManager.createDataBackup(adb, app.packageName)) ok++
+                } catch (_: Exception) {
+                }
+            }
+            _ui.value = _ui.value.copy(busyLabel = null)
+            _messages.emit("✅ Data backed up for $ok/${apps.size} app(s)")
+        }
     }
 
     private fun selectedApps(): List<TvApp> = _ui.value.apps.filter { it.packageName in _ui.value.selection }

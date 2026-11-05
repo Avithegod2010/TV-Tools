@@ -30,6 +30,8 @@ data class AppSettings(
     val accent: Accent = Accent.GREEN,
     val haptics: Boolean = true,
     val onboardingDone: Boolean = false,
+    val automationCache: Boolean = false,
+    val automationScreenshot: Boolean = false,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -38,6 +40,8 @@ class SettingsRepository(private val context: Context) {
     private val KEY_ACCENT = stringPreferencesKey("accent")
     private val KEY_HAPTICS = booleanPreferencesKey("haptics")
     private val KEY_ONBOARDING = booleanPreferencesKey("onboarding_done")
+    private val KEY_AUTO_CACHE = booleanPreferencesKey("auto_cache")
+    private val KEY_AUTO_SHOT = booleanPreferencesKey("auto_screenshot")
 
     private val _state = MutableStateFlow(AppSettings())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
@@ -54,6 +58,8 @@ class SettingsRepository(private val context: Context) {
                     .getOrDefault(Accent.GREEN),
                 haptics = p[KEY_HAPTICS] ?: true,
                 onboardingDone = p[KEY_ONBOARDING] ?: false,
+                automationCache = p[KEY_AUTO_CACHE] ?: false,
+                automationScreenshot = p[KEY_AUTO_SHOT] ?: false,
             )
         }
     }
@@ -76,5 +82,17 @@ class SettingsRepository(private val context: Context) {
     fun setOnboardingDone() {
         _state.value = _state.value.copy(onboardingDone = true)
         scope.launch { context.settingsStore.edit { it[KEY_ONBOARDING] = true } }
+    }
+
+    fun setAutomationCache(enabled: Boolean) {
+        _state.value = _state.value.copy(automationCache = enabled)
+        AutomationScheduler.setCacheTrim(enabled)
+        scope.launch { context.settingsStore.edit { it[KEY_AUTO_CACHE] = enabled } }
+    }
+
+    fun setAutomationScreenshot(enabled: Boolean) {
+        _state.value = _state.value.copy(automationScreenshot = enabled)
+        AutomationScheduler.setScreenshot(enabled)
+        scope.launch { context.settingsStore.edit { it[KEY_AUTO_SHOT] = enabled } }
     }
 }

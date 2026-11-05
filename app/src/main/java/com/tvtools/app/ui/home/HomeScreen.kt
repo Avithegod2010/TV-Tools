@@ -302,7 +302,12 @@ fun HomeScreen(
                             onClick = { menuOpen = false; showManualDialog = true },
                         )
                         DropdownMenuItem(
-                            text = { Text("Wake last TV (WOL)") },
+                            text = { Text("Wake & reconnect") },
+                            leadingIcon = { Icon(Icons.Default.PowerSettingsNew, null) },
+                            onClick = { menuOpen = false; viewModel.wakeAndReconnect() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Wake last TV (WOL only)") },
                             leadingIcon = { Icon(Icons.Default.PowerSettingsNew, null) },
                             onClick = { menuOpen = false; viewModel.wakeLastTv() },
                         )

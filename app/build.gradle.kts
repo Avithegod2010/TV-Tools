@@ -19,8 +19,8 @@ android {
         applicationId = "com.tvtools.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
     }
 
     signingConfigs {
@@ -80,6 +80,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("com.github.mwiede:jsch:0.2.17")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")

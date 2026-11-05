@@ -49,6 +49,15 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 - ADB private key + cert stay in app-private storage (`files/adbkeys`).
 - ADB TLS uses the library's trust-all manager (inherent to ADB pairing).
 
+## Feature map (v1.4)
+- `ui/labs/Labs.kt`: DLNA cast (SSDP + AVTransport SOAP + single-file HTTP server), speed test (8 MB push/pull + ping), live TV (`dumpsys tv_input`), mouse/keyboard (`input motionevent`), health monitor (sparklines), users (`pm list users` + `am switch-user`), IR (`ConsumerIrManager`), kids mode (disable/enable user apps), launchpad (favorites + launch).
+- `ui/labs/SftpScreen.kt`: SFTP browser via jsch — browse and push files straight to the TV.
+- `data/Automation.kt`: WorkManager daily cache trim + daily screenshot; scheduled from SettingsRepository flags; `ui/labs/AutomationsScreen.kt`.
+- `data/BackupCrypto.kt`: AES-256-GCM (PBKDF2) encrypted export/import of the backups folder; UI in `BackupsScreen`.
+- `data/BackupManager`: external app-data backup/restore (tar of `/sdcard/Android/data/<pkg>`); note internal data requires root.
+- Wake & reconnect: `HomeViewModel.wakeAndReconnect` (WOL + retries); ambient + timeout in the remote power dialog.
+- Tools has a "Labs" grid wiring all new screens.
+
 ## Feature map (v1.3)
 - Remote: `RemoteControlSheet` has D-Pad / Touchpad / Gamepad modes, channel keys (166/167), number pad (keycodes 7–16), text input, power dialog.
 - Screen record: `ToolsViewModel.screenRecord` (`screenrecord --time-limit N`, pull, MediaStore Movies/TV Tools).

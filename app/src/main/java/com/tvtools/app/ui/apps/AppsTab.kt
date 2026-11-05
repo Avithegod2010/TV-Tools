@@ -113,6 +113,7 @@ fun AppsTab(onOpenBackups: () -> Unit, viewModel: AppsViewModel = viewModel()) {
                     TextButton(onClick = viewModel::selectAll) { Text("All") }
                     TextButton(onClick = viewModel::backupSelected) { Text("Backup") }
                     TextButton(onClick = viewModel::downloadSelectedApks) { Text("APKs") }
+                    TextButton(onClick = viewModel::backupDataSelected) { Text("Data") }
                     TextButton(onClick = viewModel::forceStopSelected) { Text("Stop") }
                     TextButton(onClick = viewModel::clearDataSelected) { Text("Clear data") }
                     TextButton(onClick = viewModel::disableSelected) { Text("Disable") }
