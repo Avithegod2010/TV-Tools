@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Avithegod2010/TV-Tools/security/advisories/new
+    about: Report security issues privately, not as a public issue.
+  - name: Questions and setup help
+    url: https://github.com/Avithegod2010/TV-Tools/discussions
+    about: Ask about pairing, TV models or general usage.

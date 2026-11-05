@@ -1,0 +1,90 @@
+name: Bug report
+description: Something in TV Tools is broken or behaves unexpectedly.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do **not** paste your ADB private key or any file from
+        `files/adbkeys`.
+  - type: input
+    id: app-version
+    attributes:
+      label: TV Tools version
+      description: Settings → scroll to the bottom, or the release you installed.
+      placeholder: "1.6 (versionCode 7)"
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone
+      placeholder: "Pixel 7, Android 14"
+    validations:
+      required: true
+  - type: input
+    id: tv
+    attributes:
+      label: TV
+      description: Model and how ADB is enabled (wireless debugging / network debugging / Fire TV).
+      placeholder: "Xiaomi TV P1, Android 11 wireless debugging"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Connect / pairing
+        - Remote & input
+        - Apps
+        - Files
+        - Screen mirroring
+        - Tools / Labs
+        - Settings / theme
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Connect to the TV
+        2. Open the remote
+        3. Tap …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+      description: Screenshots are welcome. If the app crashed, paste Copy diagnostics below.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional)
+      description: Settings → Diagnostics → Copy diagnostics, then paste here.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I am on the latest release.
+          required: true
+        - label: I searched existing issues.
+          required: true
+        - label: I removed any personal or network-identifying details I did not want public.
+          required: false

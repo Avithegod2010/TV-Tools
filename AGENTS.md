@@ -11,7 +11,9 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 
 ## Build
 - JDK 17, Android SDK 35 (set `ANDROID_HOME`)
-- `./gradlew assembleDebug` (or a local Gradle 8.9 install: `gradle assembleDebug --no-daemon`)
+- `./gradlew assembleDebug` (wrapper included; or a local Gradle 8.9 install: `gradle assembleDebug --no-daemon`)
+- `./gradlew testDebugUnitTest` — JVM tests for parsers/codecs (no device needed)
+- `compileSdk 35`, `targetSdk 34` (bumping to 35 needs an edge-to-edge pass)
 - Low-RAM machines: cap `org.gradle.jvmargs` (≈1.2 GB) and use `kotlin.compiler.execution.strategy=in-process`
 - **Kotlin has no octal literals** — use decimals for ADB mode bits (0644 = 420, S_IFDIR = 16384, S_IFMT = 61440)
 - **Kotlin nested comments**: never write `/*` inside a comment (e.g. `/sys/class/net/*/address` breaks parsing)
@@ -53,7 +55,8 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 - Connect: `ui/connect/QrHandoffScreen`, `NetworkMapScreen`, `HotspotGuideScreen`, `ConnectionDoctorScreen`, `MdnsBrowserScreen`, `RoomsScreen`; routes `qr`, `netmap`, `hotspot`, `doctor`, `mdns`, `rooms`.
 - `Prefs`: pairing-port memory, rooms, macros, quick-key layout.
 - `Settings`: autoConnect, wakeEnabled/wakeMinutes/wakeOnWifi, guestMode, bubble.
-- Remote (`RemoteControlSheet`): live keyboard, voice typing (RecognizerIntent), Assistant key, macro recorder, per-app shortcut row, now playing + seek, sleep timer, ring TV, custom quick keys, gesture pad, gyro air mouse, multi-touch trackpad, physical gamepad via `onPreviewKeyEvent`, broadcast mode, key history/undo.
+- Remote: `ui/remote/RemoteControlSheet.kt` (orchestration), `RemotePads.kt` (D-pad, touchpad, gesture, gamepad), `RemoteDialogs.kt` (keyboard, macros, media, history, power), `RemoteKeys.kt` (key codes, mode enum). Header assistant key, live keyboard + voice typing, macro recorder, per-app rows, now playing + seek, sleep timer, ring TV, custom quick keys, broadcast mode, key history/undo.
+- Tooling: 45 JVM tests in `app/src/test`, GitHub Actions (`android.yml`), Gradle wrapper, local crash diagnostics (`data/Diagnostics.kt`).
 - `data/SleepTimer`, `data/Macro`, `data/QuickKey`, `data/MediaSession`, `util/BeepWav`, `service/OverlayBubbleService` (SYSTEM_ALERT_WINDOW + FGS specialUse).
 - `AdbClient` extras: `inputKeyCombo`, `assistant`, `mouseMove/Down/Up`, `foregroundPackage`, `nowPlaying`, `seekRelative`, `setMediaVolume`, `getMediaVolume`, `mediaCommand`.
 

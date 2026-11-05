@@ -15,6 +15,7 @@
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
     <img src="https://img.shields.io/badge/Version-1.6-166d32" alt="Version" />
+    <img src="https://github.com/Avithegod2010/TV-Tools/actions/workflows/android.yml/badge.svg" alt="CI" />
   </p>
 </div>
 
@@ -117,7 +118,10 @@ keyPassword=…
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome. Please keep the app privacy-first: no telemetry, no cloud services.
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); the project
+keeps a [changelog](CHANGELOG.md) and a [security policy](SECURITY.md).
+
+Please keep the app privacy-first: no telemetry, no cloud services.
 
 ## 📄 License
 
