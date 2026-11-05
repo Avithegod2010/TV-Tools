@@ -62,6 +62,10 @@ class ToolsViewModel : ViewModel() {
                 withContext(Dispatchers.IO) { adb.screencap(screenshotFile) }
                 val bmp = BitmapFactory.decodeFile(screenshotFile.absolutePath)
                 if (bmp != null) {
+                    runCatching {
+                        val gallery = File(context.filesDir, "screenshots").apply { mkdirs() }
+                        galleryFile(File(gallery, "shot_${System.currentTimeMillis()}.png"))
+                    }
                     _ui.value = _ui.value.copy(screenshot = bmp.asImageBitmap(), screenshotLoading = false)
                 } else {
                     _ui.value = _ui.value.copy(screenshotLoading = false)
@@ -267,6 +271,10 @@ class ToolsViewModel : ViewModel() {
         val uri = resolver.insert(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
             ?: throw java.io.IOException("MediaStore insert failed")
         resolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } }
+    }
+
+    private fun galleryFile(dest: File) {
+        screenshotFile.copyTo(dest, overwrite = true)
     }
 
     fun saveScreenshotToDownloads() {

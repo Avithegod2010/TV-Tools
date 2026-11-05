@@ -1,6 +1,7 @@
 package com.tvtools.app.ui.onboarding
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -107,6 +109,27 @@ fun OnboardingScreen(onDone: () -> Unit) {
                     lineHeight = 20.sp,
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )
+                if (index == pages.lastIndex) {
+                    Spacer(Modifier.height(20.dp))
+                    Text("Pick your accent", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+                    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        listOf(
+                            com.tvtools.app.data.Accent.GREEN to Color(0xFF166D32),
+                            com.tvtools.app.data.Accent.BLUE to Color(0xFF1565C0),
+                            com.tvtools.app.data.Accent.VIOLET to Color(0xFF6A4CBF),
+                            com.tvtools.app.data.Accent.ORANGE to Color(0xFFB45309),
+                            com.tvtools.app.data.Accent.DYNAMIC to Color(0xFF8A8F98),
+                        ).forEach { (accent, color) ->
+                            Box(
+                                Modifier
+                                    .size(34.dp)
+                                    .background(color, CircleShape)
+                                    .clickable { com.tvtools.app.AppServices.settings.setAccent(accent) }
+                            )
+                        }
+                    }
+                }
             }
         }
 

@@ -65,6 +65,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -127,8 +128,12 @@ fun RemoteControlSheet(
 ) {
     val scope = rememberCoroutineScope()
     val adb = AppServices.adb
+    val settings by AppServices.settings.state.collectAsState()
+    val skin = settings.remoteSkin
 
-    var mode by remember { mutableStateOf(RemoteMode.DPAD) }
+    var mode by remember(skin) {
+        mutableStateOf(if (skin == com.tvtools.app.data.RemoteSkin.GAMEPAD) RemoteMode.GAMEPAD else RemoteMode.DPAD)
+    }
     var showTextDialog by remember { mutableStateOf(false) }
     var showPowerMenu by remember { mutableStateOf(false) }
     var showNumberPad by remember { mutableStateOf(false) }
@@ -142,7 +147,7 @@ fun RemoteControlSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.93f),
     ) {
         Column(
             modifier = Modifier
@@ -205,7 +210,11 @@ fun RemoteControlSheet(
                 label = "remote-mode",
             ) { current ->
                 when (current) {
-                    RemoteMode.DPAD -> DPadPad(onSend = ::send)
+                    RemoteMode.DPAD -> when (skin) {
+                        com.tvtools.app.data.RemoteSkin.CLASSIC -> ClassicPad(onSend = ::send)
+                        com.tvtools.app.data.RemoteSkin.MINIMAL -> MinimalPad(onSend = ::send)
+                        else -> DPadPad(onSend = ::send)
+                    }
                     RemoteMode.TOUCHPAD -> TouchPad(onSend = ::send)
                     RemoteMode.GAMEPAD -> GamepadPad(onSend = ::send)
                 }
@@ -455,6 +464,53 @@ private fun TouchPad(onSend: (Int) -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+// ---------------- Classic (square) skin ----------------
+
+@Composable
+private fun ClassicPad(onSend: (Int) -> Unit) {
+    val square = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        HoldKeyButton(onClick = { onSend(KEY_DPAD_UP) }, repeatable = true, container = square) {
+            Icon(Icons.Default.KeyboardArrowUp, "Up", Modifier.size(30.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            HoldKeyButton(onClick = { onSend(KEY_DPAD_LEFT) }, repeatable = true, container = square) {
+                Icon(Icons.Default.KeyboardArrowLeft, "Left", Modifier.size(30.dp))
+            }
+            HoldKeyButton(
+                onClick = { onSend(KEY_DPAD_CENTER) },
+                container = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                size = 76,
+            ) { Text("OK", fontWeight = FontWeight.Bold) }
+            HoldKeyButton(onClick = { onSend(KEY_DPAD_RIGHT) }, repeatable = true, container = square) {
+                Icon(Icons.Default.KeyboardArrowRight, "Right", Modifier.size(30.dp))
+            }
+        }
+        HoldKeyButton(onClick = { onSend(KEY_DPAD_DOWN) }, repeatable = true, container = square) {
+            Icon(Icons.Default.KeyboardArrowDown, "Down", Modifier.size(30.dp))
+        }
+    }
+}
+
+// ---------------- Minimal skin ----------------
+
+@Composable
+private fun MinimalPad(onSend: (Int) -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NavPill(Icons.Default.KeyboardArrowLeft, "Left") { onSend(KEY_DPAD_LEFT) }
+            NavPill(Icons.Default.KeyboardArrowUp, "Up") { onSend(KEY_DPAD_UP) }
+            NavPill(Icons.Default.KeyboardArrowDown, "Down") { onSend(KEY_DPAD_DOWN) }
+            NavPill(Icons.Default.KeyboardArrowRight, "Right") { onSend(KEY_DPAD_RIGHT) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Button(onClick = { onSend(KEY_DPAD_CENTER) }, shape = CircleShape, modifier = Modifier.size(84.dp)) {
+            Text("OK", fontWeight = FontWeight.Bold, fontSize = 18.sp)
         }
     }
 }

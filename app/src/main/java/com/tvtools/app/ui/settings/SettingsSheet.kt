@@ -1,31 +1,26 @@
 package com.tvtools.app.ui.settings
 
+import android.content.ComponentName
+import android.content.Context
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,9 +28,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tvtools.app.AppServices
+import com.tvtools.app.TvToolsApp
 import com.tvtools.app.data.Accent
+import com.tvtools.app.data.HapticStrength
+import com.tvtools.app.data.RemoteSkin
 import com.tvtools.app.data.ThemeMode
 import com.tvtools.app.ui.common.rememberHaptics
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 private val accentColors = mapOf(
     Accent.GREEN to Color(0xFF166D32),
@@ -43,6 +45,7 @@ private val accentColors = mapOf(
     Accent.VIOLET to Color(0xFF6A4CBF),
     Accent.ORANGE to Color(0xFFB45309),
     Accent.DYNAMIC to Color(0xFF8A8F98),
+    Accent.TV to Color(0xFF3A7BD5),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,49 +54,69 @@ fun SettingsSheet(onDismiss: () -> Unit) {
     val settings by AppServices.settings.state.collectAsState()
     val repo = AppServices.settings
     val haptics = rememberHaptics()
+    val context = TvToolsApp.instance
+    val scope = rememberCoroutineScope()
+    var matchStatus by remember { mutableStateOf<String?>(null) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.93f),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
             Text("Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(20.dp))
 
-            Text("Appearance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val modes = listOf(
+            SectionTitle("Appearance")
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                listOf(
                     ThemeMode.SYSTEM to "System",
                     ThemeMode.LIGHT to "Light",
                     ThemeMode.DARK to "Dark",
-                )
-                modes.forEachIndexed { index, (mode, label) ->
-                    SegmentedButton(
+                    ThemeMode.AMOLED to "AMOLED",
+                    ThemeMode.AUTO to "Auto",
+                ).forEach { (mode, label) ->
+                    FilterChip(
                         selected = settings.themeMode == mode,
                         onClick = { haptics(); repo.setThemeMode(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(index, modes.size),
-                    ) { Text(label) }
+                        label = { Text(label) },
+                    )
                 }
             }
+            Text(
+                when (settings.themeMode) {
+                    ThemeMode.AMOLED -> "Pure-black surfaces for OLED screens"
+                    ThemeMode.AUTO -> "Light 7:00–19:00, dark at night"
+                    else -> " "
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Spacer(Modifier.height(16.dp))
-            Text("Accent color", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            SectionTitle("Accent color")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Accent.entries.forEach { accent ->
                     val selected = settings.accent == accent
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(accentColors[accent] ?: MaterialTheme.colorScheme.primary)
+                            .background(
+                                if (accent == Accent.TV) Color(settings.tvColor)
+                                else accentColors[accent] ?: MaterialTheme.colorScheme.primary
+                            )
                             .border(
                                 width = if (selected) 3.dp else 0.dp,
-                                color = if (selected) MaterialTheme.colorScheme.onSurface
-                                else Color.Transparent,
+                                color = if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                                 shape = CircleShape,
                             )
                             .selectable(selected = selected) {
@@ -104,43 +127,154 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(6.dp))
-            Text(
-                settings.accent.label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text(settings.accent.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            Spacer(Modifier.height(20.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Haptic feedback", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "Vibrate on remote keys and buttons",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = settings.haptics,
-                    onCheckedChange = { repo.setHaptics(it) },
-                )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    haptics()
+                    scope.launch {
+                        matchStatus = "Capturing TV screen…"
+                        val color = withContext(Dispatchers.IO) { captureTvColor(context) }
+                        if (color != null) {
+                            repo.setTvColor(color)
+                            matchStatus = "Matched TV colors ✓"
+                        } else {
+                            matchStatus = "Connect to a TV first, then retry."
+                        }
+                    }
+                },
+            ) { Text("Match TV colors (screenshot palette)") }
+            matchStatus?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Remote")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                RemoteSkin.entries.forEach { skin ->
+                    FilterChip(
+                        selected = settings.remoteSkin == skin,
+                        onClick = { haptics(); repo.setRemoteSkin(skin) },
+                        label = { Text(skin.label) },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Feedback")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                HapticStrength.entries.forEach { s ->
+                    FilterChip(
+                        selected = settings.hapticStrength == s,
+                        onClick = { repo.setHapticStrength(s); haptics() },
+                        label = { Text(s.label) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Haptic feedback", style = MaterialTheme.typography.titleSmall)
+                    Text("Vibrate on keys and buttons", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = settings.haptics, onCheckedChange = { repo.setHaptics(it) })
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Key sounds", style = MaterialTheme.typography.titleSmall)
+                    Text("Soft click on remote keys", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = settings.sounds, onCheckedChange = { repo.setSounds(it) })
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("App icon")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("default" to "TV", "remote" to "Remote", "mono" to "Mono").forEach { (key, label) ->
+                    FilterChip(
+                        selected = settings.appIcon == key,
+                        onClick = {
+                            haptics()
+                            repo.setAppIcon(key)
+                            setLauncherIcon(context, key)
+                        },
+                        label = { Text(label) },
+                    )
+                }
+            }
             Text(
-                "TV Tools • v1.1",
-                style = MaterialTheme.typography.bodySmall,
+                "Changes the launcher icon (may take a moment to refresh).",
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            Spacer(Modifier.height(18.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
+            Text("TV Tools • v1.5", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(bottom = 6.dp),
+    )
+}
+
+/** Capture a TV frame and pick a representative saturated color. */
+private fun captureTvColor(context: Context): Int? {
+    return try {
+        val adb = AppServices.adb
+        if (!adb.isConnected) return null
+        val file = File(context.cacheDir, "palette.png")
+        kotlinx.coroutines.runBlocking { adb.screencap(file) }
+        val bmp = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+        val small = android.graphics.Bitmap.createScaledBitmap(bmp, 48, 27, false)
+        val counts = HashMap<Int, Int>()
+        for (x in 0 until small.width) {
+            for (y in 0 until small.height) {
+                val c = small.getPixel(x, y)
+                val hsv = FloatArray(3)
+                android.graphics.Color.colorToHSV(c, hsv)
+                if (hsv[1] > 0.25f && hsv[2] in 0.2f..0.9f) {
+                    val q = android.graphics.Color.HSVToColor(floatArrayOf(hsv[0], hsv[1], hsv[2]))
+                    counts[q] = (counts[q] ?: 0) + 1
+                }
+            }
+        }
+        file.delete()
+        bmp.recycle()
+        counts.maxByOrNull { it.value }?.key ?: 0xFF166D32.toInt()
+    } catch (_: Exception) {
+        null
+    }
+}
+
+/** Switch between launcher activity-aliases (TV / Remote / Mono icons). */
+private fun setLauncherIcon(context: Context, which: String) {
+    val pm = context.packageManager
+    listOf(
+        "MainDefault" to (which == "default"),
+        "MainRemote" to (which == "remote"),
+        "MainMono" to (which == "mono"),
+    ).forEach { (alias, enable) ->
+        runCatching {
+            pm.setComponentEnabledSetting(
+                ComponentName(context, "${context.packageName}.$alias"),
+                if (enable) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP,
+            )
         }
     }
 }

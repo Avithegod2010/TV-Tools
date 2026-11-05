@@ -623,9 +623,14 @@ private fun HealthCard(title: String, valueText: String, pct: Float, samples: Li
         containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
     )) {
         Column(Modifier.padding(16.dp)) {
-            Row {
-                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-                Text(valueText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                com.tvtools.app.ui.common.ArcGauge(
+                    fraction = pct,
+                    centerText = valueText,
+                    modifier = Modifier.size(72.dp),
+                )
+                Spacer(Modifier.width(14.dp))
+                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(8.dp))
             if (samples.size >= 2) {

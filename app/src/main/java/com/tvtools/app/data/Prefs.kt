@@ -86,4 +86,22 @@ class Prefs(private val context: Context) {
                 .toSet()
         }
     }
+
+    // ---------------- per-TV accent ----------------
+
+    private val KEY_ACCENTS = androidx.datastore.preferences.core.stringPreferencesKey("device_accents")
+
+    suspend fun saveDeviceAccent(host: String, accentName: String) {
+        context.dataStore.edit { p ->
+            val current = p[KEY_ACCENTS].orEmpty().split('\n').filter { it.isNotBlank() }.toMutableList()
+            current.removeAll { it.substringBefore('=') == host }
+            current.add("$host=$accentName")
+            p[KEY_ACCENTS] = current.joinToString("\n")
+        }
+    }
+
+    suspend fun loadDeviceAccent(host: String): String? {
+        val raw = context.dataStore.data.first()[KEY_ACCENTS].orEmpty()
+        return raw.split('\n').firstOrNull { it.startsWith("$host=") }?.substringAfter('=')
+    }
 }

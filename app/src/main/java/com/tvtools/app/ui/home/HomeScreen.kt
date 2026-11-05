@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,7 +60,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -68,9 +72,12 @@ import com.tvtools.app.data.TvDevice
 import com.tvtools.app.ui.common.rememberHaptics
 import com.tvtools.app.ui.settings.SettingsSheet
 
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
     onConnected: (TvDevice) -> Unit,
+    sharedScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedScope: androidx.compose.animation.AnimatedContentScope? = null,
     viewModel: HomeViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
@@ -105,9 +112,22 @@ fun HomeScreen(
         ) {
             Spacer(Modifier.height(28.dp))
 
-            // Logo
+            // Logo (animated in)
+            var logoVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { logoVisible = true }
+            val logoScale by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (logoVisible) 1f else 0.75f,
+                animationSpec = androidx.compose.animation.core.tween(450),
+                label = "logo-scale",
+            )
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = logoScale
+                        scaleY = logoScale
+                        alpha = logoScale
+                    },
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -142,9 +162,19 @@ fun HomeScreen(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(8.dp))
+                val titleModifier: Modifier = if (sharedScope != null && animatedScope != null) {
+                    with(sharedScope) {
+                        Modifier.sharedElement(
+                            rememberSharedContentState("device-title-${last.name}"),
+                            animatedScope,
+                        )
+                    }
+                } else Modifier
                 DeviceCard(
                     device = last,
                     connecting = ui.connectingTo?.host == last.host,
+                    thumbPath = ui.lastThumbPath,
+                    titleModifier = titleModifier,
                     onClick = { haptics(); viewModel.connect(last) },
                 )
                 Spacer(Modifier.height(20.dp))
@@ -192,11 +222,7 @@ fun HomeScreen(
                     modifier = Modifier.weight(1f),
                 )
                 if (ui.scanning) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        strokeCap = StrokeCap.Round,
-                    )
+                    RadarScan(Modifier.size(22.dp))
                     Spacer(Modifier.width(10.dp))
                 }
                 IconButton(onClick = { viewModel.startDiscovery() }) {
@@ -429,6 +455,8 @@ private fun SavedDeviceChip(
 private fun DeviceCard(
     device: TvDevice,
     connecting: Boolean,
+    thumbPath: String? = null,
+    titleModifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Card(
@@ -443,11 +471,27 @@ private fun DeviceCard(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TvIcon()
+            val thumb = thumbPath?.let { path ->
+                remember(path) { android.graphics.BitmapFactory.decodeFile(path) }
+            }
+            if (thumb != null) {
+                androidx.compose.foundation.Image(
+                    bitmap = thumb.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier
+                        .width(64.dp)
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                )
+            } else {
+                TvIcon()
+            }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     device.name,
+                    modifier = titleModifier,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -476,6 +520,30 @@ private fun DeviceCard(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun RadarScan(modifier: Modifier = Modifier) {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "radar")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(1500, easing = androidx.compose.animation.core.LinearEasing)
+        ),
+        label = "radar-progress",
+    )
+    val color = MaterialTheme.colorScheme.primary
+    androidx.compose.foundation.Canvas(modifier) {
+        repeat(3) { i ->
+            val p = ((progress + i / 3f) % 1f)
+            drawCircle(
+                color = color.copy(alpha = (1f - p) * 0.55f),
+                radius = size.minDimension / 2f * p,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
+            )
         }
     }
 }

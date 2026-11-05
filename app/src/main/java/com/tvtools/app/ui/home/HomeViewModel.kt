@@ -3,6 +3,7 @@ package com.tvtools.app.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.TvToolsApp
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.DeviceProto
 import com.tvtools.app.data.TvDevice
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import java.io.File
 
 data class HomeUiState(
     val devices: List<TvDevice> = emptyList(),
@@ -23,6 +25,7 @@ data class HomeUiState(
     val lastConnected: TvDevice? = null,
     val connectingTo: TvDevice? = null,
     val showAll: Boolean = false,
+    val lastThumbPath: String? = null,
 ) {
     val visibleDevices: List<TvDevice>
         get() = if (showAll) devices
@@ -54,7 +57,11 @@ class HomeViewModel : ViewModel() {
         startDiscovery()
         viewModelScope.launch {
             val last = prefs.loadLastDevice()
-            _ui.value = _ui.value.copy(lastConnected = last, savedDevices = prefs.loadDevices())
+            _ui.value = _ui.value.copy(
+                lastConnected = last,
+                savedDevices = prefs.loadDevices(),
+                lastThumbPath = last?.let { thumbFile(it.host)?.takeIf { f -> f.exists() }?.absolutePath },
+            )
             // Auto-reconnect: quietly try the last TV (twice) so the app is usable immediately.
             if (last != null && !adb.isConnected) {
                 _ui.value = _ui.value.copy(connectingTo = last)
@@ -78,6 +85,7 @@ class HomeViewModel : ViewModel() {
                     val friendly = friendlyName(last)
                     prefs.saveLastDevice(friendly)
                     prefs.saveDevice(friendly)
+                    applyDeviceAccent(last.host)
                     _ui.value = _ui.value.copy(
                         connectingTo = null,
                         lastConnected = friendly,
@@ -192,6 +200,7 @@ class HomeViewModel : ViewModel() {
                     val friendly = friendlyName(device)
                     prefs.saveLastDevice(friendly)
                     prefs.saveDevice(friendly)
+                    applyDeviceAccent(device.host)
                     _ui.value = _ui.value.copy(
                         connectingTo = null,
                         lastConnected = friendly,
@@ -273,6 +282,23 @@ class HomeViewModel : ViewModel() {
                     _events.emit(HomeEvent.Error("Paired successfully but connecting failed. Try tapping the device again."))
                 }
             }
+        }
+    }
+
+    private suspend fun applyDeviceAccent(host: String) {
+        prefs.loadDeviceAccent(host)?.let { name ->
+            runCatching { com.tvtools.app.data.Accent.valueOf(name) }
+                .getOrNull()?.let { AppServices.settings.setAccent(it) }
+        }
+    }
+
+    /** Cached live thumbnail file for a TV. */
+    fun thumbFile(host: String): File? {
+        return try {
+            val dir = File(TvToolsApp.instance.filesDir, "tvthumbs").apply { mkdirs() }
+            File(dir, "${host.hashCode()}.png")
+        } catch (_: Exception) {
+            null
         }
     }
 

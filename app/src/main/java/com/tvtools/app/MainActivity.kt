@@ -94,11 +94,13 @@ class MainActivity : ComponentActivity() {
 
 }
 
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 private fun AppNav() {
     val nav = rememberNavController()
     val pendingShare by AppServices.pendingShare.collectAsState()
 
+    androidx.compose.animation.SharedTransitionLayout {
     NavHost(
         navController = nav,
         startDestination = "home",
@@ -113,6 +115,8 @@ private fun AppNav() {
     ) {
         composable("home") {
             HomeScreen(
+                sharedScope = this@SharedTransitionLayout,
+                animatedScope = this,
                 onConnected = { device ->
                     nav.navigate("device/${Uri.encode(device.name)}")
                 },
@@ -125,12 +129,15 @@ private fun AppNav() {
             val name = backStackEntry.arguments?.getString("name") ?: "Device"
             DeviceScreen(
                 deviceName = name,
+                sharedScope = this@SharedTransitionLayout,
+                animatedScope = this,
                 onBack = { nav.popBackStack("home", inclusive = false) },
                 onOpenFiles = { nav.navigate("files") },
                 onOpenMirror = { nav.navigate("mirror/${Uri.encode(name)}") },
                 onOpenBackups = { nav.navigate("backups") },
                 onOpenStorage = { nav.navigate("storage") },
                 onOpenMusic = { nav.navigate("music") },
+                onOpenGallery = { nav.navigate("gallery") },
                 onOpenLab = { route -> nav.navigate(route) },
             )
         }
@@ -145,6 +152,9 @@ private fun AppNav() {
         }
         composable("music") {
             MusicScreen(onBack = { nav.popBackStack() })
+        }
+        composable("gallery") {
+            com.tvtools.app.ui.gallery.GalleryScreen(onBack = { nav.popBackStack() })
         }
         composable("cast") { CastScreen(onBack = { nav.popBackStack() }) }
         composable("speed") { SpeedTestScreen(onBack = { nav.popBackStack() }) }
@@ -167,6 +177,7 @@ private fun AppNav() {
             )
         }
     }
+    } // SharedTransitionLayout
 
     pendingShare?.let { (uri, mime) ->
         ShareToTvDialog(

@@ -42,6 +42,7 @@ data class FilesUiState(
     val downloadLabel: String? = null,
     val downloadProgress: Float = -1f,
     val queueRemaining: Int = 0,
+    val grid: Boolean = false,
 )
 
 class FilesViewModel : ViewModel() {
@@ -140,6 +141,10 @@ class FilesViewModel : ViewModel() {
 
     fun clearSelection() {
         _ui.value = _ui.value.copy(selection = emptySet())
+    }
+
+    fun toggleGrid() {
+        _ui.value = _ui.value.copy(grid = !_ui.value.grid)
     }
 
     fun selectAll() {

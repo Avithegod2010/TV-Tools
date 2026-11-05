@@ -14,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /** Home-screen remote widget (D-pad + back/home/power). */
-class RemoteWidgetProvider : AppWidgetProvider() {
+open class RemoteWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         appWidgetIds.forEach { id ->
@@ -59,7 +59,7 @@ class RemoteWidgetProvider : AppWidgetProvider() {
         return views
     }
 
-    private fun keyPending(context: Context, code: Int): PendingIntent {
+    protected fun keyPending(context: Context, code: Int): PendingIntent {
         val intent = Intent(context, RemoteWidgetProvider::class.java).apply {
             action = ACTION_KEY
             putExtra(EXTRA_KEY, code)
@@ -71,7 +71,7 @@ class RemoteWidgetProvider : AppWidgetProvider() {
         )
     }
 
-    private fun openAppPending(context: Context): PendingIntent {
+    protected fun openAppPending(context: Context): PendingIntent {
         val intent = Intent(context, com.tvtools.app.MainActivity::class.java)
         return PendingIntent.getActivity(
             context, 999, intent,
@@ -85,6 +85,7 @@ class RemoteWidgetProvider : AppWidgetProvider() {
         const val EXTRA_TOKEN = "token"
 
         fun refresh(context: Context) {
+
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, RemoteWidgetProvider::class.java)
             val ids = manager.getAppWidgetIds(component)
@@ -94,6 +95,21 @@ class RemoteWidgetProvider : AppWidgetProvider() {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
             }
             context.sendBroadcast(intent)
+        }
+    }
+}
+
+/** Compact 2×1 widget: back / home / OK / power. */
+class CompactRemoteWidgetProvider : RemoteWidgetProvider() {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        appWidgetIds.forEach { id ->
+            val views = RemoteViews(context.packageName, R.layout.widget_compact)
+            views.setOnClickPendingIntent(R.id.wc_back, keyPending(context, 4))
+            views.setOnClickPendingIntent(R.id.wc_home, keyPending(context, 3))
+            views.setOnClickPendingIntent(R.id.wc_ok, keyPending(context, 23))
+            views.setOnClickPendingIntent(R.id.wc_power, keyPending(context, 26))
+            views.setOnClickPendingIntent(R.id.wc_open, openAppPending(context))
+            appWidgetManager.updateAppWidget(id, views)
         }
     }
 }

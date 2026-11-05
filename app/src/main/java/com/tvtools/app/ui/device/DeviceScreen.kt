@@ -46,23 +46,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.TvToolsApp
 import com.tvtools.app.ui.apps.AppsTab
 import com.tvtools.app.ui.common.rememberHaptics
+import kotlinx.coroutines.launch
 import com.tvtools.app.ui.info.InfoTab
 import com.tvtools.app.ui.remote.RemoteControlSheet
 import com.tvtools.app.ui.shell.ShellTab
 import com.tvtools.app.ui.tools.ToolsTab
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    androidx.compose.animation.ExperimentalSharedTransitionApi::class,
+)
 @Composable
 fun DeviceScreen(
     deviceName: String,
+    sharedScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedScope: androidx.compose.animation.AnimatedContentScope? = null,
     onBack: () -> Unit,
     onOpenFiles: () -> Unit,
     onOpenMirror: () -> Unit,
     onOpenBackups: () -> Unit,
     onOpenStorage: () -> Unit,
     onOpenMusic: () -> Unit,
+    onOpenGallery: () -> Unit,
     onOpenLab: (String) -> Unit,
     viewModel: DeviceViewModel = viewModel(),
 ) {
@@ -70,6 +78,8 @@ fun DeviceScreen(
     var showRemote by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    val ctx = com.tvtools.app.TvToolsApp.instance
 
     LaunchedEffect(Unit) {
         viewModel.disconnected.collect { onBack() }
@@ -84,6 +94,14 @@ fun DeviceScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 deviceName,
+                                modifier = if (sharedScope != null && animatedScope != null) {
+                                    with(sharedScope) {
+                                        Modifier.sharedElement(
+                                            rememberSharedContentState("device-title-$deviceName"),
+                                            animatedScope,
+                                        )
+                                    }
+                                } else Modifier,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -119,6 +137,26 @@ fun DeviceScreen(
                                 text = { Text("Screen mirroring") },
                                 leadingIcon = { Icon(Icons.Default.Cast, null) },
                                 onClick = { menuOpen = false; onOpenMirror() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Save accent for this TV") },
+                                onClick = {
+                                    menuOpen = false
+                                    val host = com.tvtools.app.AppServices.adb.connectedDevice?.host
+                                    if (host != null) {
+                                        coroutineScope.launch {
+                                            com.tvtools.app.AppServices.prefs.saveDeviceAccent(
+                                                host,
+                                                com.tvtools.app.AppServices.settings.state.value.accent.name,
+                                            )
+                                            android.widget.Toast.makeText(
+                                                TvToolsApp.instance,
+                                                "Accent saved for this TV",
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
+                                        }
+                                    }
+                                },
                             )
                             DropdownMenuItem(
                                 text = { Text("Disconnect") },
@@ -181,6 +219,7 @@ fun DeviceScreen(
                         onOpenMirror = onOpenMirror,
                         onOpenStorage = onOpenStorage,
                         onOpenMusic = onOpenMusic,
+                        onOpenGallery = onOpenGallery,
                         onOpenLab = onOpenLab,
                     )
                     1 -> AppsTab(onOpenBackups = onOpenBackups)

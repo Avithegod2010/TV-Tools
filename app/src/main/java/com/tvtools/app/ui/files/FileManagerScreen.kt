@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -32,7 +35,9 @@ import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -138,6 +143,12 @@ fun FileManagerScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = viewModel::toggleGrid) {
+                            Icon(
+                                if (ui.grid) Icons.Default.ViewList else Icons.Default.GridView,
+                                contentDescription = "Toggle grid",
+                            )
+                        }
                         IconButton(onClick = { showMkdir = true }) {
                             Icon(Icons.Default.Create, "New folder")
                         }
@@ -178,6 +189,40 @@ fun FileManagerScreen(
                     modifier = Modifier.padding(24.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                ui.grid -> androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
+                    modifier = Modifier.weight(1f).padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(ui.entries, key = { it.path }) { item ->
+                        Column(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    if (selecting) viewModel.toggleSelection(item.path)
+                                    else if (item.isDir) viewModel.navigateTo(item.path)
+                                    else viewModel.preview(item)
+                                }
+                                .padding(6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Box(Modifier.height(84.dp).fillMaxWidth()) {
+                                FileThumb(item)
+                                if (item.path in ui.selection) {
+                                    Checkbox(checked = true, onCheckedChange = { viewModel.toggleSelection(item.path) })
+                                }
+                            }
+                            Text(
+                                item.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                    item { Spacer(Modifier.height(80.dp)) }
+                }
                 else -> LazyColumn(Modifier.weight(1f)) {
                     items(ui.entries, key = { it.path }) { item ->
                         FileRow(

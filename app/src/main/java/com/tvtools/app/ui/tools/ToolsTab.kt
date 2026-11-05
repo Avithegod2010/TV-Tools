@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -78,6 +79,7 @@ fun ToolsTab(
     onOpenMirror: () -> Unit,
     onOpenStorage: () -> Unit,
     onOpenMusic: () -> Unit,
+    onOpenGallery: () -> Unit,
     onOpenLab: (String) -> Unit,
     viewModel: ToolsViewModel = viewModel(),
 ) {
@@ -175,6 +177,12 @@ fun ToolsTab(
                 title = "Screen record",
                 subtitle = "Record the TV screen and save it to your phone",
                 onClick = { showRecordDialog = true },
+            )
+            BannerCard(
+                icon = Icons.Default.Refresh,
+                title = "Screenshot gallery",
+                subtitle = "Every captured TV screenshot in one place",
+                onClick = onOpenGallery,
             )
 
             Text(
