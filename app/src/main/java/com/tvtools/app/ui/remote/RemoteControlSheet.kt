@@ -175,6 +175,7 @@ fun RemoteControlSheet(
         var tick = 0
         while (true) {
             if (broadcastSelection == null) {
+                // Foreground app changes rarely; media sessions can start/stop any time.
                 if (tick % 3 == 0) {
                     val pkg = runCatching { adb.foregroundPackage() }.getOrNull()
                     if (pkg != null) foregroundApp = pkg
@@ -182,7 +183,7 @@ fun RemoteControlSheet(
                 nowPlaying = runCatching { adb.nowPlaying() }.getOrNull()
             }
             tick++
-            delay(4_000)
+            delay(6_000)
         }
     }
 
