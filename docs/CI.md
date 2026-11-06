@@ -27,9 +27,10 @@ Lint is advisory by design. The `lint` job always uploads its report, but a lint
 merge blocker. If a finding matters, fix it in a normal pull request; do not make the job
 required.
 
-CI overrides `org.gradle.jvmargs` to 2 GB for the `release` and `lint` tasks. The repository's
+CI overrides `org.gradle.jvmargs` to 2 GB for the test, release and lint tasks. The repository's
 `gradle.properties` is tuned for a low-RAM development machine (768 MB), which is too tight
-for R8 and lint.
+for R8 and lint. A hard-coded `org.gradle.java.home` is deliberately not committed; CI uses its
+own JDK and local developers can set it in `~/.gradle/gradle.properties`.
 
 The workflows run `chmod +x gradlew` before invoking Gradle because the repository is
 maintained on Windows, where the executable bit is not preserved reliably.
