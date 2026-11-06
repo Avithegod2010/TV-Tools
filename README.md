@@ -56,6 +56,15 @@
 
 > TV Tools is an ADB client: it does what `adb` on a computer could do over your LAN. Only enable ADB on TVs you trust, and turn it off when you're done.
 
+## 📸 Screenshots
+
+| | |
+|---|---|
+| ![Home](docs/screenshots/01-home.png) | ![Tools](docs/screenshots/02-tools.png) |
+| ![Apps](docs/screenshots/03-apps.png) | ![Remote](docs/screenshots/04-remote.png) |
+| ![Info](docs/screenshots/05-info.png) | ![Settings](docs/screenshots/06-settings.png) |
+| ![Connection doctor](docs/screenshots/07-connection-doctor.png) | ![mDNS browser](docs/screenshots/08-mdns-browser.png) |
+
 ## 🚀 Install
 
 1. Download the latest **signed** APK from [Releases](../../releases).
