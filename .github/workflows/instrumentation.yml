@@ -59,7 +59,7 @@ jobs:
           arch: x86_64
           profile: pixel_5
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest --stacktrace --console=plain
+          script: ./gradlew connectedDebugAndroidTest --stacktrace --console=plain -Dorg.gradle.jvmargs=-Xmx2g
 
       - name: Upload instrumentation reports
         if: always()

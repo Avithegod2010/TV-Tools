@@ -44,10 +44,14 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace --console=plain
+        run: >-
+          ./gradlew testDebugUnitTest --stacktrace --console=plain
+          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
 
       - name: Assemble debug APK
-        run: ./gradlew assembleDebug --stacktrace --console=plain
+        run: >-
+          ./gradlew assembleDebug --stacktrace --console=plain
+          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
 
       - name: Upload test report
         if: always()
