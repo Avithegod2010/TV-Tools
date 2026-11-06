@@ -58,12 +58,14 @@
 
 ## 📸 Screenshots
 
-| | |
-|---|---|
-| ![Home](docs/screenshots/01-home.png) | ![Tools](docs/screenshots/02-tools.png) |
-| ![Apps](docs/screenshots/03-apps.png) | ![Remote](docs/screenshots/04-remote.png) |
-| ![Info](docs/screenshots/05-info.png) | ![Settings](docs/screenshots/06-settings.png) |
-| ![Connection doctor](docs/screenshots/07-connection-doctor.png) | ![mDNS browser](docs/screenshots/08-mdns-browser.png) |
+| | | |
+|---|---|---|
+| ![Home](docs/screenshots/01-home.png) | ![Tools](docs/screenshots/02-tools.png) | ![Remote](docs/screenshots/03-remote.png) |
+| ![Device info](docs/screenshots/04-info.png) | ![File manager](docs/screenshots/05-files.png) | ![Labs](docs/screenshots/06-labs.png) |
+| ![Shell](docs/screenshots/07-shell.png) | ![Rooms & groups](docs/screenshots/08-rooms.png) | ![QR handoff](docs/screenshots/09-qr.png) |
+| ![mDNS browser](docs/screenshots/10-mdns.png) | ![Settings](docs/screenshots/11-settings.png) | |
+
+All screenshots are captured on a phone with the status bar and navigation bar cropped out.
 
 ## 🚀 Install
 
