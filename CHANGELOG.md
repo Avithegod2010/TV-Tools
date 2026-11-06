@@ -5,7 +5,9 @@ All notable changes to TV Tools are documented here.
 The project follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 Versions before 1.2 were development milestones and were not published as signed releases.
 
-## [Unreleased]
+## [1.6.1] — 2026-11-06
+
+A quality-only release: no new screens, but a much smaller APK and a real test/CI net.
 
 ### Added
 - 45 JVM unit tests covering the ADB/media parsers, endpoint parsing, WOL packets, macro and
@@ -15,16 +17,23 @@ Versions before 1.2 were development milestones and were not published as signed
 - Local crash capture (`Diagnostics`) with a **Copy diagnostics** button in Settings. Reports stay
   in app-private storage and are never uploaded.
 - `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, issue/PR templates and release docs.
+- Dependabot configuration for Gradle and GitHub Actions updates.
 
 ### Changed
+- **APK size: 23.5 MB → 12.0 MB** (−49%) with R8 code and resource shrinking. Keep rules cover
+  libadb, Conscrypt, the repackaged Bouncy Castle, JSch and ZXing.
 - The 2,200-line `RemoteControlSheet.kt` is now split into `RemoteControlSheet` (orchestration),
   `RemotePads` (D-pad, touchpad, gesture, gamepad) and `RemoteDialogs` (keyboard, macros, media,
   history, power), with shared key codes in `RemoteKeys`.
 - Custom remote controls expose button semantics, so TalkBack can focus and activate them.
 - The Settings footer reads the installed version instead of a hard-coded string.
+- Media polling in the remote now runs every 6 s (was 4 s) and pauses during broadcast.
+- AGP 8.5.2 → 8.7.3, Kotlin 2.0.20 → 2.0.21, Compose BOM 2024.10.01, lifecycle/navigation/datastore
+  patch updates.
 
 ### Fixed
-- Assemble/release builds can no longer silently drift from the documented target SDK.
+- Settings showed a stale hard-coded version in the footer.
+- CI installs the Android 35 platform and build tools explicitly instead of relying on the runner image.
 
 ## [1.6] — 2026-11-05
 

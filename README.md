@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.6-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-1.6.1-166d32" alt="Version" />
     <img src="https://github.com/Avithegod2010/TV-Tools/actions/workflows/android.yml/badge.svg" alt="CI" />
   </p>
 </div>
