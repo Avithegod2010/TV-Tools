@@ -1,0 +1,8 @@
+- Remote: lower key latency and automatic recovery after the TV drops the link.
+- Connection watchdog with auto-reconnect and a clear reconnect message.
+- Music: MediaStore title/artist/album, queue, and a mini-player on every device tab.
+- Screenshots: per-TV folders, multi-select share/delete, and Show on TV.
+- Screenshot retention: keep the newest 10/25/50/100 or unlimited captures.
+- Customisable Quick tools plus a searchable All features catalogue.
+- Local cold-start and frame-jank measurements in Settings.
+- Updated to targetSdk 35 for current Android releases.

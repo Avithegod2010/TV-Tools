@@ -18,9 +18,10 @@ android {
     defaultConfig {
         applicationId = "com.tvtools.app"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 9
-        versionName = "1.7.0"
+        targetSdk = 35
+        versionCode = 10
+        versionName = "1.8.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -72,6 +73,7 @@ android {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
     implementation(composeBom)
+    androidTestImplementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.core:core-splashscreen:1.0.1")
@@ -82,6 +84,8 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.2")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation("com.github.mwiede:jsch:0.2.17")
     implementation("com.google.zxing:core:3.5.3")
 
@@ -94,6 +98,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     testImplementation("junit:junit:4.13.2")
+
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // Wireless ADB
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")

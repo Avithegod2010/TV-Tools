@@ -37,7 +37,9 @@ Expected SHA-256 fingerprint:
 ./gradlew assembleDebug
 ```
 
-All tests must pass. CI runs the same two commands on every push.
+All tests must pass. CI runs the unit tests and debug build on every push, plus an unsigned
+release build and a non-blocking lint job. The emulator instrumentation smoke test runs manually
+or weekly — see `docs/CI.md`.
 
 ## 3. Build and sign
 

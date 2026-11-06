@@ -5,6 +5,7 @@ import android.net.Uri
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.adb.DeviceDiscovery
 import com.tvtools.app.adb.DeviceInfoProvider
+import com.tvtools.app.data.PlaybackController
 import com.tvtools.app.data.Prefs
 import com.tvtools.app.data.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,8 @@ object AppServices {
         private set
     lateinit var settings: SettingsRepository
         private set
+    lateinit var playback: PlaybackController
+        private set
 
     /** Incoming Android share-sheet payload (uri + mime). */
     val pendingShare = MutableStateFlow<Pair<Uri, String?>?>(null)
@@ -33,5 +36,6 @@ object AppServices {
         infoProvider = DeviceInfoProvider(adb)
         prefs = Prefs(context.applicationContext)
         settings = SettingsRepository(context.applicationContext)
+        playback = PlaybackController(adb)
     }
 }

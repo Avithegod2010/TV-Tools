@@ -36,6 +36,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.ui.apps.AppsTab
+import com.tvtools.app.ui.common.PlaybackBar
 import com.tvtools.app.ui.common.rememberHaptics
 import kotlinx.coroutines.launch
 import com.tvtools.app.ui.info.InfoTab
@@ -90,6 +93,7 @@ fun DeviceScreen(
     var showExitGuest by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
+    val snackbar = remember { SnackbarHostState() }
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val ctx = com.tvtools.app.TvToolsApp.instance
     val settings by com.tvtools.app.AppServices.settings.state.collectAsState()
@@ -97,6 +101,12 @@ fun DeviceScreen(
 
     LaunchedEffect(Unit) {
         viewModel.disconnected.collect { onBack() }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.reconnected.collect {
+            snackbar.showSnackbar("Reconnected to the TV")
+        }
     }
 
     LaunchedEffect(guest) {
@@ -115,6 +125,7 @@ fun DeviceScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = {
@@ -207,7 +218,19 @@ fun DeviceScreen(
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+            Column {
+                val playback by com.tvtools.app.AppServices.playback.state.collectAsState()
+                if (playback.active && playback.title.isNotBlank()) {
+                    PlaybackBar(
+                        state = playback,
+                        onPlayPause = com.tvtools.app.AppServices.playback::toggle,
+                        onPrevious = com.tvtools.app.AppServices.playback::previous,
+                        onNext = com.tvtools.app.AppServices.playback::next,
+                        onOpen = onOpenMusic,
+                        onClose = com.tvtools.app.AppServices.playback::stop,
+                    )
+                }
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 if (!guest) {
                     NavigationBarItem(
                         selected = selectedTab == 0,
@@ -236,6 +259,7 @@ fun DeviceScreen(
                     icon = { Icon(Icons.Default.Info, null) },
                     label = { Text("Info") },
                 )
+                }
             }
         },
     ) { padding ->
@@ -275,6 +299,7 @@ fun DeviceScreen(
             ) { tab ->
                 when (tab) {
                     0 -> ToolsTab(
+                        deviceName = deviceName,
                         onOpenFiles = onOpenFiles,
                         onOpenMirror = onOpenMirror,
                         onOpenStorage = onOpenStorage,

@@ -1,0 +1,5 @@
+TV Tools turns your phone into a remote and a toolbox for Android TV, Google TV, Xiaomi TV and Fire TV devices on your Wi-Fi. It speaks the ADB protocol directly, so no root, no account and no cloud service is involved.
+
+Control playback with a modern remote, install and back up apps, browse and transfer files, run shell commands, take screenshots and screen recordings, manage music, and check storage, health and network details. Save several TVs and switch between them, with quick reconnect and Wake-on-LAN when a device goes to sleep.
+
+TV Tools has no ads, no telemetry and no accounts. The app only talks to the TV on your local network; nothing is sent anywhere else. Settings and ADB credentials stay on your phone, and the source code is open under the MIT licence.

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
 import com.tvtools.app.TvToolsApp
+import com.tvtools.app.data.MusicItem
 import com.tvtools.app.data.NowPlaying
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -17,12 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-
-data class MusicItem(val name: String, val path: String, val size: Long) {
-    val title: String get() = name.substringBeforeLast('.', name)
-    val extension: String get() = name.substringAfterLast('.', "").lowercase()
-    val folder: String get() = path.substringBeforeLast('/', "").substringAfterLast('/')
-}
 
 enum class MusicSort(val label: String) { NAME("Name"), SIZE("Size") }
 
@@ -36,6 +31,9 @@ data class MusicUiState(
     val query: String = "",
     val sort: MusicSort = MusicSort.NAME,
     val nowPlaying: NowPlaying? = null,
+    val queue: List<MusicItem> = emptyList(),
+    val queueIndex: Int = -1,
+    val current: MusicItem? = null,
 ) {
     val visibleItems: List<MusicItem>
         get() {
@@ -45,6 +43,8 @@ data class MusicUiState(
                 items.filter {
                     it.title.contains(query, ignoreCase = true) ||
                         it.name.contains(query, ignoreCase = true) ||
+                        it.artist.contains(query, ignoreCase = true) ||
+                        it.album.contains(query, ignoreCase = true) ||
                         it.folder.contains(query, ignoreCase = true)
                 }
             }
@@ -57,11 +57,12 @@ data class MusicUiState(
     val totalBytes: Long get() = items.sumOf { it.size }
 }
 
-/** Lists and manages audio files on the TV (/sdcard/Music, /sdcard/Download). */
+/** Lists and manages audio files on the TV and keeps the shared queue in sync. */
 class MusicViewModel : ViewModel() {
 
     private val context: Context get() = TvToolsApp.instance
     private val adb = AppServices.adb
+    private val playback = AppServices.playback
 
     private val _ui = MutableStateFlow(MusicUiState())
     val ui = _ui.asStateFlow()
@@ -69,22 +70,40 @@ class MusicViewModel : ViewModel() {
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages = _messages.asSharedFlow()
 
-    private var nowPlayingJob: Job? = null
     private var scanJob: Job? = null
 
-    init { scan() }
+    init {
+        observePlayback()
+        scan()
+    }
+
+    private fun observePlayback() {
+        viewModelScope.launch {
+            playback.state.collect { state ->
+                _ui.value = _ui.value.copy(
+                    nowPlaying = state.nowPlaying,
+                    queue = state.queue,
+                    queueIndex = state.index,
+                    current = state.current,
+                )
+            }
+        }
+    }
+
+    fun refreshPlayback() = playback.refreshOnce()
+
+    // ---------------- scanning ----------------
 
     /**
-     * Two-phase scan: `/sdcard/Music` is usually small, so show it first instead of
-     * blocking the whole screen while the (often huge) Downloads folder is walked.
+     * MediaStore is indexed and answers in well under a second, unlike walking
+     * /sdcard over FUSE (which can take 30-60 s on cheap TVs). The filesystem
+     * scan is only a fallback for TVs whose media database is empty.
      */
     fun scan() {
         scanJob?.cancel()
         scanJob = viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, scanningMore = true)
             try {
-                // MediaStore is indexed and answers in well under a second, unlike
-                // walking /sdcard over FUSE (which can take 30-60 s on cheap TVs).
                 val indexed = fetchIndexedTracks()
                 if (indexed.isNotEmpty()) {
                     _ui.value = _ui.value.copy(
@@ -110,7 +129,7 @@ class MusicViewModel : ViewModel() {
         val out = try {
             adb.exec(
                 "content query --uri content://media/external/audio/media " +
-                    "--projection _data:size 2>/dev/null",
+                    "--projection _data:size:title:artist:album:duration 2>/dev/null",
                 timeoutMs = 15_000,
             )
         } catch (_: Exception) {
@@ -126,8 +145,19 @@ class MusicViewModel : ViewModel() {
             }
             val name = path.substringAfterLast('/')
             if (name.substringAfterLast('.', "").lowercase() !in allowed) return@mapNotNull null
-            val size = Regex("\\bsize=(\\d+)").find(line)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-            MusicItem(name, path, size)
+            fun field(key: String): String =
+                Regex("\\b$key=([^,]*)").find(line)?.groupValues?.get(1)?.trim().orEmpty()
+            val size = field("size").toLongOrNull() ?: 0L
+            val duration = field("duration").toLongOrNull() ?: 0L
+            MusicItem(
+                name = name,
+                path = path,
+                size = size,
+                title = field("title").ifBlank { name.substringBeforeLast('.', name) },
+                artist = field("artist"),
+                album = field("album"),
+                durationMs = duration,
+            )
         }.distinctBy { it.path }.toList()
     }
 
@@ -161,7 +191,6 @@ class MusicViewModel : ViewModel() {
             } catch (_: Exception) {
             }
         }
-        // Fallback for picky adbd builds
         paths.filter { it !in result }.take(30).forEach { p ->
             try {
                 val size = adb.exec("stat -c %s '${p.replace("'", "'\\''")}' 2>/dev/null", timeoutMs = 10_000)
@@ -181,80 +210,40 @@ class MusicViewModel : ViewModel() {
         _ui.value = _ui.value.copy(sort = sort)
     }
 
-    // ---------------- now playing on the TV ----------------
-
-    fun startNowPlaying() {
-        if (nowPlayingJob?.isActive == true) return
-        nowPlayingJob = viewModelScope.launch {
-            while (true) {
-                if (!adb.recentlyInteracted(1_500)) {
-                    _ui.value = _ui.value.copy(
-                        nowPlaying = runCatching { adb.nowPlaying() }.getOrNull(),
-                    )
-                }
-                delay(6_000)
-            }
-        }
-    }
-
-    fun stopNowPlaying() {
-        nowPlayingJob?.cancel()
-        nowPlayingJob = null
-    }
-
-    fun playPause() {
-        viewModelScope.launch {
-            adb.keyEvent(KEY_MEDIA_PLAY_PAUSE)
-            refreshNowPlayingSoon()
-        }
-    }
-
-    fun next() {
-        viewModelScope.launch {
-            adb.keyEvent(KEY_MEDIA_NEXT)
-            refreshNowPlayingSoon()
-        }
-    }
-
-    fun previous() {
-        viewModelScope.launch {
-            adb.keyEvent(KEY_MEDIA_PREV)
-            refreshNowPlayingSoon()
-        }
-    }
-
-    fun seek(deltaMs: Long) {
-        viewModelScope.launch { adb.seekRelative(deltaMs) }
-    }
-
-    private suspend fun refreshNowPlayingSoon() {
-        delay(700)
-        _ui.value = _ui.value.copy(nowPlaying = runCatching { adb.nowPlaying() }.getOrNull())
-    }
+    // ---------------- playback / queue ----------------
 
     fun playOnTv(item: MusicItem) {
-        viewModelScope.launch {
-            try {
-                adb.openFileOnTv(item.path, mimeOf(item))
-                _messages.emit("▶ Playing ${item.title} on the TV")
-                delay(1_200)
-                _ui.value = _ui.value.copy(nowPlaying = runCatching { adb.nowPlaying() }.getOrNull())
-            } catch (e: Exception) {
-                _messages.emit("Couldn't play: ${e.message}")
-            }
-        }
+        playback.play(item, _ui.value.visibleItems)
+        viewModelScope.launch { _messages.emit("▶ ${item.title}") }
     }
 
-    private fun mimeOf(item: MusicItem): String = when (item.extension) {
-        "mp3" -> "audio/mpeg"
-        "m4a" -> "audio/mp4"
-        "flac" -> "audio/flac"
-        "wav" -> "audio/wav"
-        "ogg" -> "audio/ogg"
-        "opus" -> "audio/opus"
-        "aac" -> "audio/aac"
-        else -> "audio/*"
+    fun playPause() = playback.toggle()
+
+    fun next() = playback.next()
+
+    fun previous() = playback.previous()
+
+    fun seek(deltaMs: Long) = playback.seek(deltaMs)
+
+    fun addToQueue(item: MusicItem) {
+        playback.enqueue(item)
+        viewModelScope.launch { _messages.emit("Added ${item.title} to the queue") }
     }
+
+    fun playNext(item: MusicItem) {
+        playback.playNext(item)
+        viewModelScope.launch { _messages.emit("Playing ${item.title} next") }
+    }
+
+    fun playQueueAt(index: Int) = playback.playAt(index)
+
+    fun removeFromQueue(index: Int) = playback.removeFromQueue(index)
+
+    fun clearQueue() = playback.clearQueue()
+
+    fun stopPlayback() = playback.stop()
+
+    // ---------------- downloads / uploads ----------------
 
     fun download(item: MusicItem) {
         if (_ui.value.busy) return
@@ -279,8 +268,10 @@ class MusicViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 adb.deleteFile(item.path)
+                val queueIndex = _ui.value.queue.indexOfFirst { it.path == item.path }
+                if (queueIndex >= 0) playback.removeFromQueue(queueIndex)
+                _ui.value = _ui.value.copy(items = _ui.value.items.filterNot { it.path == item.path })
                 _messages.emit("Deleted ${item.name}")
-                scan()
             } catch (e: Exception) {
                 _messages.emit("Delete failed: ${e.message}")
             } finally {
@@ -294,6 +285,7 @@ class MusicViewModel : ViewModel() {
         _ui.value = _ui.value.copy(busy = true, busyLabel = "Uploading music…", progress = 0f)
         viewModelScope.launch {
             var ok = 0
+            val added = ArrayList<MusicItem>()
             try {
                 adb.mkdir("/sdcard/Music")
                 uris.forEachIndexed { index, uri ->
@@ -310,19 +302,24 @@ class MusicViewModel : ViewModel() {
                             }
                         }
                         val total = tmp.length().coerceAtLeast(1)
-                        adb.pushFile(tmp, "/sdcard/Music/$name") { done ->
+                        val remote = "/sdcard/Music/$name"
+                        adb.pushFile(tmp, remote) { done ->
                             _ui.value = _ui.value.copy(
                                 progress = (index + done.toFloat() / total) / uris.size,
                             )
                         }
                         tmp.delete()
+                        added += MusicItem(name, remote, total)
                         ok++
                     } catch (_: Exception) {
                     }
                 }
                 if (ok > 0) {
+                    // Show the new files immediately even if MediaStore hasn't indexed them yet.
+                    _ui.value = _ui.value.copy(
+                        items = (_ui.value.items + added).distinctBy { it.path },
+                    )
                     _messages.emit("✅ Uploaded $ok/${uris.size} track(s)")
-                    scan()
                 } else {
                     _messages.emit("Upload failed")
                 }
@@ -340,10 +337,4 @@ class MusicViewModel : ViewModel() {
             if (idx >= 0 && c.moveToFirst()) c.getString(idx) else null
         }
     }.getOrNull()
-
-    private companion object {
-        const val KEY_MEDIA_PLAY_PAUSE = 85
-        const val KEY_MEDIA_NEXT = 87
-        const val KEY_MEDIA_PREV = 88
-    }
 }

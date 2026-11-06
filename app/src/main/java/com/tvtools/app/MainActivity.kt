@@ -3,6 +3,9 @@ package com.tvtools.app
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Process
+import android.os.SystemClock
+import android.view.Choreographer
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,6 +22,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.view.doOnPreDraw
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -49,7 +53,11 @@ import com.tvtools.app.ui.theme.TvToolsTheme
 
 class MainActivity : ComponentActivity() {
 
+    private var frameCallback: Choreographer.FrameCallback? = null
+    private var lastFrameNanos = 0L
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        val processStart = Process.getStartUptimeMillis()
         installSplashScreen()
         super.onCreate(savedInstanceState)
         AppServices.init(applicationContext)
@@ -69,6 +77,52 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        recordFirstFrame(processStart)
+    }
+
+    /**
+     * Lightweight frame-time tracker. A frame slower than ~42 fps counts as jank.
+     * This is more portable than JankStats on vendor Android builds and costs only
+     * one Choreographer callback while the activity is resumed.
+     */
+    override fun onResume() {
+        super.onResume()
+        lastFrameNanos = 0L
+        val callback = object : Choreographer.FrameCallback {
+            override fun doFrame(frameTimeNanos: Long) {
+                if (lastFrameNanos != 0L) {
+                    val delta = frameTimeNanos - lastFrameNanos
+                    com.tvtools.app.data.Performance.onFrame(delta > 24_000_000L)
+                }
+                lastFrameNanos = frameTimeNanos
+                Choreographer.getInstance().postFrameCallback(this)
+            }
+        }
+        frameCallback = callback
+        Choreographer.getInstance().postFrameCallback(callback)
+    }
+
+    override fun onPause() {
+        frameCallback?.let { Choreographer.getInstance().removeFrameCallback(it) }
+        frameCallback = null
+        com.tvtools.app.data.Performance.flush(this)
+        super.onPause()
+    }
+
+    /** Record process start → first drawn frame, locally and without telemetry. */
+    private fun recordFirstFrame(processStart: Long) {
+        window.decorView.doOnPreDraw {
+            com.tvtools.app.data.Performance.recordStartup(
+                this@MainActivity,
+                SystemClock.uptimeMillis() - processStart,
+            )
+            reportFullyDrawn()
+        }
+    }
+
+    override fun onStop() {
+        com.tvtools.app.data.Performance.flush(this)
+        super.onStop()
     }
 
     override fun onNewIntent(intent: Intent) {

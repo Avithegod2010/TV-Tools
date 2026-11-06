@@ -5,6 +5,37 @@ All notable changes to TV Tools are documented here.
 The project follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 Versions before 1.2 were development milestones and were not published as signed releases.
 
+## [1.8.0] — 2026-11-07
+
+### Added
+- **Connection watchdog & auto-reconnect:** a heartbeat over the input shell checks the TV every
+  15 seconds; two failures trigger a reconnect, and a successful reconnect shows a snackbar. A
+  screenshot that hits a silent socket drop retries once instead of failing with a cryptic error.
+- **Music v2:** MediaStore title/artist/album/duration, a real queue with *Play next* /
+  *Add to queue*, a queue sheet, queue-aware next/previous, and a **persistent mini-player** on the
+  device screen so controls stay available on Tools/Apps/Shell/Info.
+- **Gallery v2:** per-TV folders, date-grouped timeline, multi-select share/delete, and
+  **Show on TV** (pushes a capture to the TV and opens it there).
+- **Performance card** in Settings: local cold-start time (process → first frame) and a
+  frame-time jank percentage, with reset. Nothing is uploaded.
+- AndroidX ProfileInstaller, so library baseline profiles are installed on first launch.
+- F-Droid fastlane metadata, `docs/FDROID.md`, `docs/CI.md` and `docs/PERFORMANCE.md`.
+- Instrumentation launch smoke test and a manual/weekly emulator workflow.
+- CI now builds an unsigned release APK and runs lint as a separate, non-blocking job.
+
+### Changed
+- **targetSdk 35** with an edge-to-edge pass (onboarding insets, bottom-sheet navigation padding).
+- Music scanning uses Android's MediaStore first; the old `find` walk is a capped fallback, so
+  the list no longer waits on a huge Downloads folder.
+- Per-TV screenshots live in `files/screenshots/<model>/`; legacy captures stay readable under
+  *Unsorted*.
+- VersionCode 10 / versionName 1.8.0.
+
+### Fixed
+- Details in the remote, Stats tab and screenshots no longer sit on a dead ADB socket without
+  telling the user.
+- Clearing the screenshot gallery now deletes per-TV folders too.
+
 ## [1.7.0] — 2026-11-06
 
 ### Added

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -87,6 +88,7 @@ import com.tvtools.app.ui.common.rememberHaptics
 
 @Composable
 fun ToolsTab(
+    deviceName: String,
     onOpenFiles: () -> Unit,
     onOpenMirror: () -> Unit,
     onOpenStorage: () -> Unit,
@@ -111,6 +113,7 @@ fun ToolsTab(
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbar.showSnackbar(it) }
     }
+    LaunchedEffect(deviceName) { viewModel.setDevice(deviceName) }
 
     val apkPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let(viewModel::installApk)
@@ -426,6 +429,7 @@ private fun AllFeaturesSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .heightIn(max = 640.dp),
         ) {

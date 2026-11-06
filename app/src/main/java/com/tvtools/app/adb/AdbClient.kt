@@ -11,6 +11,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,6 +37,10 @@ class AdbClient(context: Context) {
 
     var connectedDevice: ConnectedDevice? = null
         private set
+
+    /** Last address we successfully connected to, kept across a silent socket drop. */
+    @Volatile
+    private var lastDevice: ConnectedDevice? = null
 
     /** Duration of the last successful ADB handshake, in milliseconds (0 = unknown). */
     var lastConnectMs: Long = 0
@@ -69,6 +74,7 @@ class AdbClient(context: Context) {
             if (ok) {
                 lastConnectMs = System.currentTimeMillis() - started
                 connectedDevice = ConnectedDevice(host, port)
+                lastDevice = ConnectedDevice(host, port)
                 ConnectResult.Success
             } else ConnectResult.Error("Connection refused")
         } catch (e: AdbPairingRequiredException) {
@@ -88,6 +94,32 @@ class AdbClient(context: Context) {
         } catch (_: Exception) {
         }
         connectedDevice = null
+        lastDevice = null
+    }
+
+    /**
+     * Reconnect to the last known TV after a silent socket drop.
+     * Returns null when this process never connected, so callers can navigate home.
+     */
+    suspend fun reconnect(): ConnectResult? {
+        val device = lastDevice ?: connectedDevice ?: return null
+        return connect(device.host, device.port)
+    }
+
+    /**
+     * Heartbeat over the persistent input shell. A marker has to come back from
+     * the TV, so this detects a dead socket even when [isConnected] still says true.
+     */
+    suspend fun ping(timeoutMs: Long = 4_000): Boolean {
+        if (!manager.isConnected) return false
+        val before = fastPending.get()
+        if (!writeFast("true")) return false
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
+        while (SystemClock.elapsedRealtime() < deadline) {
+            if (fastPending.get() <= before) return true
+            delay(100)
+        }
+        return false
     }
 
     // ---------------- fast input channel ----------------

@@ -277,8 +277,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             OutlinedButton(onClick = {
                 haptics()
                 scope.launch(Dispatchers.IO) {
-                    com.tvtools.app.data.ScreenshotStore.galleryDir(context)
-                        .listFiles()?.forEach { it.delete() }
+                    com.tvtools.app.data.ScreenshotStore.clear(context)
                 }
                 android.widget.Toast.makeText(context, "Screenshot gallery cleared", android.widget.Toast.LENGTH_SHORT).show()
             }) { Text("Clear screenshot gallery") }
@@ -332,6 +331,38 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Performance")
+            var startupMs by remember {
+                mutableStateOf(com.tvtools.app.data.Performance.lastStartupMs(context))
+            }
+            var jank by remember {
+                mutableStateOf(com.tvtools.app.data.Performance.lastJank(context))
+            }
+            Text(
+                startupMs?.let { "Cold start: $it ms (process → first frame)" }
+                    ?: "Cold start: not measured yet",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                jank?.let { (bad, total) ->
+                    val percent = if (total > 0) bad * 100f / total else 0f
+                    "Jank: $bad of $total frames (${percent.toInt()}%) last session"
+                } ?: "Frame jank: not measured yet",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Measured on this phone only. Nothing is uploaded.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = {
+                com.tvtools.app.data.Performance.reset(context)
+                startupMs = null
+                jank = null
+            }) { Text("Reset measurements") }
 
             Spacer(Modifier.height(18.dp))
             SectionTitle("Diagnostics")

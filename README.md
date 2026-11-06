@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.7.0-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-1.8.0-166d32" alt="Version" />
     <img src="https://github.com/Avithegod2010/TV-Tools/actions/workflows/android.yml/badge.svg" alt="CI" />
   </p>
 </div>
@@ -25,7 +25,7 @@
 
 | | |
 |---|---|
-| 📡 **Wireless ADB** | Auto-discovery (mDNS + LAN scan), Android 11+ pairing codes, Fire TV legacy ADB, auto-reconnect, **multi-TV dashboard**, **QR handoff**, **IPv6 + custom ports**, **remembered pairing ports**, **batch "check all"**, **connection doctor**, **mDNS browser** |
+| 📡 **Wireless ADB** | Auto-discovery (mDNS + LAN scan), Android 11+ pairing codes, Fire TV legacy ADB, **connection watchdog + auto-reconnect**, **multi-TV dashboard**, **QR handoff**, **IPv6 + custom ports**, **remembered pairing ports**, **batch "check all"**, **connection doctor**, **mDNS browser** |
 | 🏠 **Multi-TV** | **Rooms & groups** with a group remote, **broadcast keys** from the main remote, **daily Wake-on-LAN** schedule, **wake when Wi-Fi returns**, **guest mode** for handing over the phone |
 | 🎛 **Remote** | Modern remote sheet with an **instant key channel** (one persistent ADB shell, no per-press lag): D-Pad ↔ **multi-touch pad** ↔ **gesture pad** ↔ gamepad, **live keyboard** with Ctrl/Alt combos, **voice typing**, **Assistant key**, **macro recorder**, **per-app shortcuts**, **now playing + seek**, **sleep timer with volume fade**, **ring the TV**, **quick keys**, **history + undo**, **air mouse**, **physical controller support**, **floating bubble** |
 | 🛠 **Tools** | **Pin your own Quick tools** or search the full **All features** catalogue: install APK / **.apks / .xapk**, **long-press Install to send a phone app to the TV**, upload files, **multi-file & folder upload on long-press**, clear caches, **on-demand screenshots with retention**, **storage analyzer**, **screen recording** |
@@ -35,17 +35,18 @@
 | 💾 **Backup & restore** | **Bulk backup any apps (base + splits)** with metadata, one-tap restore via `pm install-multiple` |
 | 🗂 **File manager** | Browse TV storage, thumbnails, upload, **multi-select**, copy/move, image/text previews, **download queue** |
 | 💻 **Shell** | Interactive ADB shell with CTRL+C, clear and copy |
-| 🎵 **Music player** | Material You redesign: search, sort, generated cover art, multi-track upload, shuffle, and a now-playing bar with progress, play/pause, next and previous |
+| 🎵 **Music player** | Material You redesign with MediaStore title/artist/album/duration, search, sort, queue (*Play next* / *Add to queue*), generated cover art, multi-track upload, shuffle, and a **persistent mini-player on every device tab** |
 | 🖥 **Screen record** | Record the TV screen (15/30/60 s) and save it to your phone's Movies |
 | ⚡ **Power** | Sleep, power toggle, restart, and Wake-on-LAN |
 | 📊 **Device info** | Storage / RAM / CPU gauges, network usage, uptime |
+| ⚡ **Performance** | Local cold-start and frame-jank card in Settings, AndroidX ProfileInstaller baseline profiles, no background screenshot or media polling when idle |
 | 🎨 **Themes & haptics** | System/Light/Dark, 5 accent colors incl. Material You, haptic feedback |
 | 🧩 **System integration** | **Quick Settings tile** ("TV Remote") + **home-screen remote widget**, onboarding, splash screen |
 | 🧪 **Labs** | **DLNA casting**, **SFTP browser**, **speed test**, **live TV inputs**, **mouse & keyboard**, **health monitor**, **TV users**, **kids mode**, **launchpad**, **automations** |
 | 🔐 **Data & safety** | App **data backup** (external), **encrypted export/import** of backups, ambient mode, screen-timeout control, **wake & reconnect**, **local crash diagnostics** (never uploaded) |
 | ✨ **Visuals** | Thumbnail from your last explicit capture, **radar discovery animation**, **shared-element transitions**, AMOLED mode, auto day/night, **glass sheets**, animated logo |
 | 🎨 **Customization** | **Per-TV accent colors**, **palette matched from the TV screen**, 4 remote skins, **3 launcher icon variants**, haptic profiles, key sounds, custom typography |
-| 🖼 **Gallery & files** | **Screenshot gallery** with an automatic **10/25/50/100/unlimited retention limit**, **grid/list file manager**, health rings |
+| 🖼 **Gallery & files** | **Per-TV screenshot folders**, date timeline, **multi-select share/delete**, **Show on TV**, automatic **10/25/50/100/unlimited retention**, **grid/list file manager**, health rings |
 
 ## 🔐 Privacy & security
 
@@ -63,7 +64,8 @@
 | ![Home](docs/screenshots/01-home.png) | ![Tools](docs/screenshots/02-tools.png) | ![Remote](docs/screenshots/03-remote.png) |
 | ![Device info](docs/screenshots/04-info.png) | ![File manager](docs/screenshots/05-files.png) | ![Labs](docs/screenshots/06-labs.png) |
 | ![Shell](docs/screenshots/07-shell.png) | ![Rooms & groups](docs/screenshots/08-rooms.png) | ![QR handoff](docs/screenshots/09-qr.png) |
-| ![mDNS browser](docs/screenshots/10-mdns.png) | ![Settings](docs/screenshots/11-settings.png) | |
+| ![mDNS browser](docs/screenshots/10-mdns.png) | ![Settings](docs/screenshots/11-settings.png) | ![All features](docs/screenshots/12-all-features.png) |
+| ![Music](docs/screenshots/13-music.png) | | |
 
 All screenshots are captured on a phone with the status bar and navigation bar cropped out. IP
 addresses, device names/serials and the QR payload are pixelated for privacy.

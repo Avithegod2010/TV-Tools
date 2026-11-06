@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
 import com.tvtools.app.TvToolsApp
+import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.ScreenshotStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -79,19 +80,39 @@ class ToolsViewModel : ViewModel() {
 
     fun selectAllFavorites() = setFavorites(ToolCatalog.all.map { it.id })
 
+    private var deviceName: String = "TV"
+
+    /** Set by the Tools tab so captures are filed per TV. */
+    fun setDevice(name: String) {
+        if (name.isNotBlank()) deviceName = name
+    }
+
     val screenshotFile: File
         get() = File(context.cacheDir, "tv_screenshot.png")
+
+    private suspend fun captureWithReconnect() {
+        if (!adb.isConnected && adb.reconnect() != AdbClient.ConnectResult.Success) {
+            throw java.io.IOException("The TV connection is offline")
+        }
+        try {
+            withContext(Dispatchers.IO) { adb.screencap(screenshotFile) }
+        } catch (e: Exception) {
+            // A silent drop can surface as "connect() must be called first"; retry once.
+            if (adb.reconnect() != AdbClient.ConnectResult.Success) throw e
+            withContext(Dispatchers.IO) { adb.screencap(screenshotFile) }
+        }
+    }
 
     fun takeScreenshot() {
         if (_ui.value.screenshotLoading) return
         _ui.value = _ui.value.copy(screenshotLoading = true)
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { adb.screencap(screenshotFile) }
+                captureWithReconnect()
                 val bmp = BitmapFactory.decodeFile(screenshotFile.absolutePath)
                 if (bmp != null) {
                     // Save into the local gallery and honour the retention setting.
-                    ScreenshotStore.save(context, screenshotFile)
+                    ScreenshotStore.save(context, screenshotFile, deviceName)
                     ScreenshotStore.prune(
                         context,
                         AppServices.settings.state.value.screenshotLimit,
@@ -110,7 +131,14 @@ class ToolsViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(screenshotLoading = false)
-                _messages.emit("Screenshot failed: ${e.message}")
+                val detail = e.message.orEmpty()
+                _messages.emit(
+                    if (detail.contains("connect()", true) || detail.contains("offline", true)) {
+                        "Screenshot failed: the TV connection dropped. Go back and reconnect."
+                    } else {
+                        "Screenshot failed: $detail"
+                    }
+                )
             }
         }
     }

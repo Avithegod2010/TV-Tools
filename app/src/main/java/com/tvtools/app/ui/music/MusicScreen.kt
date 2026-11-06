@@ -3,6 +3,7 @@ package com.tvtools.app.ui.music
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +12,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,15 +29,17 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,10 +50,12 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -58,8 +65,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -75,10 +82,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.tvtools.app.data.NowPlaying
+import com.tvtools.app.AppServices
+import com.tvtools.app.data.MusicItem
 import com.tvtools.app.ui.common.LoadingRow
+import com.tvtools.app.ui.common.PlaybackBar
 import com.tvtools.app.ui.common.formatBytes
-import kotlinx.coroutines.delay
+import com.tvtools.app.ui.common.formatDuration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,14 +96,13 @@ fun MusicScreen(
     viewModel: MusicViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
+    val playback by AppServices.playback.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     var deleteTarget by remember { mutableStateOf<MusicItem?>(null) }
+    var showQueue by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.messages.collect { snackbar.showSnackbar(it) } }
-    LaunchedEffect(Unit) { viewModel.startNowPlaying() }
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopNowPlaying() }
-    }
+    LaunchedEffect(Unit) { viewModel.refreshPlayback() }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
@@ -111,6 +119,17 @@ fun MusicScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showQueue = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (ui.queue.isNotEmpty()) {
+                                    Badge { Text("${ui.queue.size}") }
+                                }
+                            },
+                        ) {
+                            Icon(Icons.Default.QueueMusic, "Queue")
+                        }
+                    }
                     IconButton(onClick = viewModel::scan) {
                         Icon(Icons.Default.Refresh, "Rescan")
                     }
@@ -130,12 +149,15 @@ fun MusicScreen(
             )
         },
         bottomBar = {
-            ui.nowPlaying?.takeIf { it.title.isNotBlank() }?.let { track ->
-                MiniPlayer(
-                    track = track,
+            if (playback.active && playback.title.isNotBlank()) {
+                PlaybackBar(
+                    state = playback,
                     onPlayPause = viewModel::playPause,
                     onPrevious = viewModel::previous,
                     onNext = viewModel::next,
+                    onOpen = { showQueue = true },
+                    onClose = viewModel::stopPlayback,
+                    modifier = Modifier.navigationBarsPadding(),
                 )
             }
         },
@@ -255,6 +277,8 @@ fun MusicScreen(
                         TrackRow(
                             item = item,
                             onPlay = { viewModel.playOnTv(item) },
+                            onPlayNext = { viewModel.playNext(item) },
+                            onAddToQueue = { viewModel.addToQueue(item) },
                             onDownload = { viewModel.download(item) },
                             onDelete = { deleteTarget = item },
                         )
@@ -263,6 +287,20 @@ fun MusicScreen(
                 }
             }
         }
+    }
+
+    if (showQueue) {
+        QueueSheet(
+            queue = ui.queue,
+            currentIndex = ui.queueIndex,
+            onPlay = { index ->
+                viewModel.playQueueAt(index)
+                showQueue = false
+            },
+            onRemove = viewModel::removeFromQueue,
+            onClear = viewModel::clearQueue,
+            onDismiss = { showQueue = false },
+        )
     }
 
     deleteTarget?.let { item ->
@@ -359,6 +397,8 @@ private fun MusicHero(trackCount: Int, totalBytes: Long, onShuffle: () -> Unit) 
 private fun TrackRow(
     item: MusicItem,
     onPlay: () -> Unit,
+    onPlayNext: () -> Unit,
+    onAddToQueue: () -> Unit,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -387,14 +427,25 @@ private fun TrackRow(
                 )
                 Text(
                     buildString {
-                        if (item.extension.isNotBlank()) append(item.extension.uppercase())
-                        if (item.size > 0) {
+                        if (item.artist.isNotBlank()) append(item.artist)
+                        if (item.album.isNotBlank()) {
                             if (isNotEmpty()) append(" · ")
-                            append(formatBytes(item.size))
+                            append(item.album)
                         }
-                        if (item.folder.isNotBlank()) {
+                        if (item.durationMs > 0) {
                             if (isNotEmpty()) append(" · ")
-                            append(item.folder)
+                            append(formatDuration(item.durationMs))
+                        }
+                        if (isEmpty()) {
+                            if (item.extension.isNotBlank()) append(item.extension.uppercase())
+                            if (item.size > 0) {
+                                if (isNotEmpty()) append(" · ")
+                                append(formatBytes(item.size))
+                            }
+                            if (item.folder.isNotBlank()) {
+                                if (isNotEmpty()) append(" · ")
+                                append(item.folder)
+                            }
                         }
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -415,6 +466,16 @@ private fun TrackRow(
                         text = { Text("Play on TV") },
                         leadingIcon = { Icon(Icons.Default.PlayArrow, null) },
                         onClick = { menuOpen = false; onPlay() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Play next") },
+                        leadingIcon = { Icon(Icons.Default.PlaylistPlay, null) },
+                        onClick = { menuOpen = false; onPlayNext() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add to queue") },
+                        leadingIcon = { Icon(Icons.Default.PlaylistAdd, null) },
+                        onClick = { menuOpen = false; onAddToQueue() },
                     )
                     DropdownMenuItem(
                         text = { Text("Download to phone") },
@@ -457,87 +518,101 @@ private fun TrackCover(item: MusicItem, size: Int) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MiniPlayer(
-    track: NowPlaying,
-    onPlayPause: () -> Unit,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
+private fun QueueSheet(
+    queue: List<MusicItem>,
+    currentIndex: Int,
+    onPlay: (Int) -> Unit,
+    onRemove: (Int) -> Unit,
+    onClear: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    var tick by remember { mutableStateOf(0L) }
-    LaunchedEffect(track.title, track.isPlaying) {
-        while (track.isPlaying) {
-            tick = System.currentTimeMillis()
-            delay(1_000)
-        }
-    }
-    val duration = track.durationMs.coerceAtLeast(1)
-    val fraction = (track.currentPositionMs(tick).toFloat() / duration).coerceIn(0f, 1f)
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
-        modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
     ) {
-        Column {
-            LinearProgressIndicator(
-                progress = { fraction },
-                modifier = Modifier.fillMaxWidth().height(3.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    MaterialTheme.colorScheme.tertiaryContainer,
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Default.MusicNote, null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .heightIn(max = 560.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        track.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        "Queue",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        track.artist.ifBlank { "Playing on the TV" },
+                        if (queue.isEmpty()) "Nothing queued"
+                        else "${queue.size} tracks · tap one to play",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-                IconButton(onClick = onPrevious) {
-                    Icon(Icons.Default.SkipPrevious, "Previous")
+                TextButton(onClick = onClear, enabled = queue.isNotEmpty()) {
+                    Text("Clear")
                 }
-                FilledIconButton(onClick = onPlayPause, modifier = Modifier.size(44.dp)) {
-                    Icon(
-                        if (track.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        if (track.isPlaying) "Pause" else "Play",
-                    )
-                }
-                IconButton(onClick = onNext) {
-                    Icon(Icons.Default.SkipNext, "Next")
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+            if (queue.isEmpty()) {
+                Text(
+                    "Open the ⋮ menu on any track and choose \"Play next\" or \"Add to queue\".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 28.dp),
+                )
+            } else {
+                LazyColumn(Modifier.fillMaxWidth()) {
+                    itemsIndexed(queue) { index, item ->
+                        val current = index == currentIndex
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (current) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                    else androidx.compose.ui.graphics.Color.Transparent
+                                )
+                                .clickable { onPlay(index) }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "${index + 1}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(22.dp),
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    item.title,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = if (current) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    if (current) "Playing" else
+                                        item.artist.ifBlank { item.folder.ifBlank { formatBytes(item.size) } },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            IconButton(onClick = { onRemove(index) }) {
+                                Icon(Icons.Default.Close, "Remove from queue")
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(24.dp)) }
                 }
             }
         }

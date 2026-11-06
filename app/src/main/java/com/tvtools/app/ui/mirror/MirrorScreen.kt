@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -224,8 +225,9 @@ fun MirrorScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .horizontalScroll(rememberScrollState())
+                .navigationBarsPadding()
                 .padding(horizontal = 12.dp)
-                .padding(bottom = 24.dp),
+                .padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             MirrorKey(Icons.AutoMirrored.Filled.ArrowBack) { viewModel.key(4) }
