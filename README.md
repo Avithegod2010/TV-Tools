@@ -65,7 +65,8 @@
 | ![Shell](docs/screenshots/07-shell.png) | ![Rooms & groups](docs/screenshots/08-rooms.png) | ![QR handoff](docs/screenshots/09-qr.png) |
 | ![mDNS browser](docs/screenshots/10-mdns.png) | ![Settings](docs/screenshots/11-settings.png) | |
 
-All screenshots are captured on a phone with the status bar and navigation bar cropped out.
+All screenshots are captured on a phone with the status bar and navigation bar cropped out. IP
+addresses, device names/serials and the QR payload are pixelated for privacy.
 
 ## 🚀 Install
 
