@@ -48,7 +48,7 @@ import java.io.File
 @Composable
 fun GalleryScreen(onBack: () -> Unit) {
     val context = TvToolsApp.instance
-    val dir = remember { File(context.filesDir, "screenshots").apply { mkdirs() } }
+    val dir = remember { com.tvtools.app.data.ScreenshotStore.galleryDir(context) }
     var files by remember { mutableStateOf(dir.listFiles()?.sortedByDescending { it.lastModified() } ?: emptyList()) }
     var preview by remember { mutableStateOf<File?>(null) }
     var deleteTarget by remember { mutableStateOf<File?>(null) }

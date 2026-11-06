@@ -244,6 +244,46 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             }
 
             Spacer(Modifier.height(18.dp))
+            SectionTitle("Screenshots")
+            Text(
+                "Screenshots are only taken when you tap the button in Tools — never in the background.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("Keep the newest", style = MaterialTheme.typography.titleSmall)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                listOf(10, 25, 50, 100, 0).forEach { limit ->
+                    FilterChip(
+                        selected = settings.screenshotLimit == limit,
+                        onClick = { haptics(); repo.setScreenshotLimit(limit) },
+                        label = { Text(if (limit == 0) "Unlimited" else "$limit") },
+                    )
+                }
+            }
+            Text(
+                if (settings.screenshotLimit == 0) {
+                    "Old screenshots are kept until you delete them."
+                } else {
+                    "Older screenshots are deleted automatically after ${settings.screenshotLimit} captures."
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = {
+                haptics()
+                scope.launch(Dispatchers.IO) {
+                    com.tvtools.app.data.ScreenshotStore.galleryDir(context)
+                        .listFiles()?.forEach { it.delete() }
+                }
+                android.widget.Toast.makeText(context, "Screenshot gallery cleared", android.widget.Toast.LENGTH_SHORT).show()
+            }) { Text("Clear screenshot gallery") }
+
+            Spacer(Modifier.height(18.dp))
             SectionTitle("Feedback")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 HapticStrength.entries.forEach { s ->

@@ -1,16 +1,27 @@
 package com.tvtools.app.adb
 
 import android.content.Context
+import android.os.SystemClock
 import io.github.muntashirakon.adb.AdbPairingRequiredException
 import io.github.muntashirakon.adb.AdbStream
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * High-level, coroutine-friendly API over [TvAdbConnectionManager].
@@ -51,6 +62,7 @@ class AdbClient(context: Context) {
 
     suspend fun connect(host: String, port: Int): ConnectResult = withContext(Dispatchers.IO) {
         try {
+            fastMutex.withLock { closeFastShellLocked() }
             if (manager.isConnected) manager.disconnect()
             val started = System.currentTimeMillis()
             val ok = manager.connect(host, port)
@@ -68,11 +80,137 @@ class AdbClient(context: Context) {
 
     suspend fun disconnect() = withContext(Dispatchers.IO) {
         try {
+            fastMutex.withLock { closeFastShellLocked() }
+        } catch (_: Exception) {
+        }
+        try {
             manager.disconnect()
         } catch (_: Exception) {
         }
         connectedDevice = null
     }
+
+    // ---------------- fast input channel ----------------
+    //
+    // Every `input` key press used to open a brand-new ADB shell (stream setup +
+    // shell spawn), which made the remote feel sluggish on cheap TVs. Inputs now
+    // go through one long-lived shell. Commands are written and forgotten, so the
+    // UI never waits for the TV to finish; a DONE marker bounds the queue while a
+    // key is held so a long hold can't leave a backlog after release.
+
+    // One thread keeps key presses in the exact order the user pressed them.
+    private val fastDispatcher = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "tvtools-input").apply { isDaemon = true }
+    }.asCoroutineDispatcher()
+    private val fastScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val fastMutex = Mutex()
+    private var fastStream: AdbStream? = null
+    private var fastOut: OutputStream? = null
+    private var fastDrain: Job? = null
+    private val fastPending = AtomicInteger(0)
+    private val fastMarker = "__TVT_DONE__"
+
+    @Volatile
+    private var pendingSince = 0L
+
+    @Volatile
+    private var lastKeyCode = -1
+
+    @Volatile
+    private var lastKeyAt = 0L
+
+    /** Uptime of the last input sent to the TV — used to pause status polling. */
+    @Volatile
+    var lastInputAt: Long = 0L
+        private set
+
+    /** True when the remote was used within [withinMs]. */
+    fun recentlyInteracted(withinMs: Long = 2_500): Boolean =
+        lastInputAt > 0 && SystemClock.elapsedRealtime() - lastInputAt < withinMs
+
+    private fun ensureFastShell(): AdbStream {
+        fastStream?.let { return it }
+        val stream = manager.openStream("shell:")
+        fastStream = stream
+        fastOut = stream.openOutputStream()
+        fastPending.set(0)
+        fastDrain = fastScope.launch {
+            val buf = ByteArray(8 * 1024)
+            val tail = StringBuilder()
+            try {
+                val input = stream.openInputStream()
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    if (n == 0) continue
+                    tail.append(String(buf, 0, n, Charsets.UTF_8))
+                    var index = tail.indexOf(fastMarker)
+                    while (index >= 0) {
+                        fastPending.updateAndGet { (it - 1).coerceAtLeast(0) }
+                        tail.delete(0, index + fastMarker.length)
+                        index = tail.indexOf(fastMarker)
+                    }
+                    // Never let unread chatter grow without bound.
+                    if (tail.length > 4_096) tail.delete(0, tail.length - 1_024)
+                }
+            } catch (_: Exception) {
+            } finally {
+                if (fastStream === stream) {
+                    fastStream = null
+                    fastOut = null
+                    fastPending.set(0)
+                }
+            }
+        }
+        return stream
+    }
+
+    /** Assumes [fastMutex] is held. */
+    private fun closeFastShellLocked() {
+        fastDrain?.cancel()
+        fastDrain = null
+        try {
+            fastOut?.close()
+        } catch (_: Exception) {
+        }
+        fastOut = null
+        try {
+            fastStream?.close()
+        } catch (_: Exception) {
+        }
+        fastStream = null
+        fastPending.set(0)
+    }
+
+    /** Open the input shell before the first key so the first press feels instant. */
+    suspend fun warmUpInput() {
+        writeFast("true", trackCompletion = false)
+    }
+
+    private suspend fun writeFast(command: String, trackCompletion: Boolean = true): Boolean =
+        withContext(fastDispatcher) {
+            fastMutex.withLock {
+                try {
+                    val stream = ensureFastShell()
+                    val out = fastOut ?: stream.openOutputStream().also { fastOut = it }
+                    if (trackCompletion && fastPending.getAndIncrement() == 0) {
+                        pendingSince = SystemClock.elapsedRealtime()
+                    }
+                    val payload = if (trackCompletion) {
+                        "$command; echo $fastMarker\n"
+                    } else {
+                        "$command\n"
+                    }
+                    out.write(payload.toByteArray(Charsets.UTF_8))
+                    out.flush()
+                    lastInputAt = SystemClock.elapsedRealtime()
+                    true
+                } catch (_: Exception) {
+                    closeFastShellLocked()
+                    false
+                }
+            }
+        }
 
     // ---------------- shell ----------------
 
@@ -197,10 +335,54 @@ class AdbClient(context: Context) {
 
     // ---------------- convenience ----------------
 
+    /**
+     * Remote-friendly key press: writes to the persistent input shell and returns
+     * immediately. Repeats caused by holding a key are dropped once two earlier
+     * presses are still queued, so releasing the key feels instant.
+     */
     suspend fun keyEvent(code: Int) {
-        try {
-            exec("input keyevent $code", timeoutMs = 15_000)
-        } catch (_: Exception) {
+        val now = SystemClock.elapsedRealtime()
+        val repeat = code == lastKeyCode && now - lastKeyAt in 0..320
+        lastKeyCode = code
+        lastKeyAt = now
+        if (repeat && fastPending.get() >= 2) {
+            val stalled = pendingSince > 0 && now - pendingSince > 4_000
+            if (!stalled) return
+            // The TV stopped answering markers; don't stay stuck forever.
+            fastPending.set(0)
+            pendingSince = 0
+        }
+        if (!writeFast("input keyevent $code")) {
+            try {
+                exec("input keyevent $code", timeoutMs = 15_000)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    /** Key press that is never dropped — used by macros and timed sequences. */
+    suspend fun keyEventExact(code: Int) {
+        if (!writeFast("input keyevent $code")) {
+            try {
+                exec("input keyevent $code", timeoutMs = 15_000)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Send the same key [count] times in a single `input` invocation.
+     * Far cheaper than [count] separate process spawns on the TV.
+     */
+    suspend fun keyEventRepeated(code: Int, count: Int) {
+        if (count <= 0) return
+        val batch = count.coerceAtMost(40)
+        val keys = List(batch) { code.toString() }.joinToString(" ")
+        if (!writeFast("input keyevent $keys")) {
+            try {
+                exec("input keyevent $keys", timeoutMs = 15_000)
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -211,15 +393,30 @@ class AdbClient(context: Context) {
             .replace("\\", "\\\\")
             .replace("'", "'\\''")
             .replace(" ", "%s")
-        exec("input text '$escaped'", timeoutMs = 20_000)
+        if (!writeFast("input text '$escaped'")) {
+            try {
+                exec("input text '$escaped'", timeoutMs = 20_000)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     suspend fun inputTap(x: Int, y: Int) {
-        exec("input tap $x $y", timeoutMs = 20_000)
+        if (!writeFast("input tap $x $y")) {
+            try {
+                exec("input tap $x $y", timeoutMs = 20_000)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     suspend fun inputSwipe(x1: Int, y1: Int, x2: Int, y2: Int, durationMs: Int = 250) {
-        exec("input swipe $x1 $y1 $x2 $y2 $durationMs", timeoutMs = 25_000)
+        if (!writeFast("input swipe $x1 $y1 $x2 $y2 $durationMs")) {
+            try {
+                exec("input swipe $x1 $y1 $x2 $y2 $durationMs", timeoutMs = 25_000)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     private var cachedScreenSize: Pair<Int, Int>? = null
@@ -367,23 +564,31 @@ class AdbClient(context: Context) {
     }
 
     suspend fun mouseMove(x: Int, y: Int) {
-        try {
-            exec("input motionevent MOVE $x $y", timeoutMs = 12_000)
-        } catch (_: Exception) {
+        // Air mouse fires every ~120 ms: never queue stale moves.
+        if (fastPending.get() >= 2) return
+        if (!writeFast("input motionevent MOVE $x $y")) {
+            try {
+                exec("input motionevent MOVE $x $y", timeoutMs = 12_000)
+            } catch (_: Exception) {
+            }
         }
     }
 
     suspend fun mouseDown(x: Int, y: Int) {
-        try {
-            exec("input motionevent DOWN $x $y", timeoutMs = 12_000)
-        } catch (_: Exception) {
+        if (!writeFast("input motionevent DOWN $x $y")) {
+            try {
+                exec("input motionevent DOWN $x $y", timeoutMs = 12_000)
+            } catch (_: Exception) {
+            }
         }
     }
 
     suspend fun mouseUp(x: Int, y: Int) {
-        try {
-            exec("input motionevent UP $x $y", timeoutMs = 12_000)
-        } catch (_: Exception) {
+        if (!writeFast("input motionevent UP $x $y")) {
+            try {
+                exec("input motionevent UP $x $y", timeoutMs = 12_000)
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -415,7 +620,7 @@ class AdbClient(context: Context) {
     suspend fun seekRelative(deltaMs: Long) {
         val steps = (kotlin.math.abs(deltaMs) / 10_000).coerceIn(1, 30).toInt()
         val key = if (deltaMs >= 0) 90 else 89
-        repeat(steps) { keyEvent(key) }
+        keyEventRepeated(key, steps)
     }
 
     /** Set media volume (0–15) on the TV. */

@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
 import com.tvtools.app.TvToolsApp
+import com.tvtools.app.data.ScreenshotStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +52,33 @@ class ToolsViewModel : ViewModel() {
     private val _phoneAppsLoading = MutableStateFlow(false)
     val phoneAppsLoading: StateFlow<Boolean> = _phoneAppsLoading.asStateFlow()
 
+    /** IDs of the tools pinned to the quick grid. */
+    private val _favorites = MutableStateFlow(ToolCatalog.defaultIds)
+    val favorites: StateFlow<List<String>> = _favorites.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _favorites.value = AppServices.prefs.loadToolFavorites()
+                ?.let(ToolCatalog::normalized)
+                ?: ToolCatalog.defaultIds
+        }
+    }
+
+    fun setFavorites(ids: List<String>) {
+        val clean = ToolCatalog.normalized(ids)
+        _favorites.value = clean
+        viewModelScope.launch { AppServices.prefs.saveToolFavorites(clean) }
+    }
+
+    fun toggleFavorite(id: String) {
+        val current = _favorites.value
+        setFavorites(if (id in current) current - id else current + id)
+    }
+
+    fun resetFavorites() = setFavorites(ToolCatalog.defaultIds)
+
+    fun selectAllFavorites() = setFavorites(ToolCatalog.all.map { it.id })
+
     val screenshotFile: File
         get() = File(context.cacheDir, "tv_screenshot.png")
 
@@ -62,9 +90,18 @@ class ToolsViewModel : ViewModel() {
                 withContext(Dispatchers.IO) { adb.screencap(screenshotFile) }
                 val bmp = BitmapFactory.decodeFile(screenshotFile.absolutePath)
                 if (bmp != null) {
-                    runCatching {
-                        val gallery = File(context.filesDir, "screenshots").apply { mkdirs() }
-                        galleryFile(File(gallery, "shot_${System.currentTimeMillis()}.png"))
+                    // Save into the local gallery and honour the retention setting.
+                    ScreenshotStore.save(context, screenshotFile)
+                    ScreenshotStore.prune(
+                        context,
+                        AppServices.settings.state.value.screenshotLimit,
+                    )
+                    // Home shows the last explicit capture instead of polling the TV.
+                    adb.connectedDevice?.host?.let { host ->
+                        runCatching {
+                            val dir = File(context.filesDir, "tvthumbs").apply { mkdirs() }
+                            screenshotFile.copyTo(File(dir, "${host.hashCode()}.png"), overwrite = true)
+                        }
                     }
                     _ui.value = _ui.value.copy(screenshot = bmp.asImageBitmap(), screenshotLoading = false)
                 } else {
@@ -271,10 +308,6 @@ class ToolsViewModel : ViewModel() {
         val uri = resolver.insert(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
             ?: throw java.io.IOException("MediaStore insert failed")
         resolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } }
-    }
-
-    private fun galleryFile(dest: File) {
-        screenshotFile.copyTo(dest, overwrite = true)
     }
 
     fun saveScreenshotToDownloads() {

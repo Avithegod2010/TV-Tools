@@ -539,7 +539,10 @@ private fun DeviceCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val thumb = thumbPath?.let { path ->
-                remember(path) { android.graphics.BitmapFactory.decodeFile(path) }
+                // Key on mtime so a fresh explicit screenshot replaces the old thumb.
+                remember(path, java.io.File(path).lastModified()) {
+                    android.graphics.BitmapFactory.decodeFile(path)
+                }
             }
             if (thumb != null) {
                 androidx.compose.foundation.Image(

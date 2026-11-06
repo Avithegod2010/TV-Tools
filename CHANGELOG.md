@@ -5,6 +5,30 @@ All notable changes to TV Tools are documented here.
 The project follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 Versions before 1.2 were development milestones and were not published as signed releases.
 
+## [1.7.0] — 2026-11-06
+
+### Added
+- **Screenshot retention:** choose how many captures to keep (10 / 25 / 50 / 100 / unlimited).
+  Older screenshots are deleted automatically; the gallery can also be cleared from Settings.
+- **Customisable Tools tab:** pin the tools you actually use, search the full catalogue in
+  **All features**, and pin or unpin anything with one tap.
+- **Music player redesign:** Material You tonal cards, generated cover art, search, sort by name
+  or size, multi-track upload, a now-playing bar with progress and play/pause/next/previous, and
+  a shuffle button.
+
+### Changed
+- **Remote latency:** key presses and text now go through one persistent ADB input shell instead
+  of opening a new shell for every press. Press-and-hold repeats drop extra events instead of
+  building a backlog, and the input channel is pre-opened when the remote sheet appears.
+- Remote status polling is slower (12 s) and pauses for 3 s after any input, so
+  `dumpsys media_session` can no longer delay key presses.
+- Info-tab stats polling pauses while the remote sheet is open.
+
+### Fixed
+- The app no longer captures a TV screenshot in the background every 20 seconds. Screenshots are
+  taken only when you tap **Take screenshot**, and the home thumbnail updates from that capture.
+- Entering the Tools tab no longer triggers an automatic screenshot.
+
 ## [1.6.1] — 2026-11-06
 
 A quality-only release: no new screens, but a much smaller APK and a real test/CI net.

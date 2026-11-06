@@ -130,6 +130,9 @@ fun RemoteControlSheet(
     val settings by AppServices.settings.state.collectAsState()
     val skin = settings.remoteSkin
 
+    // Open the shared input shell now, not on the first key press.
+    LaunchedEffect(Unit) { runCatching { adb.warmUpInput() } }
+
     var mode by remember(skin) {
         mutableStateOf(if (skin == com.tvtools.app.data.RemoteSkin.GAMEPAD) RemoteMode.GAMEPAD else RemoteMode.DPAD)
     }
@@ -172,18 +175,22 @@ fun RemoteControlSheet(
     var nowPlaying by remember { mutableStateOf<com.tvtools.app.data.NowPlaying?>(null) }
 
     LaunchedEffect(Unit) {
+        // Give the sheet a moment before the first (fairly heavy) dumpsys runs.
+        delay(1_500)
         var tick = 0
         while (true) {
-            if (broadcastSelection == null) {
+            // Never let status polling compete with the user's key presses: on a
+            // cheap TV `dumpsys media_session` can take seconds and delay input.
+            if (broadcastSelection == null && !broadcastBusy && !adb.recentlyInteracted(3_000)) {
                 // Foreground app changes rarely; media sessions can start/stop any time.
-                if (tick % 3 == 0) {
+                if (tick % 4 == 0) {
                     val pkg = runCatching { adb.foregroundPackage() }.getOrNull()
                     if (pkg != null) foregroundApp = pkg
                 }
                 nowPlaying = runCatching { adb.nowPlaying() }.getOrNull()
             }
             tick++
-            delay(6_000)
+            delay(12_000)
         }
     }
 
@@ -283,7 +290,7 @@ fun RemoteControlSheet(
         scope.launch {
             for (step in macro.steps) {
                 if (step.delayMs > 0) delay(step.delayMs)
-                adb.keyEvent(step.keyCode)
+                adb.keyEventExact(step.keyCode)
             }
             replaying = null
         }

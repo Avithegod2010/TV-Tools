@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,25 +33,34 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +76,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
@@ -86,6 +98,7 @@ fun ToolsTab(
     val ui by viewModel.ui.collectAsState()
     val phoneApps by viewModel.phoneApps.collectAsState()
     val phoneAppsLoading by viewModel.phoneAppsLoading.collectAsState()
+    val favorites by viewModel.favorites.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val context = TvToolsApp.instance
     val haptics = rememberHaptics()
@@ -93,11 +106,11 @@ fun ToolsTab(
     var showPhoneApps by remember { mutableStateOf(false) }
     var showUploadOptions by remember { mutableStateOf(false) }
     var showRecordDialog by remember { mutableStateOf(false) }
+    var showAllFeatures by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbar.showSnackbar(it) }
     }
-    LaunchedEffect(Unit) { viewModel.takeScreenshot() }
 
     val apkPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let(viewModel::installApk)
@@ -112,6 +125,21 @@ fun ToolsTab(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri -> uri?.let(viewModel::uploadFolder) }
 
+    fun openTool(tool: ToolDef) {
+        when (tool.id) {
+            "install" -> apkPicker.launch("*/*")
+            "upload" -> filePicker.launch("*/*")
+            "files" -> onOpenFiles()
+            "cache" -> viewModel.clearCache()
+            "mirror" -> onOpenMirror()
+            "storage" -> onOpenStorage()
+            "music" -> onOpenMusic()
+            "record" -> showRecordDialog = true
+            "gallery" -> onOpenGallery()
+            else -> tool.labRoute?.let(onOpenLab)
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -120,110 +148,90 @@ fun ToolsTab(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ToolAction(
-                    title = "Install",
-                    icon = { Icon(Icons.Default.Download, null) },
-                    modifier = Modifier.weight(1f),
-                    onClick = { apkPicker.launch("*/*") },
-                    onLongClick = {
-                        viewModel.loadPhoneApps()
-                        showPhoneApps = true
-                    },
-                )
-                ToolAction(
-                    title = "Upload to\nDownloads",
-                    icon = { Icon(Icons.Default.Upload, null) },
-                    modifier = Modifier.weight(1f),
-                    onClick = { filePicker.launch("*/*") },
-                    onLongClick = { showUploadOptions = true },
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ToolAction(
-                    title = "File manager",
-                    icon = { Icon(Icons.Default.Folder, null) },
-                    modifier = Modifier.weight(1f),
-                    onClick = onOpenFiles,
-                )
-                ToolAction(
-                    title = "Clear cache",
-                    icon = { Icon(Icons.Default.Delete, null) },
-                    modifier = Modifier.weight(1f),
-                    onClick = viewModel::clearCache,
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Quick tools",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "Pick the tools you use most",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = { showAllFeatures = true }) { Text("All features") }
             }
 
-            BannerCard(
-                icon = Icons.Default.Cast,
-                title = "Screen mirroring",
-                subtitle = "View your TV live and tap to control it",
-                onClick = onOpenMirror,
-            )
-            BannerCard(
-                icon = Icons.Default.Folder,
-                title = "Storage analyzer",
-                subtitle = "Find what's filling up your TV and clean it",
-                onClick = onOpenStorage,
-            )
-            BannerCard(
-                icon = Icons.Default.MusicNote,
-                title = "Music manager",
-                subtitle = "Browse, play and transfer music on the TV",
-                onClick = onOpenMusic,
-            )
-            BannerCard(
-                icon = Icons.Default.Videocam,
-                title = "Screen record",
-                subtitle = "Record the TV screen and save it to your phone",
-                onClick = { showRecordDialog = true },
-            )
-            BannerCard(
-                icon = Icons.Default.Refresh,
-                title = "Screenshot gallery",
-                subtitle = "Every captured TV screenshot in one place",
-                onClick = onOpenGallery,
-            )
-
-            Text(
-                "Labs",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            val labs = listOf(
-                "cast" to "Cast media (DLNA)",
-                "speed" to "Speed test",
-                "livetv" to "Live TV inputs",
-                "mouse" to "Mouse & keyboard",
-                "health" to "TV health",
-                "users" to "TV users",
-                "sftp" to "SFTP browser",
-                "ir" to "IR blaster",
-                "kids" to "Kids mode",
-                "launchpad" to "Launchpad",
-                "automations" to "Automations",
-            )
-            labs.chunked(2).forEach { pair ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    pair.forEach { (route, label) ->
-                        Card(
-                            onClick = { haptics(); onOpenLab(route) },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            ),
-                        ) {
-                            Text(
-                                label,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
+            val quickTools = favorites.mapNotNull(ToolCatalog::byId)
+            if (quickTools.isEmpty()) {
+                InfoCard(Modifier.fillMaxWidth()) {
+                    Text("Your quick grid is empty", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Open All features and tap the star next to the tools you want here.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Button(onClick = { showAllFeatures = true }) { Text("Choose tools") }
+                }
+            } else {
+                quickTools.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        pair.forEach { tool ->
+                            ToolAction(
+                                title = tool.title,
+                                icon = { Icon(tool.icon, null) },
+                                modifier = Modifier.weight(1f),
+                                onClick = { openTool(tool) },
+                                onLongClick = when (tool.id) {
+                                    "install" -> ({
+                                        viewModel.loadPhoneApps()
+                                        showPhoneApps = true
+                                    })
+                                    "upload" -> ({ showUploadOptions = true })
+                                    else -> null
+                                },
                             )
                         }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
-                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+
+            Card(
+                onClick = { haptics(); showAllFeatures = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                ),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "All features",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            "${ToolCatalog.all.size} tools and labs — search, open or pin them",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
@@ -249,7 +257,11 @@ fun ToolsTab(
             }
 
             InfoCard(Modifier.fillMaxWidth()) {
-                Text("Screenshot", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Screenshot",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 Spacer(Modifier.height(10.dp))
                 val shot = ui.screenshot
                 when {
@@ -285,16 +297,60 @@ fun ToolsTab(
                             viewModel.saveScreenshotToDownloads()
                         }
                     }
-                    else -> ActionButton("Take screenshot", { Icon(Icons.Default.Refresh, null, Modifier.size(18.dp)) }) {
-                        viewModel.takeScreenshot()
+                    else -> Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.size(52.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.PhotoLibrary, null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text("No screenshot yet", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Nothing is captured in the background — the TV is only captured when you tap below.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        ActionButton("Take screenshot", { Icon(Icons.Default.Refresh, null, Modifier.size(18.dp)) }) {
+                            viewModel.takeScreenshot()
+                        }
                     }
                 }
             }
+
+            Text(
+                "Screenshots are saved on this phone only. Change how many are kept in Settings → Screenshots.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
 
             Spacer(Modifier.height(96.dp))
         }
 
         SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+
+    if (showAllFeatures) {
+        AllFeaturesSheet(
+            selected = favorites,
+            onToggle = viewModel::toggleFavorite,
+            onOpen = { tool ->
+                showAllFeatures = false
+                openTool(tool)
+            },
+            onSelectAll = viewModel::selectAllFavorites,
+            onReset = viewModel::resetFavorites,
+            onDismiss = { showAllFeatures = false },
+        )
     }
 
     if (showPhoneApps) {
@@ -337,6 +393,173 @@ fun ToolsTab(
                 viewModel.screenRecord(seconds)
             },
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AllFeaturesSheet(
+    selected: List<String>,
+    onToggle: (String) -> Unit,
+    onOpen: (ToolDef) -> Unit,
+    onSelectAll: () -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val haptics = rememberHaptics()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(query) {
+        ToolCatalog.all.filter { tool ->
+            query.isBlank() ||
+                tool.title.contains(query, ignoreCase = true) ||
+                tool.subtitle.contains(query, ignoreCase = true) ||
+                tool.category.label.contains(query, ignoreCase = true)
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .heightIn(max = 640.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "All features",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        "Tap to open · star to pin on Quick tools",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = { haptics(); onReset() }) { Text("Reset") }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search tools and labs") },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(
+                    selected = false,
+                    onClick = { haptics(); onSelectAll() },
+                    label = { Text("Select all") },
+                )
+                Text(
+                    "${selected.size} pinned",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+
+            if (filtered.isEmpty()) {
+                Text(
+                    "No tool matches \"$query\"",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 24.dp),
+                )
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
+                    ToolCategory.entries.forEach { category ->
+                        val tools = filtered.filter { it.category == category }
+                        if (tools.isEmpty()) return@forEach
+                        item(key = "header-${category.name}") {
+                            Text(
+                                category.label.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
+                            )
+                        }
+                        items(tools, key = { it.id }) { tool ->
+                            ToolRow(
+                                tool = tool,
+                                pinned = tool.id in selected,
+                                onOpen = { haptics(); onOpen(tool) },
+                                onToggle = { haptics(); onToggle(tool.id) },
+                            )
+                        }
+                    }
+                    item { Spacer(Modifier.height(24.dp)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolRow(
+    tool: ToolDef,
+    pinned: Boolean,
+    onOpen: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .pointerInput(tool.id) { detectTapGestures(onTap = { onOpen() }) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+            modifier = Modifier.size(42.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    tool.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                tool.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                tool.subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(onClick = onToggle) {
+            Icon(
+                if (pinned) Icons.Default.Star else Icons.Default.StarBorder,
+                contentDescription = if (pinned) "Remove from Quick tools" else "Pin to Quick tools",
+                tint = if (pinned) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

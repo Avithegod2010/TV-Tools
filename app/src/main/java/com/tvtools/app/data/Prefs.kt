@@ -208,4 +208,22 @@ class Prefs(private val context: Context) {
     suspend fun saveQuickKeys(ids: List<String>) {
         context.dataStore.edit { p -> p[KEY_QUICK_KEYS] = encodeQuickKeyIds(ids) }
     }
+
+    // ---------------- Tools tab layout ----------------
+
+    private val KEY_TOOL_FAVORITES = stringPreferencesKey("tool_favorites")
+
+    /** Null means "never customised" so first run gets the default quick tools. */
+    suspend fun loadToolFavorites(): List<String>? {
+        val prefs = context.dataStore.data.first()
+        if (KEY_TOOL_FAVORITES !in prefs) return null
+        return prefs[KEY_TOOL_FAVORITES].orEmpty()
+            .split(',')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+    }
+
+    suspend fun saveToolFavorites(ids: List<String>) {
+        context.dataStore.edit { p -> p[KEY_TOOL_FAVORITES] = ids.joinToString(",") }
+    }
 }

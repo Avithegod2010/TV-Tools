@@ -53,6 +53,8 @@ data class AppSettings(
     val onboardingDone: Boolean = false,
     val automationCache: Boolean = false,
     val automationScreenshot: Boolean = false,
+    /** How many screenshots to keep in the local gallery. 0 = unlimited. */
+    val screenshotLimit: Int = 25,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -74,6 +76,7 @@ class SettingsRepository(private val context: Context) {
     private val KEY_WAKE_ON_WIFI = booleanPreferencesKey("wake_on_wifi")
     private val KEY_GUEST = booleanPreferencesKey("guest_mode")
     private val KEY_BUBBLE = booleanPreferencesKey("overlay_bubble")
+    private val KEY_SHOT_LIMIT = androidx.datastore.preferences.core.intPreferencesKey("screenshot_limit")
 
     private val _state = MutableStateFlow(AppSettings())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
@@ -105,6 +108,7 @@ class SettingsRepository(private val context: Context) {
                 wakeOnWifi = p[KEY_WAKE_ON_WIFI] ?: false,
                 guestMode = p[KEY_GUEST] ?: false,
                 bubble = p[KEY_BUBBLE] ?: false,
+                screenshotLimit = p[KEY_SHOT_LIMIT] ?: 25,
             )
             if (_state.value.wakeEnabled) {
                 AutomationScheduler.setWake(true, _state.value.wakeMinutes)
@@ -205,5 +209,15 @@ class SettingsRepository(private val context: Context) {
     fun setBubble(enabled: Boolean) {
         _state.value = _state.value.copy(bubble = enabled)
         scope.launch { context.settingsStore.edit { it[KEY_BUBBLE] = enabled } }
+    }
+
+    /** Keep only the newest [limit] screenshots (0 = keep every capture). */
+    fun setScreenshotLimit(limit: Int) {
+        val safe = limit.coerceAtLeast(0)
+        _state.value = _state.value.copy(screenshotLimit = safe)
+        scope.launch {
+            context.settingsStore.edit { it[KEY_SHOT_LIMIT] = safe }
+            if (safe > 0) ScreenshotStore.prune(context, safe)
+        }
     }
 }

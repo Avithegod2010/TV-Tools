@@ -106,6 +106,13 @@ fun DeviceScreen(
         }
     }
 
+    // The Info tab polls the TV every few seconds. Pause that while the remote is
+    // open so status reads never compete with key presses on the single ADB link.
+    LaunchedEffect(showRemote, selectedTab) {
+        if (selectedTab == 3 && !showRemote) viewModel.startStatsPolling()
+        else viewModel.stopStatsPolling()
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {

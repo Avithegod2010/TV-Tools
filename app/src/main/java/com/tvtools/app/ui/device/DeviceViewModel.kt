@@ -3,7 +3,6 @@ package com.tvtools.app.ui.device
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
-import com.tvtools.app.TvToolsApp
 import com.tvtools.app.data.DeviceStats
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -29,8 +28,6 @@ class DeviceViewModel : ViewModel() {
     private val _disconnected = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val disconnected: SharedFlow<Unit> = _disconnected.asSharedFlow()
 
-    private var thumbJob: kotlinx.coroutines.Job? = null
-
     init {
         // Learn the TV's MAC now so Wake-on-LAN works even after it's powered off.
         viewModelScope.launch {
@@ -41,23 +38,8 @@ class DeviceViewModel : ViewModel() {
             } catch (_: Exception) {
             }
         }
-        // Keep a small "live thumbnail" of the TV for the home screen.
-        thumbJob = viewModelScope.launch {
-            val dir = java.io.File(TvToolsApp.instance.filesDir, "tvthumbs").apply { mkdirs() }
-            while (true) {
-                val host = adb.connectedDevice?.host ?: break
-                try {
-                    adb.screencap(java.io.File(dir, "${host.hashCode()}.png"))
-                } catch (_: Exception) {
-                }
-                delay(20_000)
-            }
-        }
-    }
-
-    override fun onCleared() {
-        thumbJob?.cancel()
-        super.onCleared()
+        // Screenshots are no longer captured in the background: the TV is only
+        // captured when the user taps "Take screenshot" in Tools.
     }
 
     private var pollJob: Job? = null
