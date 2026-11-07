@@ -2,6 +2,7 @@ package com.tvtools.app.adb
 
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import io.github.muntashirakon.adb.AdbPairingRequiredException
 import io.github.muntashirakon.adb.AdbStream
 import kotlinx.coroutines.CoroutineScope
@@ -17,8 +18,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
+import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStreamReader
 import java.io.IOException
 import java.io.OutputStream
 import java.util.concurrent.Executors
@@ -68,6 +72,7 @@ class AdbClient(context: Context) {
     suspend fun connect(host: String, port: Int): ConnectResult = withContext(Dispatchers.IO) {
         try {
             fastMutex.withLock { closeFastShellLocked() }
+            inputServerMutex.withLock { closeInputServerState() }
             if (manager.isConnected) manager.disconnect()
             val started = System.currentTimeMillis()
             val ok = manager.connect(host, port)
@@ -87,6 +92,10 @@ class AdbClient(context: Context) {
     suspend fun disconnect() = withContext(Dispatchers.IO) {
         try {
             fastMutex.withLock { closeFastShellLocked() }
+        } catch (_: Exception) {
+        }
+        try {
+            inputServerMutex.withLock { closeInputServerState() }
         } catch (_: Exception) {
         }
         try {
@@ -141,6 +150,18 @@ class AdbClient(context: Context) {
     private var fastDrain: Job? = null
     private val fastPending = AtomicInteger(0)
     private val fastMarker = "__TVT_DONE__"
+
+    // Persistent TV-side injector. A tiny jar runs under app_process as the shell
+    // user and calls InputManager.injectInputEvent directly. That removes the
+    // per-key `input`/ART process spawn, which is the main remaining latency on
+    // older TVs. If it cannot start, every key falls back to the input shell.
+    private val inputServerMutex = Mutex()
+    private var inputServer: AdbStream? = null
+    private var inputServerOut: OutputStream? = null
+    private var inputServerDrain: Job? = null
+
+    @Volatile
+    private var inputServerReady = false
 
     @Volatile
     private var pendingSince = 0L
@@ -214,9 +235,125 @@ class AdbClient(context: Context) {
         fastPending.set(0)
     }
 
-    /** Open the input shell before the first key so the first press feels instant. */
+    /** No mutex required: safe to call from the drain's finally block. */
+    private fun closeInputServerState() {
+        inputServerDrain?.cancel()
+        inputServerDrain = null
+        try {
+            inputServerOut?.close()
+        } catch (_: Exception) {
+        }
+        inputServerOut = null
+        try {
+            inputServer?.close()
+        } catch (_: Exception) {
+        }
+        inputServer = null
+        inputServerReady = false
+    }
+
+    /**
+     * Start (or reuse) the persistent TV-side key injector.
+     *
+     * Pushes a ~2 KB jar to /data/local/tmp and runs it with app_process. It talks
+     * over stdin, so no port is exposed. Returns false when the TV blocks the
+     * mechanism (old firmware, missing app_process), in which case callers keep
+     * using the input shell.
+     */
+    suspend fun startInputServer(): Boolean = withContext(Dispatchers.IO) {
+        if (inputServerReady) return@withContext true
+        inputServerMutex.withLock {
+            if (inputServerReady) return@withLock true
+            var stream: AdbStream? = null
+            try {
+                val jar = File(appContext.cacheDir, "tvtools-input.jar")
+                if (!jar.exists() || jar.length() == 0L) {
+                    appContext.assets.open("tvtools-input.jar").use { input ->
+                        jar.outputStream().use { output -> input.copyTo(output) }
+                    }
+                }
+                val remoteJar = "/data/local/tmp/tvtools-input.jar"
+                val remoteSize = try {
+                    exec("stat -c %s $remoteJar 2>/dev/null", timeoutMs = 5_000)
+                        .trim().toLongOrNull()
+                } catch (_: Exception) {
+                    null
+                }
+                if (remoteSize != jar.length()) {
+                    pushFile(jar, remoteJar)
+                }
+
+                stream = manager.openStream(
+                    "shell:CLASSPATH=$remoteJar app_process /system/bin " +
+                        "com.tvtools.app.input.InputServer"
+                )
+                val reader = BufferedReader(InputStreamReader(stream.openInputStream()))
+                val first = withTimeoutOrNull(6_000) {
+                    withContext(Dispatchers.IO) { reader.readLine() }
+                }
+                if (first != "TVT_READY") {
+                    Log.w("TvToolsInput", "injector did not start: ${first ?: "timeout"}")
+                    try {
+                        stream.close()
+                    } catch (_: Exception) {
+                    }
+                    return@withLock false
+                }
+
+                inputServer = stream
+                inputServerOut = stream.openOutputStream()
+                inputServerReady = true
+                val owned = stream
+                inputServerDrain = fastScope.launch {
+                    try {
+                        while (true) {
+                            val line = reader.readLine() ?: break
+                            if (line.startsWith("TVT_FAIL") || line.startsWith("TVT_ERR")) {
+                                Log.w("TvToolsInput", line)
+                            }
+                        }
+                    } catch (_: Exception) {
+                    } finally {
+                        if (inputServer === owned) closeInputServerState()
+                    }
+                }
+                Log.i("TvToolsInput", "persistent injector ready")
+                true
+            } catch (e: Exception) {
+                Log.w("TvToolsInput", "injector unavailable: ${e.message}", e)
+                try {
+                    stream?.close()
+                } catch (_: Exception) {
+                }
+                closeInputServerState()
+                false
+            }
+        }
+    }
+
+    /** Write one or more Android keycodes to the injector, one line at a time. */
+    private suspend fun writeInputServer(keys: String): Boolean = withContext(fastDispatcher) {
+        inputServerMutex.withLock {
+            if (!inputServerReady) return@withLock false
+            try {
+                val out = inputServerOut ?: return@withLock false
+                out.write((keys + "\n").toByteArray(Charsets.UTF_8))
+                out.flush()
+                lastInputAt = SystemClock.elapsedRealtime()
+                true
+            } catch (e: Exception) {
+                Log.w("TvToolsInput", "injector write failed: ${e.message}")
+                closeInputServerState()
+                false
+            }
+        }
+    }
+
+    /** Open both fast paths before the first key so the first press feels instant. */
     suspend fun warmUpInput() {
+        // Keep the shell warm first: it is the fallback while the injector starts.
         writeFast("true", trackCompletion = false)
+        startInputServer()
     }
 
     private suspend fun writeFast(command: String, trackCompletion: Boolean = true): Boolean =
@@ -368,11 +505,12 @@ class AdbClient(context: Context) {
     // ---------------- convenience ----------------
 
     /**
-     * Remote-friendly key press: writes to the persistent input shell and returns
-     * immediately. Repeats caused by holding a key are dropped once two earlier
-     * presses are still queued, so releasing the key feels instant.
+     * Remote-friendly key press. Prefers the persistent injector (a few ms);
+     * falls back to the input shell, where repeats are bounded so a long hold
+     * cannot leave a backlog after release.
      */
     suspend fun keyEvent(code: Int) {
+        if (inputServerReady && writeInputServer(code.toString())) return
         val now = SystemClock.elapsedRealtime()
         val repeat = code == lastKeyCode && now - lastKeyAt in 0..320
         lastKeyCode = code
@@ -394,6 +532,7 @@ class AdbClient(context: Context) {
 
     /** Key press that is never dropped — used by macros and timed sequences. */
     suspend fun keyEventExact(code: Int) {
+        if (inputServerReady && writeInputServer(code.toString())) return
         if (!writeFast("input keyevent $code")) {
             try {
                 exec("input keyevent $code", timeoutMs = 15_000)
@@ -410,6 +549,7 @@ class AdbClient(context: Context) {
         if (count <= 0) return
         val batch = count.coerceAtMost(40)
         val keys = List(batch) { code.toString() }.joinToString(" ")
+        if (inputServerReady && writeInputServer(keys)) return
         if (!writeFast("input keyevent $keys")) {
             try {
                 exec("input keyevent $keys", timeoutMs = 15_000)

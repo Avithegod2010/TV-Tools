@@ -5,6 +5,17 @@ All notable changes to TV Tools are documented here.
 The project follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 Versions before 1.2 were development milestones and were not published as signed releases.
 
+## [1.8.1] — 2026-11-07
+
+### Fixed
+- **Remote lag on older TVs.** TV Tools now pushes a ~2 KB injector to the TV and
+  keeps it running under `app_process`; each key press is a line on an existing
+  pipe instead of starting a new `input`/ART process. On the Amlogic JHSD200 this
+  removes the largest remaining per-press delay. The injector only listens on the
+  app's private ADB stream, exits on disconnect, and falls back to the previous
+  input shell on TVs that block `app_process`.
+- VersionCode 11 / versionName 1.8.1.
+
 ## [1.8.0] — 2026-11-07
 
 ### Added

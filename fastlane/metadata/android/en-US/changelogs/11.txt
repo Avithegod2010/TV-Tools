@@ -1,0 +1,4 @@
+- Remote: much faster key presses on older TVs.
+- The app now keeps a tiny key injector running on the TV instead of starting a new input process for every press.
+- Automatic fallback if the TV blocks the injector.
+- Everything else is unchanged from 1.8.0.

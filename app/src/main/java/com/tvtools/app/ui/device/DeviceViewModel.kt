@@ -47,6 +47,9 @@ class DeviceViewModel : ViewModel() {
         // Cheap TVs drop the ADB socket silently; a heartbeat catches it before
         // the next key press or screenshot fails with a cryptic error.
         startWatchdog()
+        // Push/start the persistent TV-side key injector in the background so the
+        // first remote press is already on the fast path.
+        viewModelScope.launch { runCatching { adb.startInputServer() } }
         // Resume polling the TV's media session if a queue is active.
         AppServices.playback.startTracking()
         // Screenshots are no longer captured in the background: the TV is only
