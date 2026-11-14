@@ -509,16 +509,18 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     haptics()
-                    val host = AppServices.adb.connectedDevice?.host
-                    val profile = if (host != null) {
-                        val existing = AppServices.prefs.loadDeviceProfile(host)
-                        repo.currentProfile().copy(
-                            layout = existing?.layout ?: com.tvtools.app.data.RemoteLayout(),
-                        )
-                    } else {
-                        repo.currentProfile()
+                    scope.launch {
+                        val host = AppServices.adb.connectedDevice?.host
+                        val profile = if (host != null) {
+                            val existing = AppServices.prefs.loadDeviceProfile(host)
+                            repo.currentProfile().copy(
+                                layout = existing?.layout ?: com.tvtools.app.data.RemoteLayout(),
+                            )
+                        } else {
+                            repo.currentProfile()
+                        }
+                        shareTheme(context, profile)
                     }
-                    shareTheme(context, profile)
                 }) { Text("Share look") }
                 OutlinedButton(onClick = {
                     haptics()
