@@ -1,9 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- TV frame with a transparent screen -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M32,36 L76,36 C78.2,36 80,37.8 80,40 L80,62 C80,64.2 78.2,66 76,66 L32,66 C29.8,66 28,64.2 28,62 L28,40 C28,37.8 29.8,36 32,36 Z M34,42 L74,42 L74,60 L34,60 Z M48,66 L60,66 L60,70 L66,70 L66,73 L42,73 L42,70 L48,70 Z" />
+        android:fillType="evenOdd"
+        android:pathData="M27,27 L68,27 C73,27 77,31 77,36 L77,54 C77,59 73,63 68,63 L27,63 C22,63 18,59 18,54 L18,36 C18,31 22,27 27,27 Z M26,32 L69,32 C70.7,32 72,33.3 72,35 L72,55 C72,56.7 70.7,58 69,58 L26,58 C24.3,58 23,56.7 23,55 L23,35 C23,33.3 24.3,32 26,32 Z" />
+
+    <!-- Stand -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,63 L53,63 L53,67 L59,67 C60.1,67 61,67.9 61,69 C61,70.1 60.1,71 59,71 L37,71 C35.9,71 35,70.1 35,69 C35,67.9 35.9,67 37,67 L43,67 L43,63 Z" />
+
+    <!-- Remote with D-pad and button cut-outs -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M75,44 C80.5,44 85,48.5 85,54 L85,76 C85,81.5 80.5,86 75,86 C69.5,86 65,81.5 65,76 L65,54 C65,48.5 69.5,44 75,44 Z M75,52 C79.4,52 83,55.6 83,60 C83,64.4 79.4,68 75,68 C70.6,68 67,64.4 67,60 C67,55.6 70.6,52 75,52 Z M75,72 C76.4,72 77.5,73.1 77.5,74.5 C77.5,75.9 76.4,77 75,77 C73.6,77 72.5,75.9 72.5,74.5 C72.5,73.1 73.6,72 75,72 Z M75,79.5 C76.4,79.5 77.5,80.6 77.5,82 C77.5,83.4 76.4,84.5 75,84.5 C73.6,84.5 72.5,83.4 72.5,82 C72.5,80.6 73.6,79.5 75,79.5 Z" />
 </vector>

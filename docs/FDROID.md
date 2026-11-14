@@ -21,7 +21,7 @@ fastlane/metadata/android/en-US/
 - `title.txt` — app name shown in the client.
 - `short_description.txt` — one line, at most 80 characters.
 - `full_description.txt` — a few short paragraphs; no HTML is needed.
-- `changelogs/11.txt` — the notes for versionCode 11 (versionName 1.8.1). The file name must
+- `changelogs/12.txt` — the notes for versionCode 12 (versionName 1.8.2). The file name must
   match `versionCode`, not `versionName`.
 - `images/phoneScreenshots/` — six redacted phone screenshots are included (home, Tools,
   All features, Music, Settings and Remote). They match the README gallery and contain no IP
@@ -51,12 +51,12 @@ SourceCode: https://github.com/Avithegod2010/TV-Tools
 IssueTracker: https://github.com/Avithegod2010/TV-Tools/issues
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.8.1
-CurrentVersionCode: 11
+CurrentVersion: 1.8.2
+CurrentVersionCode: 12
 Builds:
-  - versionName: 1.8.1
-    versionCode: 11
-    commit: v1.8.1
+  - versionName: 1.8.2
+    versionCode: 12
+    commit: v1.8.2
     subdir: .
     gradle:
       - assembleRelease

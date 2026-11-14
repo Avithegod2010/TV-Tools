@@ -5,6 +5,23 @@ All notable changes to TV Tools are documented here.
 The project follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 Versions before 1.2 were development milestones and were not published as signed releases.
 
+## [1.8.2] — 2026-11-08
+
+### Added
+- **New adaptive app icon:** a bold TV + remote mark on a deep-green gradient, with matching
+  Remote and monochrome launcher variants.
+- **Smooth mirroring:** `screenrecord` H.264 at 640×360 (Fast), 854×480 (Balanced) or
+  1280×720 (Sharp), decoded straight to a TextureView with MediaCodec. The old
+  screencap/PNG loop remains as a fallback for TVs that block `screenrecord`.
+- Mirror quality selector in the top bar; the fps counter now reflects decoded frames.
+
+### Fixed
+- Mirroring no longer spends ~1 s encoding a full-resolution PNG per frame (measured
+  0.6–1 fps); the low-resolution video path is smooth on the same TV.
+
+### Changed
+- VersionCode 12 / versionName 1.8.2.
+
 ## [1.8.1] — 2026-11-07
 
 ### Fixed

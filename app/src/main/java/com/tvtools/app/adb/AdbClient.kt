@@ -432,6 +432,11 @@ class AdbClient(context: Context) {
         manager.openStream("shell:")
     }
 
+    /** Run a long-lived command whose stdout is binary (e.g. screenrecord). */
+    suspend fun openCommandStream(command: String): AdbStream = withContext(Dispatchers.IO) {
+        manager.openStream("shell:$command")
+    }
+
     suspend fun execLines(command: String): List<String> =
         exec(command).replace("\r\n", "\n").split("\n").filter { it.isNotBlank() }
 

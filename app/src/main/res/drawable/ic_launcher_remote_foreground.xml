@@ -1,12 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Remote body -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M42,26h24c3.3,0 6,2.7 6,6v44c0,3.3 -2.7,6 -6,6H42c-3.3,0 -6,-2.7 -6,-6V32C36,28.7 38.7,26 42,26zM54,34c-5.5,0 -10,4.5 -10,10s4.5,10 10,10s10,-4.5 10,-10S59.5,34 54,34zM54,62c-4.4,0 -8,1.8 -8,4s3.6,4 8,4s8,-1.8 8,-4S58.4,62 54,62z" />
+        android:fillColor="#FFD166"
+        android:pathData="M54,18 C62.5,18 70,25.5 70,34 L70,74 C70,82.5 62.5,90 54,90 C45.5,90 38,82.5 38,74 L38,34 C38,25.5 45.5,18 54,18 Z" />
+
+    <!-- Microphone -->
     <path
-        android:fillColor="#A5D6A7"
-        android:pathData="M36,22h36v4H36z" />
+        android:fillColor="#0B3B20"
+        android:pathData="M54,24 C55.7,24 57,25.3 57,27 C57,28.7 55.7,30 54,30 C52.3,30 51,28.7 51,27 C51,25.3 52.3,24 54,24 Z" />
+
+    <!-- D-pad ring -->
+    <path
+        android:fillColor="#0B3B20"
+        android:pathData="M54,38 C61.2,38 67,43.8 67,51 C67,58.2 61.2,64 54,64 C46.8,64 41,58.2 41,51 C41,43.8 46.8,38 54,38 Z" />
+
+    <!-- D-pad center -->
+    <path
+        android:fillColor="#FFD166"
+        android:pathData="M54,45 C56.8,45 59,47.2 59,50 C59,52.8 56.8,55 54,55 C51.2,55 49,52.8 49,50 C49,47.2 51.2,45 54,45 Z" />
+
+    <!-- Buttons -->
+    <path
+        android:fillColor="#0B3B20"
+        android:pathData="M54,68 C56.2,68 58,69.8 58,72 C58,74.2 56.2,76 54,76 C51.8,76 50,74.2 50,72 C50,69.8 51.8,68 54,68 Z" />
+    <path
+        android:fillColor="#0B3B20"
+        android:pathData="M54,79 C56.2,79 58,80.8 58,83 C58,85.2 56.2,87 54,87 C51.8,87 50,85.2 50,83 C50,80.8 51.8,79 54,79 Z" />
+
+    <!-- Signal -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M74,32 C78,36 78,42 74,46"
+        android:strokeColor="#8DF7B0"
+        android:strokeLineCap="round"
+        android:strokeWidth="3" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M79,27 C84,33 84,45 79,51"
+        android:strokeColor="#8DF7B0"
+        android:strokeLineCap="round"
+        android:strokeWidth="3" />
 </vector>

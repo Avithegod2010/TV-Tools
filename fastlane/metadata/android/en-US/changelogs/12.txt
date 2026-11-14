@@ -1,0 +1,5 @@
+- New adaptive app icon: TV + remote, with Remote and monochrome variants.
+- Screen mirroring is now a low-resolution H.264 stream instead of a 1-second PNG screencap.
+- Fast (360p), Balanced (480p) and Sharp (720p) mirror presets.
+- Automatic fallback to the old screencap mirror if a TV blocks screenrecord.
+- Everything else is unchanged from 1.8.1.

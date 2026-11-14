@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.8.1-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-1.8.2-166d32" alt="Version" />
     <img src="https://github.com/Avithegod2010/TV-Tools/actions/workflows/android.yml/badge.svg" alt="CI" />
   </p>
 </div>
@@ -29,7 +29,7 @@
 | 🏠 **Multi-TV** | **Rooms & groups** with a group remote, **broadcast keys** from the main remote, **daily Wake-on-LAN** schedule, **wake when Wi-Fi returns**, **guest mode** for handing over the phone |
 | 🎛 **Remote** | Modern remote sheet with a **persistent TV-side injector** (no `input`/ART process per press — ~1 s saved on older boxes): D-Pad ↔ **multi-touch pad** ↔ **gesture pad** ↔ gamepad, **live keyboard** with Ctrl/Alt combos, **voice typing**, **Assistant key**, **macro recorder**, **per-app shortcuts**, **now playing + seek**, **sleep timer with volume fade**, **ring the TV**, **quick keys**, **history + undo**, **air mouse**, **physical controller support**, **floating bubble** |
 | 🛠 **Tools** | **Pin your own Quick tools** or search the full **All features** catalogue: install APK / **.apks / .xapk**, **long-press Install to send a phone app to the TV**, upload files, **multi-file & folder upload on long-press**, clear caches, **on-demand screenshots with retention**, **storage analyzer**, **screen recording** |
-| 📺 **Screen mirroring** | Live TV view with tap & swipe control, LIVE fps counter, on-screen back/home/menu keys |
+| 📺 **Screen mirroring** | Smooth **H.264 video** (360p/480p/720p presets) decoded with MediaCodec, tap & swipe control, LIVE fps counter, on-screen back/home/menu keys, automatic screencap fallback |
 | 📤 **Share to TV** | Send photos, videos or APKs from Android's share sheet — the app uploads and opens/installs them |
 | 🧩 **Apps** | Real icons (auto-loaded, smallest first), sizes, launch, multi-select with **batch backup / uninstall / force-stop / clear-data / disable / extract APKs** |
 | 💾 **Backup & restore** | **Bulk backup any apps (base + splits)** with metadata, one-tap restore via `pm install-multiple` |
