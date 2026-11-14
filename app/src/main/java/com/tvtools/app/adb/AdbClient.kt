@@ -437,6 +437,14 @@ class AdbClient(context: Context) {
         manager.openStream("shell:$command")
     }
 
+    /**
+     * Open a raw ADB `exec:` service. No PTY is allocated, so binary output
+     * (H.264, tar, …) is not translated or buffered by a terminal.
+     */
+    suspend fun openExecStream(command: String): AdbStream = withContext(Dispatchers.IO) {
+        manager.openStream("exec:$command")
+    }
+
     suspend fun execLines(command: String): List<String> =
         exec(command).replace("\r\n", "\n").split("\n").filter { it.isNotBlank() }
 

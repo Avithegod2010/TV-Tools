@@ -75,6 +75,7 @@ fun RoomsScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var devices by remember { mutableStateOf<List<TvDevice>>(emptyList()) }
     var rooms by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var roomOrder by remember { mutableStateOf<List<String>>(emptyList()) }
     var editing by remember { mutableStateOf<TvDevice?>(null) }
     var activeRoom by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
@@ -83,11 +84,23 @@ fun RoomsScreen(onBack: () -> Unit) {
     suspend fun reload() {
         devices = AppServices.prefs.loadDevices()
         rooms = AppServices.prefs.loadDeviceRooms()
+        roomOrder = AppServices.prefs.loadRoomOrder()
     }
 
     LaunchedEffect(Unit) { reload() }
 
     fun roomOf(device: TvDevice): String = rooms[device.host]?.takeIf { it.isNotBlank() } ?: "Unassigned"
+
+    fun moveRoom(room: String, delta: Int, ordered: List<String>) {
+        val list = ordered.toMutableList()
+        val index = list.indexOf(room)
+        if (index < 0) return
+        val target = (index + delta).coerceIn(0, list.lastIndex)
+        if (target == index) return
+        list.add(target, list.removeAt(index))
+        roomOrder = list
+        scope.launch { AppServices.prefs.saveRoomOrder(list) }
+    }
 
     fun broadcast(room: String, key: Int, label: String) {
         if (busy) return
@@ -138,7 +151,10 @@ fun RoomsScreen(onBack: () -> Unit) {
             }
 
             val grouped = devices.groupBy { roomOf(it) }
-            grouped.forEach { (room, list) ->
+            val orderedRooms = roomOrder.filter { it in grouped } +
+                grouped.keys.filter { it !in roomOrder }
+            orderedRooms.forEachIndexed { roomIndex, room ->
+                val list = grouped[room].orEmpty()
                 val selected = activeRoom == room
                 Card(
                     modifier = Modifier
@@ -164,6 +180,18 @@ fun RoomsScreen(onBack: () -> Unit) {
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                            }
+                            IconButton(
+                                onClick = { moveRoom(room, -1, orderedRooms) },
+                                enabled = roomIndex > 0,
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowUp, "Move $room up", Modifier.size(16.dp))
+                            }
+                            IconButton(
+                                onClick = { moveRoom(room, 1, orderedRooms) },
+                                enabled = roomIndex < orderedRooms.lastIndex,
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowDown, "Move $room down", Modifier.size(16.dp))
                             }
                             OutlinedButton(onClick = { activeRoom = if (selected) null else room }) {
                                 Text(if (selected) "Hide remote" else "Group remote")

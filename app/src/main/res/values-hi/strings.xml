@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TV Tools</string>
+    <string name="widget_description">आपके टीवी के लिए रिमोट कंट्रोल</string>
+
+    <!-- Now-playing widget -->
+    <string name="widget_now_playing_label">अभी चल रहा है</string>
+    <string name="widget_now_playing_description">आपके टीवी पर क्या चल रहा है, कंट्रोल के साथ</string>
+    <string name="now_playing_nothing">कुछ नहीं चल रहा</string>
+    <string name="now_playing_open_remote">रिमोट खोलने के लिए टैप करें</string>
+    <string name="now_playing_on_tv">टीवी पर चल रहा है</string>
+    <string name="now_playing_paused">रोका गया</string>
+    <string name="now_playing_notification_idle">टीवी पर कोई मीडिया सेशन नहीं</string>
+
+    <!-- Media notification -->
+    <string name="media_previous">पिछला</string>
+    <string name="media_play">चलाएँ</string>
+    <string name="media_pause">रोकें</string>
+    <string name="media_next">अगला</string>
+    <string name="media_channel_name">टीवी प्लेबैक</string>
+    <string name="media_channel_description">टीवी पर चल रहे मीडिया के कंट्रोल</string>
+</resources>

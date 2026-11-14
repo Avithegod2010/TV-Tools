@@ -5,83 +5,125 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="10dp">
 
     <TextView
         android:id="@+id/w_open"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:paddingBottom="6dp"
         android:text="TV Tools · Remote"
         android:textColor="#A5D6A7"
         android:textSize="12sp"
-        android:textStyle="bold"
-        android:paddingBottom="8dp" />
+        android:textStyle="bold" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
         android:gravity="center"
         android:orientation="horizontal">
 
         <TextView
             android:id="@+id/w_power"
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
             android:text="⏻"
             android:textColor="#FF8A80" />
 
         <TextView
             android:id="@+id/w_up"
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
             android:text="▲" />
 
         <TextView
             android:id="@+id/w_back"
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
             android:text="←" />
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
         android:gravity="center"
         android:orientation="horizontal">
 
         <TextView
             android:id="@+id/w_left"
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
             android:text="◀" />
 
         <TextView
             android:id="@+id/w_ok"
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_key_ok"
             android:text="OK"
-            android:textColor="#166D32"
-            android:background="@drawable/widget_key_ok" />
+            android:textColor="#166D32" />
 
         <TextView
             android:id="@+id/w_right"
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
             android:text="▶" />
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
         android:gravity="center"
         android:orientation="horizontal">
 
         <TextView
             android:id="@+id/w_home"
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
             android:text="⌂" />
 
         <TextView
             android:id="@+id/w_down"
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
             android:text="▼" />
 
         <TextView
             style="@style/WidgetKey"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="3dp"
+            android:layout_weight="1"
             android:text=" "
             android:visibility="invisible" />
     </LinearLayout>

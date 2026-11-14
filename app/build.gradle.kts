@@ -19,8 +19,8 @@ android {
         applicationId = "com.tvtools.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.8.2"
+        versionCode = 13
+        versionName = "1.9.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -36,9 +36,10 @@ android {
     }
 
     buildTypes {
+        val skipMinify = project.hasProperty("skipMinify")
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = !skipMinify
+            isShrinkResources = !skipMinify
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (keystoreProps.isNotEmpty()) {
                 signingConfig = signingConfigs.getByName("release")

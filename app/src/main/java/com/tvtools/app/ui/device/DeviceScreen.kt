@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,8 +23,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.DropdownMenu
@@ -64,6 +69,7 @@ import com.tvtools.app.ui.common.rememberHaptics
 import kotlinx.coroutines.launch
 import com.tvtools.app.ui.info.InfoTab
 import com.tvtools.app.ui.remote.RemoteControlSheet
+import com.tvtools.app.ui.settings.SettingsSheet
 import com.tvtools.app.ui.shell.ShellTab
 import com.tvtools.app.ui.tools.ToolsTab
 
@@ -90,6 +96,7 @@ fun DeviceScreen(
         mutableIntStateOf(if (com.tvtools.app.AppServices.settings.state.value.guestMode) 1 else 0)
     }
     var showRemote by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var showExitGuest by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
@@ -98,6 +105,11 @@ fun DeviceScreen(
     val ctx = com.tvtools.app.TvToolsApp.instance
     val settings by com.tvtools.app.AppServices.settings.state.collectAsState()
     val guest = settings.guestMode
+    val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
+
+    LaunchedEffect(wide) {
+        if (wide) showRemote = true
+    }
 
     LaunchedEffect(Unit) {
         viewModel.disconnected.collect { onBack() }
@@ -159,7 +171,7 @@ fun DeviceScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { haptics(); showRemote = true }) {
+                    IconButton(onClick = { haptics(); showRemote = !showRemote }) {
                         Icon(Icons.Default.SettingsRemote, contentDescription = "Remote control")
                     }
                     Box {
@@ -179,19 +191,84 @@ fun DeviceScreen(
                                 onClick = { menuOpen = false; onOpenMirror() },
                             )
                             DropdownMenuItem(
-                                text = { Text("Save accent for this TV") },
+                                text = { Text("Save look for this TV") },
+                                leadingIcon = { Icon(Icons.Default.Save, null) },
                                 onClick = {
                                     menuOpen = false
                                     val host = com.tvtools.app.AppServices.adb.connectedDevice?.host
                                     if (host != null) {
                                         coroutineScope.launch {
-                                            com.tvtools.app.AppServices.prefs.saveDeviceAccent(
+                                            val existing = com.tvtools.app.AppServices.prefs
+                                                .loadDeviceProfile(host)
+                                            com.tvtools.app.AppServices.prefs.saveDeviceProfile(
                                                 host,
-                                                com.tvtools.app.AppServices.settings.state.value.accent.name,
+                                                com.tvtools.app.AppServices.settings.currentProfile()
+                                                    .copy(
+                                                        layout = existing?.layout
+                                                            ?: com.tvtools.app.data.RemoteLayout(),
+                                                    ),
                                             )
                                             android.widget.Toast.makeText(
                                                 TvToolsApp.instance,
-                                                "Accent saved for this TV",
+                                                "Look saved for this TV",
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
+                                        }
+                                    }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Refresh TV palette") },
+                                leadingIcon = { Icon(Icons.Default.Palette, null) },
+                                onClick = {
+                                    menuOpen = false
+                                    coroutineScope.launch {
+                                        val color = kotlinx.coroutines.withContext(
+                                            kotlinx.coroutines.Dispatchers.IO,
+                                        ) {
+                                            com.tvtools.app.ui.common.TvPalette.capture(ctx)
+                                        }
+                                        if (color != null) {
+                                            com.tvtools.app.AppServices.settings.setTvColor(color)
+                                            val host = com.tvtools.app.AppServices.adb.connectedDevice?.host
+                                            if (host != null) {
+                                                val existing = com.tvtools.app.AppServices.prefs
+                                                    .loadDeviceProfile(host)
+                                                com.tvtools.app.AppServices.prefs.saveDeviceProfile(
+                                                    host,
+                                                    com.tvtools.app.AppServices.settings.currentProfile()
+                                                        .copy(
+                                                            layout = existing?.layout
+                                                                ?: com.tvtools.app.data.RemoteLayout(),
+                                                        ),
+                                                )
+                                            }
+                                            android.widget.Toast.makeText(
+                                                TvToolsApp.instance,
+                                                "Palette refreshed from the TV",
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
+                                        } else {
+                                            android.widget.Toast.makeText(
+                                                TvToolsApp.instance,
+                                                "Connect to the TV first",
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
+                                        }
+                                    }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Forget this TV's look") },
+                                leadingIcon = { Icon(Icons.Default.Delete, null) },
+                                onClick = {
+                                    menuOpen = false
+                                    com.tvtools.app.AppServices.adb.connectedDevice?.host?.let { host ->
+                                        coroutineScope.launch {
+                                            com.tvtools.app.AppServices.prefs.forgetDeviceProfile(host)
+                                            android.widget.Toast.makeText(
+                                                TvToolsApp.instance,
+                                                "Saved look removed",
                                                 android.widget.Toast.LENGTH_SHORT,
                                             ).show()
                                         }
@@ -203,6 +280,13 @@ fun DeviceScreen(
                                 DropdownMenuItem(
                                     text = { Text("Exit guest mode") },
                                     onClick = { menuOpen = false; showExitGuest = true },
+                                )
+                            }
+                            if (!guest) {
+                                DropdownMenuItem(
+                                    text = { Text("Appearance & settings") },
+                                    leadingIcon = { Icon(Icons.Default.Settings, null) },
+                                    onClick = { menuOpen = false; showSettings = true },
                                 )
                             }
                             DropdownMenuItem(
@@ -287,33 +371,52 @@ fun DeviceScreen(
                     }
                 }
             }
-            Box(modifier = Modifier.fillMaxSize().weight(1f)) {
-                AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = {
-                    val dir = if (targetState > initialState) 1 else -1
-                    (fadeIn(tween(180)) + slideInHorizontally(tween(220)) { dir * it / 12 }) togetherWith
-                        (fadeOut(tween(120)) + slideOutHorizontally(tween(180)) { -dir * it / 12 })
-                },
-                label = "tabs",
-            ) { tab ->
-                when (tab) {
-                    0 -> ToolsTab(
+            Row(modifier = Modifier.fillMaxSize().weight(1f)) {
+                Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                    AnimatedContent(
+                        targetState = selectedTab,
+                        transitionSpec = {
+                            val dir = if (targetState > initialState) 1 else -1
+                            (fadeIn(tween(180)) + slideInHorizontally(tween(220)) { dir * it / 12 }) togetherWith
+                                (fadeOut(tween(120)) + slideOutHorizontally(tween(180)) { -dir * it / 12 })
+                        },
+                        label = "tabs",
+                    ) { tab ->
+                        when (tab) {
+                            0 -> ToolsTab(
+                                deviceName = deviceName,
+                                onOpenFiles = onOpenFiles,
+                                onOpenMirror = onOpenMirror,
+                                onOpenStorage = onOpenStorage,
+                                onOpenMusic = onOpenMusic,
+                                onOpenGallery = onOpenGallery,
+                                onOpenLab = onOpenLab,
+                            )
+                            1 -> AppsTab(onOpenBackups = onOpenBackups, guest = guest)
+                            2 -> ShellTab()
+                            3 -> InfoTab(viewModel = viewModel)
+                        }
+                    }
+                }
+                if (wide && showRemote) {
+                    androidx.compose.material3.VerticalDivider(modifier = Modifier.fillMaxHeight())
+                    RemoteControlSheet(
                         deviceName = deviceName,
-                        onOpenFiles = onOpenFiles,
+                        onDismiss = { showRemote = false },
                         onOpenMirror = onOpenMirror,
-                        onOpenStorage = onOpenStorage,
-                        onOpenMusic = onOpenMusic,
-                        onOpenGallery = onOpenGallery,
-                        onOpenLab = onOpenLab,
+                        inline = true,
+                        modifier = Modifier
+                            .weight(0.9f)
+                            .fillMaxHeight()
+                            .padding(start = 4.dp),
                     )
-                    1 -> AppsTab(onOpenBackups = onOpenBackups, guest = guest)
-                    2 -> ShellTab()
-                    3 -> InfoTab(viewModel = viewModel)
                 }
             }
-            }
         }
+    }
+
+    if (showSettings) {
+        SettingsSheet(onDismiss = { showSettings = false })
     }
 
     if (showExitGuest) {
@@ -333,7 +436,7 @@ fun DeviceScreen(
         )
     }
 
-    if (showRemote) {
+    if (showRemote && !wide) {
         RemoteControlSheet(
             deviceName = deviceName,
             onDismiss = { showRemote = false },

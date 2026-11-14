@@ -47,6 +47,15 @@ class DeviceViewModel : ViewModel() {
         // Cheap TVs drop the ADB socket silently; a heartbeat catches it before
         // the next key press or screenshot fails with a cryptic error.
         startWatchdog()
+        // Apply the saved look for this TV as soon as its screen opens.
+        viewModelScope.launch {
+            val host = adb.connectedDevice?.host ?: return@launch
+            runCatching {
+                AppServices.prefs.loadDeviceProfile(host)?.let {
+                    AppServices.settings.applyProfile(it)
+                }
+            }
+        }
         // Push/start the persistent TV-side key injector in the background so the
         // first remote press is already on the fast path.
         viewModelScope.launch { runCatching { adb.startInputServer() } }

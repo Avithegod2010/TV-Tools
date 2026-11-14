@@ -1,6 +1,7 @@
 package com.tvtools.app.ui.common
 
 import android.media.AudioManager
+import android.media.ToneGenerator
 import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.compose.runtime.Composable
@@ -11,6 +12,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalView
 import com.tvtools.app.AppServices
 import com.tvtools.app.data.HapticStrength
+import com.tvtools.app.data.SoundPack
 
 /** Global switch mirroring the user's haptics preference. */
 val LocalHapticsEnabled = staticCompositionLocalOf { true }
@@ -25,10 +27,11 @@ fun rememberHaptics(): () -> Unit {
     val settings by AppServices.settings.state.collectAsState()
     val strength = settings.hapticStrength
     val sounds = settings.sounds
+    val soundPack = settings.soundPack
     val view: View = LocalView.current
     val audio = remember(view) { view.context.getSystemService(AudioManager::class.java) }
 
-    return remember(enabled, strength, sounds, view) {
+    return remember(enabled, strength, sounds, soundPack, view) {
         {
             if (enabled) {
                 val constant = when (strength) {
@@ -40,10 +43,24 @@ fun rememberHaptics(): () -> Unit {
             }
             if (sounds) {
                 try {
-                    audio?.playSoundEffect(AudioManager.FX_KEY_CLICK)
+                    when (soundPack) {
+                        SoundPack.SOFT -> audio?.playSoundEffect(AudioManager.FX_KEY_CLICK)
+                        SoundPack.MECHANICAL -> audio?.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD)
+                        SoundPack.TV_BEEP -> SoundPlayer.tvBeep()
+                    }
                 } catch (_: Exception) {
                 }
             }
         }
+    }
+}
+
+private object SoundPlayer {
+    private val tone: ToneGenerator? by lazy {
+        runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }.getOrNull()
+    }
+
+    fun tvBeep() {
+        runCatching { tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 45) }
     }
 }

@@ -1,13 +1,16 @@
 package com.tvtools.app.ui.settings
 
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,18 +30,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.tvtools.app.AppServices
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.data.Accent
+import com.tvtools.app.data.ColorBlindMode
+import com.tvtools.app.data.DeviceProfile
 import com.tvtools.app.data.HapticStrength
 import com.tvtools.app.data.RemoteSkin
+import com.tvtools.app.data.SoundPack
 import com.tvtools.app.data.ThemeMode
+import com.tvtools.app.data.ThemePack
+import com.tvtools.app.data.TvDevice
+import com.tvtools.app.data.UiDensity
 import com.tvtools.app.ui.common.rememberHaptics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 private val accentColors = mapOf(
     Accent.GREEN to Color(0xFF166D32),
@@ -48,7 +59,7 @@ private val accentColors = mapOf(
     Accent.TV to Color(0xFF3A7BD5),
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsSheet(onDismiss: () -> Unit) {
     val settings by AppServices.settings.state.collectAsState()
@@ -57,6 +68,13 @@ fun SettingsSheet(onDismiss: () -> Unit) {
     val context = TvToolsApp.instance
     val scope = rememberCoroutineScope()
     var matchStatus by remember { mutableStateOf<String?>(null) }
+    var savedDevices by remember { mutableStateOf<List<TvDevice>>(emptyList()) }
+    var profiles by remember { mutableStateOf<Map<String, DeviceProfile>>(emptyMap()) }
+
+    LaunchedEffect(Unit) {
+        savedDevices = AppServices.prefs.loadDevices()
+        profiles = AppServices.prefs.loadDeviceProfiles()
+    }
 
     val overlayPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -72,6 +90,16 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 android.widget.Toast.LENGTH_SHORT,
             ).show()
         }
+    }
+
+    val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        android.widget.Toast.makeText(
+            context,
+            if (granted) "Media notifications enabled" else "Notifications stay off",
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
     }
 
     ModalBottomSheet(
@@ -151,7 +179,9 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     haptics()
                     scope.launch {
                         matchStatus = "Capturing TV screen…"
-                        val color = withContext(Dispatchers.IO) { captureTvColor(context) }
+                        val color = withContext(Dispatchers.IO) {
+                            com.tvtools.app.ui.common.TvPalette.capture(context)
+                        }
                         if (color != null) {
                             repo.setTvColor(color)
                             matchStatus = "Matched TV colors ✓"
@@ -176,7 +206,8 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(
+                LabeledSwitch(
+                    label = "Auto-connect",
                     checked = settings.autoConnect,
                     onCheckedChange = { repo.setAutoConnect(it) },
                 )
@@ -193,7 +224,8 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(
+                LabeledSwitch(
+                    label = "Guest mode",
                     checked = settings.guestMode,
                     onCheckedChange = { repo.setGuestMode(it) },
                 )
@@ -210,7 +242,8 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(
+                LabeledSwitch(
+                    label = "Floating remote bubble",
                     checked = settings.bubble,
                     onCheckedChange = { enabled ->
                         if (!enabled) {
@@ -233,7 +266,10 @@ fun SettingsSheet(onDismiss: () -> Unit) {
 
             Spacer(Modifier.height(18.dp))
             SectionTitle("Remote")
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 RemoteSkin.entries.forEach { skin ->
                     FilterChip(
                         selected = settings.remoteSkin == skin,
@@ -241,6 +277,275 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                         label = { Text(skin.label) },
                     )
                 }
+            }
+            Text(
+                "Layout — columns, D-pad size, hidden rows and quick keys — is edited from the Tune icon in the remote and saved per TV.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Text & density")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                UiDensity.entries.forEach { density ->
+                    FilterChip(
+                        selected = settings.uiDensity == density,
+                        onClick = { haptics(); repo.setUiDensity(density) },
+                        label = { Text(density.label) },
+                    )
+                }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Text size", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text("${(settings.fontScale * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+            }
+            Slider(
+                value = settings.fontScale,
+                onValueChange = { repo.setFontScale(it) },
+                valueRange = 0.8f..2f,
+                steps = 5,
+            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("High contrast", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Stronger outlines and text for bright rooms",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                LabeledSwitch(
+                    label = "High contrast",
+                    checked = settings.highContrast,
+                    onCheckedChange = { repo.setHighContrast(it) },
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Text("Colour-blind safe signals", style = MaterialTheme.typography.titleSmall)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                ColorBlindMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = settings.colorBlind == mode,
+                        onClick = { haptics(); repo.setColorBlind(mode) },
+                        label = { Text(mode.label) },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Motion & shapes")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Reduced motion", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "No press scaling or springy movement",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                LabeledSwitch(
+                    label = "Reduced motion",
+                    checked = settings.reducedMotion,
+                    onCheckedChange = { repo.setReducedMotion(it) },
+                )
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Expressive shapes", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Scalloped D-pad dial and soft spring feedback",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                LabeledSwitch(
+                    label = "Expressive shapes",
+                    checked = settings.expressiveShapes,
+                    onCheckedChange = { repo.setExpressiveShapes(it) },
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Sound pack")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                SoundPack.entries.forEach { pack ->
+                    FilterChip(
+                        selected = settings.soundPack == pack,
+                        onClick = { haptics(); repo.setSoundPack(pack) },
+                        label = { Text(pack.label) },
+                    )
+                }
+            }
+            Text(
+                if (settings.sounds) "Used by key sounds." else "Turn on key sounds above to hear it.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Media notification")
+            Text(
+                "Shows what is playing on the TV with previous / play-pause / next, outside the app.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(onClick = {
+                haptics()
+                val needsPermission = android.os.Build.VERSION.SDK_INT >= 33 &&
+                    androidx.core.content.ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.POST_NOTIFICATIONS,
+                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                if (needsPermission) {
+                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Notifications are already allowed",
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }) { Text("Allow media notification") }
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Kids theme")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Oversized, playful, safe", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Bigger text, warm palette and guest mode so destructive actions stay locked",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                LabeledSwitch(
+                    label = "Kids theme",
+                    checked = settings.kidsTheme,
+                    onCheckedChange = { repo.setKidsTheme(it) },
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("TV look profiles")
+            Text(
+                "A saved look applies automatically when you open that TV.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            val connectedHost = AppServices.adb.connectedDevice?.host
+            OutlinedButton(
+                enabled = connectedHost != null,
+                onClick = {
+                    val host = connectedHost ?: return@OutlinedButton
+                    haptics()
+                    scope.launch {
+                        val existing = AppServices.prefs.loadDeviceProfile(host)
+                        AppServices.prefs.saveDeviceProfile(
+                            host,
+                            repo.currentProfile().copy(
+                                layout = existing?.layout ?: com.tvtools.app.data.RemoteLayout(),
+                            ),
+                        )
+                        savedDevices = AppServices.prefs.loadDevices()
+                        profiles = AppServices.prefs.loadDeviceProfiles()
+                        android.widget.Toast.makeText(
+                            context,
+                            "Look saved for this TV",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                },
+            ) {
+                Text(if (connectedHost == null) "Connect to a TV to save its look" else "Save current look for this TV")
+            }
+            if (savedDevices.isEmpty()) {
+                Text(
+                    "No saved TVs yet.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            savedDevices.forEach { device ->
+                val profile = profiles[device.host] ?: return@forEach
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(device.name, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            ThemePack.summary(profile),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = {
+                        haptics()
+                        repo.applyProfile(profile)
+                        android.widget.Toast.makeText(
+                            context,
+                            "Applied ${device.name}'s look",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }) { Text("Apply") }
+                    TextButton(onClick = {
+                        scope.launch {
+                            AppServices.prefs.forgetDeviceProfile(device.host)
+                            savedDevices = AppServices.prefs.loadDevices()
+                            profiles = AppServices.prefs.loadDeviceProfiles()
+                        }
+                    }) { Text("Forget") }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    haptics()
+                    val host = AppServices.adb.connectedDevice?.host
+                    val profile = if (host != null) {
+                        val existing = AppServices.prefs.loadDeviceProfile(host)
+                        repo.currentProfile().copy(
+                            layout = existing?.layout ?: com.tvtools.app.data.RemoteLayout(),
+                        )
+                    } else {
+                        repo.currentProfile()
+                    }
+                    shareTheme(context, profile)
+                }) { Text("Share look") }
+                OutlinedButton(onClick = {
+                    haptics()
+                    val imported = importTheme(context)
+                    if (imported != null) {
+                        repo.applyProfile(imported)
+                        val host = AppServices.adb.connectedDevice?.host
+                        if (host != null) {
+                            scope.launch {
+                                AppServices.prefs.saveDeviceProfile(host, imported)
+                                savedDevices = AppServices.prefs.loadDevices()
+                                profiles = AppServices.prefs.loadDeviceProfiles()
+                            }
+                        }
+                        android.widget.Toast.makeText(
+                            context,
+                            "Look imported",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    } else {
+                        android.widget.Toast.makeText(
+                            context,
+                            "Copy a TV Tools look to the clipboard first",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                }) { Text("Import from clipboard") }
             }
 
             Spacer(Modifier.height(18.dp))
@@ -300,7 +605,11 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     Text("Vibrate on keys and buttons", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(checked = settings.haptics, onCheckedChange = { repo.setHaptics(it) })
+                LabeledSwitch(
+                    label = "Haptic feedback",
+                    checked = settings.haptics,
+                    onCheckedChange = { repo.setHaptics(it) },
+                )
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -308,7 +617,11 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     Text("Soft click on remote keys", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(checked = settings.sounds, onCheckedChange = { repo.setSounds(it) })
+                LabeledSwitch(
+                    label = "Key sounds",
+                    checked = settings.sounds,
+                    onCheckedChange = { repo.setSounds(it) },
+                )
             }
 
             Spacer(Modifier.height(18.dp))
@@ -425,33 +738,40 @@ private fun SectionTitle(text: String) {
     )
 }
 
-/** Capture a TV frame and pick a representative saturated color. */
-private fun captureTvColor(context: Context): Int? {
-    return try {
-        val adb = AppServices.adb
-        if (!adb.isConnected) return null
-        val file = File(context.cacheDir, "palette.png")
-        kotlinx.coroutines.runBlocking { adb.screencap(file) }
-        val bmp = BitmapFactory.decodeFile(file.absolutePath) ?: return null
-        val small = android.graphics.Bitmap.createScaledBitmap(bmp, 48, 27, false)
-        val counts = HashMap<Int, Int>()
-        for (x in 0 until small.width) {
-            for (y in 0 until small.height) {
-                val c = small.getPixel(x, y)
-                val hsv = FloatArray(3)
-                android.graphics.Color.colorToHSV(c, hsv)
-                if (hsv[1] > 0.25f && hsv[2] in 0.2f..0.9f) {
-                    val q = android.graphics.Color.HSVToColor(floatArrayOf(hsv[0], hsv[1], hsv[2]))
-                    counts[q] = (counts[q] ?: 0) + 1
-                }
-            }
-        }
-        file.delete()
-        bmp.recycle()
-        counts.maxByOrNull { it.value }?.key ?: 0xFF166D32.toInt()
-    } catch (_: Exception) {
-        null
+/** A switch that announces its row label to TalkBack. */
+@Composable
+private fun LabeledSwitch(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = Modifier.semantics { contentDescription = label },
+    )
+}
+
+/** Share the live look as portable text (no files, no network). */
+private fun shareTheme(context: Context, profile: DeviceProfile) {
+    val share = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "TV Tools look")
+        putExtra(Intent.EXTRA_TEXT, ThemePack.encode(profile))
     }
+    runCatching {
+        context.startActivity(
+            Intent.createChooser(share, "Share TV Tools look")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+}
+
+private fun importTheme(context: Context): DeviceProfile? {
+    val clip = context.getSystemService(ClipboardManager::class.java)?.primaryClip ?: return null
+    if (clip.itemCount == 0) return null
+    val text = clip.getItemAt(0).coerceToText(context)?.toString() ?: return null
+    return ThemePack.decode(text)
 }
 
 /** Switch between launcher activity-aliases (TV / Remote / Mono icons). */

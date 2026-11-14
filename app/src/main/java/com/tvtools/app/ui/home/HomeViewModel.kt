@@ -6,6 +6,8 @@ import com.tvtools.app.AppServices
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.DeviceProto
+import com.tvtools.app.data.Macro
+import com.tvtools.app.data.NowPlaying
 import com.tvtools.app.data.TvDevice
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,10 +29,18 @@ data class HomeUiState(
     val showAll: Boolean = false,
     val lastThumbPath: String? = null,
     val batchStatus: Map<String, BatchState> = emptyMap(),
+    val pinnedHost: String? = null,
+    val nowPlaying: NowPlaying? = null,
+    val macros: List<Macro> = emptyList(),
+    val previewBusy: Boolean = false,
 ) {
     val visibleDevices: List<TvDevice>
         get() = if (showAll) devices
         else devices.filter { !it.pairing } // main filter hides pairing-only adverts
+
+    /** Pinned TV wins; otherwise fall back to the last connected one. */
+    val heroDevice: TvDevice?
+        get() = savedDevices.firstOrNull { it.host == pinnedHost } ?: lastConnected
 }
 
 sealed interface HomeEvent {
@@ -64,10 +74,15 @@ class HomeViewModel : ViewModel() {
         startDiscovery()
         viewModelScope.launch {
             val last = prefs.loadLastDevice()
+            val saved = prefs.loadDevices()
+            val pinned = prefs.loadPinnedHost()
+            val hero = saved.firstOrNull { it.host == pinned } ?: last
             _ui.value = _ui.value.copy(
                 lastConnected = last,
-                savedDevices = prefs.loadDevices(),
-                lastThumbPath = last?.let { thumbFile(it.host)?.takeIf { f -> f.exists() }?.absolutePath },
+                savedDevices = saved,
+                pinnedHost = pinned,
+                macros = prefs.loadMacros(),
+                lastThumbPath = hero?.let { thumbFile(it.host)?.takeIf { f -> f.exists() }?.absolutePath },
             )
             // Auto-reconnect (opt-in): try the last TV twice so the app is usable immediately.
             if (last != null && !adb.isConnected && AppServices.settings.state.value.autoConnect) {
@@ -166,6 +181,93 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             prefs.removeDevice(host)
             _ui.value = _ui.value.copy(savedDevices = prefs.loadDevices())
+        }
+    }
+
+    /** Pin a TV to the dashboard hero card. Pass null to clear the pin. */
+    fun pinDevice(host: String?) {
+        viewModelScope.launch {
+            prefs.savePinnedHost(host)
+            val saved = prefs.loadDevices()
+            val hero = saved.firstOrNull { it.host == host } ?: prefs.loadLastDevice()
+            _ui.value = _ui.value.copy(
+                pinnedHost = host,
+                savedDevices = saved,
+                lastThumbPath = hero?.let { thumbFile(it.host)?.takeIf { f -> f.exists() }?.absolutePath },
+                nowPlaying = null,
+            )
+        }
+    }
+
+    /** Move a saved TV left (-1) or right (+1) in the dashboard order. */
+    fun moveSavedDevice(host: String, delta: Int) {
+        viewModelScope.launch {
+            prefs.moveSavedDevice(host, delta)
+            _ui.value = _ui.value.copy(savedDevices = prefs.loadDevices())
+        }
+    }
+
+    fun refreshMacros() {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(macros = prefs.loadMacros())
+        }
+    }
+
+    /**
+     * Manual live preview for the hero card: connect if needed, grab one frame,
+     * read the media session, then restore the previously connected TV.
+     */
+    fun refreshOverview(device: TvDevice) {
+        if (_ui.value.previewBusy) return
+        _ui.value = _ui.value.copy(previewBusy = true)
+        viewModelScope.launch {
+            val origin = adb.connectedDevice
+            val switched = origin?.host != device.host
+            val result = runCatching {
+                if (switched) {
+                    val connected = adb.connect(device.host, device.port)
+                    if (connected != AdbClient.ConnectResult.Success) {
+                        error("The TV is offline — wake it and retry.")
+                    }
+                }
+                val file = thumbFile(device.host) ?: error("No cache folder")
+                adb.screencap(file)
+                val track = runCatching { adb.nowPlaying() }.getOrNull()
+                file to track
+            }
+            if (switched && origin != null) {
+                runCatching { adb.connect(origin.host, origin.port) }
+            }
+            result.onSuccess { (file, track) ->
+                _ui.value = _ui.value.copy(
+                    lastThumbPath = file.absolutePath,
+                    nowPlaying = track,
+                    previewBusy = false,
+                )
+            }.onFailure { error ->
+                _ui.value = _ui.value.copy(previewBusy = false)
+                _events.emit(HomeEvent.Error("Preview failed: ${error.message}"))
+            }
+        }
+    }
+
+    /** Replay a macro on the connected TV. */
+    fun runMacro(macro: Macro) {
+        viewModelScope.launch {
+            if (!adb.isConnected) {
+                _events.emit(HomeEvent.Error("Connect to a TV first, then tap the macro."))
+                return@launch
+            }
+            runCatching {
+                for (step in macro.steps) {
+                    if (step.delayMs > 0) kotlinx.coroutines.delay(step.delayMs)
+                    adb.keyEventExact(step.keyCode)
+                }
+            }.onSuccess {
+                _events.emit(HomeEvent.Message("Ran \"${macro.name}\""))
+            }.onFailure {
+                _events.emit(HomeEvent.Error("Macro failed: ${it.message}"))
+            }
         }
     }
 

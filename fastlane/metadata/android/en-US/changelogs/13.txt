@@ -1,0 +1,1 @@
+Remote layout editor per TV, new Glass/Neon/Media-first skins, per-TV look profiles, home dashboard with pinned TV preview and macro tiles, typography/contrast/motion/sound packs, kids theme, portable look sharing, now-playing widget and media notification, two-pane tablet layout, Hindi/Marathi and RTL.

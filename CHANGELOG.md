@@ -5,6 +5,41 @@ All notable changes to TV Tools are documented here.
 The project follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 Versions before 1.2 were development milestones and were not published as signed releases.
 
+## [1.9.0] — 2026-11-15
+
+### Added
+- **Remote layout editor (per TV):** 1/2/3-column key grid, D-pad size from 200–340 dp,
+  show/hide media, quick-key, navigation, app and volume sections, reorder quick keys, and a
+  one-handed mode that docks the pad at the bottom of the sheet. Changes preview live and are
+  saved to the TV's profile.
+- **New remote skins:** Glass (translucent dial), Neon (glow + cyan keys), Media-first (giant
+  now-playing card and transport) and a Classic physical remote body. Expressive mode adds a
+  scalloped D-pad and springy press feedback; reduced motion turns it off.
+- **Per-TV theme profiles:** accent, light/dark/AMOLED, remote skin, font size, density,
+  contrast, colour-blind palette, motion, sound pack and kids theme now save together per TV and
+  apply automatically when that TV opens. Save/refresh/forget from the device menu.
+- **Home dashboard:** pinned TV hero card with manual live preview and now-playing, long-press
+  to pin/reorder/remove saved TVs, pinned macro tiles, and room ordering.
+- **Type & accessibility:** Compact/Comfortable/Spacious density, 80–200% text, high contrast,
+  colour-blind-safe status colours, TalkBack-labelled switches, 48 dp minimum keys.
+- **Sound packs:** Soft, Mechanical and TV beep, independent of haptic strength.
+- **Kids theme:** oversized playful palette, bigger text and automatic guest-mode locking.
+- **Portable looks:** share the current look as text or import one from the clipboard.
+- **Widgets & notification:** now-playing widget with transport buttons, a resizable remote
+  widget, and a media notification with previous / play-pause / next.
+- **Tablet & foldable:** two-pane device content + always-visible remote on wide screens.
+- **Hindi and Marathi resources** (widgets and playback strings) with full RTL support.
+- **Brand mark** in the home header and empty states.
+
+### Changed
+- VersionCode 13 / versionName 1.9.0.
+
+### Fixed
+- **Fast mirroring actually reaches video rates.** `screenrecord` now streams over the
+  raw ADB `exec:` service instead of a PTY `shell:` stream, which was inserting `\r`
+  bytes into the H.264 elementary stream and forcing the 0.5 fps snapshot fallback.
+  The mirror decoder also re-sends the first IDR so static TVs paint immediately.
+
 ## [1.8.2] — 2026-11-08
 
 ### Added

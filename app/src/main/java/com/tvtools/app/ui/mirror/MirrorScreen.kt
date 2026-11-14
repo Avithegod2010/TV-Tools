@@ -92,6 +92,24 @@ fun MirrorScreen(
             else -> SlowMirrorView(bitmap, viewModel, haptics)
         }
 
+        if (!ui.fastMode && bitmap != null && ui.error != null) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color.Black.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 96.dp),
+            ) {
+                Text(
+                    ui.error.orEmpty(),
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+        }
+
         // Top bar
         var qualityMenu by remember { mutableStateOf(false) }
         Row(

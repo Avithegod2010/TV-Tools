@@ -2,4 +2,21 @@
 <resources>
     <string name="app_name">TV Tools</string>
     <string name="widget_description">Remote control for your TV</string>
+
+    <!-- Now-playing widget -->
+    <string name="widget_now_playing_label">Now playing</string>
+    <string name="widget_now_playing_description">What is playing on your TV, with transport controls</string>
+    <string name="now_playing_nothing">Nothing playing</string>
+    <string name="now_playing_open_remote">Tap to open the remote</string>
+    <string name="now_playing_on_tv">Playing on TV</string>
+    <string name="now_playing_paused">Paused</string>
+    <string name="now_playing_notification_idle">No media session on the TV</string>
+
+    <!-- Media notification -->
+    <string name="media_previous">Previous</string>
+    <string name="media_play">Play</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_next">Next</string>
+    <string name="media_channel_name">TV playback</string>
+    <string name="media_channel_description">Controls for what is playing on your TV</string>
 </resources>

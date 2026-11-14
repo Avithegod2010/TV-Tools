@@ -14,10 +14,13 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -57,6 +60,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -118,12 +122,14 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RemoteControlSheet(
     deviceName: String,
     onDismiss: () -> Unit,
     onOpenMirror: () -> Unit,
+    inline: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
     val adb = AppServices.adb
@@ -157,6 +163,13 @@ fun RemoteControlSheet(
     // Quick-key strip
     var quickKeys by remember { mutableStateOf<List<String>>(emptyList()) }
     var showQuickKeyEditor by remember { mutableStateOf(false) }
+
+    // Per-TV remote layout (columns, D-pad size, hidden sections, quick order)
+    var layout by remember { mutableStateOf(com.tvtools.app.data.RemoteLayout()) }
+    var layoutHost by remember { mutableStateOf<String?>(null) }
+    var layoutBackup by remember { mutableStateOf(layout) }
+    var showLayoutEditor by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
 
     // Multi-TV broadcast
     var savedDevices by remember { mutableStateOf<List<com.tvtools.app.data.TvDevice>>(emptyList()) }
@@ -196,10 +209,20 @@ fun RemoteControlSheet(
 
     LaunchedEffect(Unit) {
         macros = AppServices.prefs.loadMacros()
-        quickKeys = AppServices.prefs.loadQuickKeys()
-            ?: com.tvtools.app.data.QuickKeys.defaultIds
         savedDevices = AppServices.prefs.loadDevices()
         deviceRooms = AppServices.prefs.loadDeviceRooms()
+        val storedQuick = AppServices.prefs.loadQuickKeys()
+        var host = adb.connectedDevice?.host
+        if (host == null) {
+            delay(600)
+            host = adb.connectedDevice?.host
+        }
+        val profile = host?.let { AppServices.prefs.loadDeviceProfile(it) }
+        layoutHost = host
+        layout = profile?.layout ?: com.tvtools.app.data.RemoteLayout(
+            quickOrder = storedQuick ?: com.tvtools.app.data.QuickKeys.defaultIds,
+        )
+        quickKeys = layout.quickOrder
     }
 
     // Single worker so broadcast presses queue instead of fighting over the ADB socket.
@@ -256,6 +279,27 @@ fun RemoteControlSheet(
             else -> KEY_BACK
         }
         send(inverse)
+    }
+
+    /** Apply a layout immediately and persist it on this TV's profile. */
+    fun applyLayout(next: com.tvtools.app.data.RemoteLayout) {
+        layout = next
+        quickKeys = next.quickOrder
+        scope.launch {
+            AppServices.prefs.saveQuickKeys(next.quickOrder)
+            val host = adb.connectedDevice?.host ?: layoutHost ?: return@launch
+            val profile = AppServices.prefs.loadDeviceProfile(host)
+                ?: AppServices.settings.currentProfile()
+            AppServices.prefs.saveDeviceProfile(host, profile.copy(layout = next))
+        }
+    }
+
+    // One-handed mode lives at the bottom of the scroller; jump there on open.
+    LaunchedEffect(layout.oneHanded) {
+        if (layout.oneHanded) {
+            delay(350)
+            runCatching { scrollState.animateScrollTo(scrollState.maxValue) }
+        }
     }
 
     /** Maps a physical controller to TV key codes. Returns true when handled. */
@@ -319,23 +363,58 @@ fun RemoteControlSheet(
         }
     }
 
+    val padContent: @Composable () -> Unit = {
+        AnimatedContent(
+            targetState = mode,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "remote-mode",
+        ) { current ->
+            when (current) {
+                RemoteMode.DPAD -> when (skin) {
+                    com.tvtools.app.data.RemoteSkin.CLASSIC -> PhysicalRemotePad(onSend = ::send)
+                    com.tvtools.app.data.RemoteSkin.MINIMAL -> MinimalPad(onSend = ::send)
+                    com.tvtools.app.data.RemoteSkin.GLASS -> DPadPad(
+                        onSend = ::send,
+                        size = layout.dpadSize.dp,
+                        expressive = layout.expressive,
+                        style = PadStyle.GLASS,
+                    )
+                    com.tvtools.app.data.RemoteSkin.NEON -> DPadPad(
+                        onSend = ::send,
+                        size = layout.dpadSize.dp,
+                        expressive = layout.expressive,
+                        style = PadStyle.NEON,
+                    )
+                    com.tvtools.app.data.RemoteSkin.MEDIA -> MediaFirstPad(
+                        onSend = ::send,
+                        track = nowPlaying,
+                    )
+                    else -> DPadPad(
+                        onSend = ::send,
+                        size = layout.dpadSize.dp,
+                        expressive = layout.expressive,
+                    )
+                }
+                RemoteMode.TOUCHPAD -> TouchPad(onSend = ::send)
+                RemoteMode.GAMEPAD -> GamepadPad(onSend = ::send)
+                RemoteMode.GESTURE -> GestureMode(onSend = ::send)
+            }
+        }
+    }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     LaunchedEffect(Unit) {
         runCatching { focusRequester.requestFocus() }
     }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.93f),
-    ) {
+    val body: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester)
                 .focusable()
                 .onPreviewKeyEvent { event -> gamepadToTv(event.nativeKeyEvent) }
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -359,6 +438,12 @@ fun RemoteControlSheet(
                 }
                 IconButton(onClick = { showMacros = true }) {
                     Icon(Icons.Default.Bolt, contentDescription = "Macros")
+                }
+                IconButton(onClick = {
+                    layoutBackup = layout
+                    showLayoutEditor = true
+                }) {
+                    Icon(Icons.Default.Tune, contentDescription = "Customise remote layout")
                 }
                 IconButton(onClick = { showTextDialog = true }) {
                     Icon(Icons.Default.Keyboard, contentDescription = "Send text")
@@ -440,160 +525,214 @@ fun RemoteControlSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            AnimatedContent(
-                targetState = mode,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "remote-mode",
-            ) { current ->
-                when (current) {
-                    RemoteMode.DPAD -> when (skin) {
-                        com.tvtools.app.data.RemoteSkin.CLASSIC -> ClassicPad(onSend = ::send)
-                        com.tvtools.app.data.RemoteSkin.MINIMAL -> MinimalPad(onSend = ::send)
-                        else -> DPadPad(onSend = ::send)
-                    }
-                    RemoteMode.TOUCHPAD -> TouchPad(onSend = ::send)
-                    RemoteMode.GAMEPAD -> GamepadPad(onSend = ::send)
-                    RemoteMode.GESTURE -> GestureMode(onSend = ::send)
-                }
+            if (!layout.oneHanded) {
+                padContent()
+                Spacer(Modifier.height(12.dp))
             }
 
-            Spacer(Modifier.height(12.dp))
-
-            // Navigation + channel row
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                NavPill(Icons.AutoMirrored.Filled.ArrowBack, "Back") { send(KEY_BACK) }
-                NavPill(Icons.Default.Home, "Home") { send(KEY_HOME) }
-                NavPill(Icons.Default.Menu, "Menu") { send(KEY_MENU) }
-                Spacer(Modifier.width(6.dp))
-                TextButton(onClick = { send(KEY_CH_DOWN) }) { Text("CH−") }
-                TextButton(onClick = { send(KEY_CH_UP) }) { Text("CH+") }
-                TextButton(onClick = { showNumberPad = true }) { Text("0–9") }
+            // Navigation + channel keys (column count is user-selectable)
+            if ("nav" !in layout.hidden) {
+                Column(Modifier.fillMaxWidth()) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        maxItemsInEachRow = layout.columns,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        NavPill(Icons.AutoMirrored.Filled.ArrowBack, "Back") { send(KEY_BACK) }
+                        NavPill(Icons.Default.Home, "Home") { send(KEY_HOME) }
+                        NavPill(Icons.Default.Menu, "Menu") { send(KEY_MENU) }
+                    }
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        maxItemsInEachRow = layout.columns,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        TextButton(onClick = { send(KEY_CH_DOWN) }) { Text("CH−") }
+                        TextButton(onClick = { send(KEY_CH_UP) }) { Text("CH+") }
+                        TextButton(onClick = { showNumberPad = true }) { Text("0–9") }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
             }
 
             // Quick keys + broadcast target
-            androidx.compose.foundation.lazy.LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                item {
-                    FilterChip(
-                        selected = broadcastSelection != null,
-                        onClick = { showBroadcastDialog = true },
-                        label = { Text(if (broadcastBusy) "Sending…" else "Broadcast") },
-                        leadingIcon = { Icon(Icons.Default.Groups, null, Modifier.size(14.dp)) },
-                    )
-                }
-                item {
-                    AssistChip(
-                        onClick = { showHistory = true },
-                        label = { Text("History") },
-                        leadingIcon = { Icon(Icons.Default.History, null, Modifier.size(14.dp)) },
-                    )
-                }
-                items(quickKeys.size) { index ->
-                    val key = com.tvtools.app.data.QuickKeys.byId(quickKeys[index])
-                    if (key != null) {
-                        AssistChip(onClick = { send(key.keyCode) }, label = { Text(key.label) })
+            if ("quick" !in layout.hidden) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    item {
+                        FilterChip(
+                            selected = broadcastSelection != null,
+                            onClick = { showBroadcastDialog = true },
+                            label = { Text(if (broadcastBusy) "Sending…" else "Broadcast") },
+                            leadingIcon = { Icon(Icons.Default.Groups, null, Modifier.size(14.dp)) },
+                        )
                     }
-                }
-                item {
-                    AssistChip(
-                        onClick = { showQuickKeyEditor = true },
-                        label = { Text("Edit") },
-                        leadingIcon = { Icon(Icons.Default.Edit, null, Modifier.size(14.dp)) },
-                    )
+                    item {
+                        AssistChip(
+                            onClick = { showHistory = true },
+                            label = { Text("History") },
+                            leadingIcon = { Icon(Icons.Default.History, null, Modifier.size(14.dp)) },
+                        )
+                    }
+                    items(quickKeys.size) { index ->
+                        val key = com.tvtools.app.data.QuickKeys.byId(quickKeys[index])
+                        if (key != null) {
+                            AssistChip(onClick = { send(key.keyCode) }, label = { Text(key.label) })
+                        }
+                    }
+                    item {
+                        AssistChip(
+                            onClick = { showQuickKeyEditor = true },
+                            label = { Text("Edit") },
+                            leadingIcon = { Icon(Icons.Default.Edit, null, Modifier.size(14.dp)) },
+                        )
+                    }
+                    item {
+                        AssistChip(
+                            onClick = {
+                                layoutBackup = layout
+                                showLayoutEditor = true
+                            },
+                            label = { Text("Layout") },
+                            leadingIcon = { Icon(Icons.Default.Tune, null, Modifier.size(14.dp)) },
+                        )
+                    }
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
             // Media controls
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(Modifier.fillMaxWidth()) {
-                    val track = nowPlaying
-                    if (track != null && (track.isPlaying || track.durationMs > 0)) {
-                        NowPlayingBlock(
-                            track = track,
-                            onSeek = { delta -> scope.launch { adb.seekRelative(delta) } },
-                            onPlayPause = { send(KEY_MEDIA_PLAY_PAUSE) },
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
-                        )
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        MediaButton(Icons.Default.SkipPrevious, "Previous") { send(KEY_MEDIA_PREV) }
-                        MediaButton(Icons.Default.FastRewind, "Rewind") { send(KEY_MEDIA_REWIND) }
-                        MediaButton(Icons.Default.PlayArrow, "Play/Pause") { send(KEY_MEDIA_PLAY_PAUSE) }
-                        MediaButton(Icons.Default.FastForward, "Fast forward") { send(KEY_MEDIA_FF) }
-                        MediaButton(Icons.Default.SkipNext, "Next") { send(KEY_MEDIA_NEXT) }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Contextual shortcuts for the app currently on the TV
-            appSpecificKeys(foregroundApp)?.let { extras ->
+            if ("media" !in layout.hidden) {
                 Card(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f)
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                        Text(
-                            "${extras.label} shortcuts",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            extras.keys.forEach { (label, code) ->
-                                AssistChip(onClick = { send(code) }, label = { Text(label) })
-                            }
+                    Column(Modifier.fillMaxWidth()) {
+                        val track = nowPlaying
+                        if (track != null && (track.isPlaying || track.durationMs > 0)) {
+                            NowPlayingBlock(
+                                track = track,
+                                onSeek = { delta -> scope.launch { adb.seekRelative(delta) } },
+                                onPlayPause = { send(KEY_MEDIA_PLAY_PAUSE) },
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
+                            )
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            MediaButton(Icons.Default.SkipPrevious, "Previous") { send(KEY_MEDIA_PREV) }
+                            MediaButton(Icons.Default.FastRewind, "Rewind") { send(KEY_MEDIA_REWIND) }
+                            MediaButton(Icons.Default.PlayArrow, "Play/Pause") { send(KEY_MEDIA_PLAY_PAUSE) }
+                            MediaButton(Icons.Default.FastForward, "Fast forward") { send(KEY_MEDIA_FF) }
+                            MediaButton(Icons.Default.SkipNext, "Next") { send(KEY_MEDIA_NEXT) }
                         }
                     }
                 }
                 Spacer(Modifier.height(12.dp))
             }
 
+            // Contextual shortcuts for the app currently on the TV
+            if ("app" !in layout.hidden) {
+                appSpecificKeys(foregroundApp)?.let { extras ->
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f)
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Text(
+                                "${extras.label} shortcuts",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                maxItemsInEachRow = layout.columns,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                extras.keys.forEach { (label, code) ->
+                                    AssistChip(onClick = { send(code) }, label = { Text(label) })
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
+
+            // One-handed dock: the pad sits below the media/nav cluster, near the thumb.
+            if (layout.oneHanded) {
+                Text(
+                    "One-handed pad",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                padContent()
+                Spacer(Modifier.height(12.dp))
+            }
+
             // Volume + power
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                CircleKey(Icons.AutoMirrored.Filled.VolumeDown, "Volume down", repeatable = true) { send(KEY_VOL_DOWN) }
-                CircleKey(Icons.Default.VolumeOff, "Mute") { send(KEY_MUTE) }
-                CircleKey(Icons.AutoMirrored.Filled.VolumeUp, "Volume up", repeatable = true) { send(KEY_VOL_UP) }
-                Spacer(Modifier.width(6.dp))
-                CircleKey(
-                    Icons.Default.PowerSettingsNew,
-                    "Power menu",
-                    container = MaterialTheme.colorScheme.errorContainer,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                ) { showPowerMenu = true }
+            if ("volume" !in layout.hidden) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    CircleKey(Icons.AutoMirrored.Filled.VolumeDown, "Volume down", repeatable = true) {
+                        send(KEY_VOL_DOWN)
+                    }
+                    CircleKey(Icons.Default.VolumeOff, "Mute") { send(KEY_MUTE) }
+                    CircleKey(Icons.AutoMirrored.Filled.VolumeUp, "Volume up", repeatable = true) {
+                        send(KEY_VOL_UP)
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    CircleKey(
+                        Icons.Default.PowerSettingsNew,
+                        "Power menu",
+                        container = MaterialTheme.colorScheme.errorContainer,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    ) { showPowerMenu = true }
+                }
             }
 
             Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    if (inline) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+            modifier = modifier.fillMaxHeight(),
+        ) {
+            body()
+        }
+    } else {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.93f),
+        ) {
+            body()
         }
     }
 
@@ -707,9 +846,24 @@ fun RemoteControlSheet(
             selected = quickKeys,
             onDismiss = { showQuickKeyEditor = false },
             onSave = { ids ->
-                quickKeys = ids
-                scope.launch { AppServices.prefs.saveQuickKeys(ids) }
+                applyLayout(layout.copy(quickOrder = ids))
                 showQuickKeyEditor = false
+            },
+        )
+    }
+
+    if (showLayoutEditor) {
+        RemoteLayoutEditorDialog(
+            layout = layout,
+            onPreview = { layout = it },
+            onDismiss = {
+                layout = layoutBackup
+                quickKeys = layoutBackup.quickOrder
+                showLayoutEditor = false
+            },
+            onSave = { next ->
+                applyLayout(next)
+                showLayoutEditor = false
             },
         )
     }

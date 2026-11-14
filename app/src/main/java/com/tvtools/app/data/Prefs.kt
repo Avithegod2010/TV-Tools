@@ -56,6 +56,9 @@ class Prefs(private val context: Context) {
     // ---------------- multi-TV dashboard ----------------
 
     private val KEY_SAVED = stringSetPreferencesKey("saved_devices")
+    private val KEY_SAVED_ORDER = stringPreferencesKey("saved_order")
+    private val KEY_ROOM_ORDER = stringPreferencesKey("room_order")
+    private val KEY_PINNED_HOST = stringPreferencesKey("pinned_host")
 
     suspend fun saveDevice(device: TvDevice) {
         context.dataStore.edit { p ->
@@ -63,11 +66,23 @@ class Prefs(private val context: Context) {
             val others = p[KEY_SAVED].orEmpty()
                 .filterNot { it.substringAfter('|').substringBefore('|') == device.host }
             p[KEY_SAVED] = (others + entry).toSet()
+            val order = p[KEY_SAVED_ORDER].orEmpty()
+                .split(',')
+                .filter { it.isNotBlank() }
+                .toMutableList()
+            if (device.host !in order) {
+                order.add(device.host)
+                p[KEY_SAVED_ORDER] = order.joinToString(",")
+            }
         }
     }
 
     suspend fun loadDevices(): List<TvDevice> {
-        return context.dataStore.data.first()[KEY_SAVED].orEmpty().mapNotNull { raw ->
+        val prefs = context.dataStore.data.first()
+        val order = prefs[KEY_SAVED_ORDER].orEmpty()
+            .split(',')
+            .filter { it.isNotBlank() }
+        return prefs[KEY_SAVED].orEmpty().mapNotNull { raw ->
             val parts = raw.split('|')
             if (parts.size < 4) return@mapNotNull null
             TvDevice(
@@ -76,6 +91,9 @@ class Prefs(private val context: Context) {
                 port = parts[2].toIntOrNull() ?: 5555,
                 proto = runCatching { DeviceProto.valueOf(parts[3]) }.getOrDefault(DeviceProto.TCP),
             )
+        }.sortedBy { device ->
+            val index = order.indexOf(device.host)
+            if (index < 0) Int.MAX_VALUE else index
         }
     }
 
@@ -84,6 +102,28 @@ class Prefs(private val context: Context) {
             p[KEY_SAVED] = p[KEY_SAVED].orEmpty()
                 .filterNot { it.split('|').getOrNull(1) == host }
                 .toSet()
+            p[KEY_SAVED_ORDER] = p[KEY_SAVED_ORDER].orEmpty()
+                .split(',')
+                .filter { it.isNotBlank() && it != host }
+                .joinToString(",")
+        }
+    }
+
+    /** Move a saved TV one slot left (-1) or right (+1). */
+    suspend fun moveSavedDevice(host: String, delta: Int) {
+        context.dataStore.edit { p ->
+            val order = p[KEY_SAVED_ORDER].orEmpty()
+                .split(',')
+                .filter { it.isNotBlank() }
+                .toMutableList()
+            val index = order.indexOf(host)
+            if (index < 0) return@edit
+            val target = (index + delta).coerceIn(0, order.lastIndex)
+            if (target != index) {
+                val item = order.removeAt(index)
+                order.add(target, item)
+                p[KEY_SAVED_ORDER] = order.joinToString(",")
+            }
         }
     }
 
@@ -226,4 +266,72 @@ class Prefs(private val context: Context) {
     suspend fun saveToolFavorites(ids: List<String>) {
         context.dataStore.edit { p -> p[KEY_TOOL_FAVORITES] = ids.joinToString(",") }
     }
+
+    // ---------------- per-TV look / remote layout ----------------
+
+    private val KEY_PROFILES = stringPreferencesKey("device_profiles")
+
+    suspend fun saveDeviceProfile(host: String, profile: DeviceProfile) {
+        val line = "$host=${DeviceProfileCodec.encode(profile)}"
+        context.dataStore.edit { p ->
+            val lines = p[KEY_PROFILES].orEmpty()
+                .split('\n')
+                .filter { it.isNotBlank() }
+                .filterNot { it.substringBefore('=') == host }
+                .toMutableList()
+            lines.add(line)
+            p[KEY_PROFILES] = lines.joinToString("\n")
+        }
+    }
+
+    suspend fun loadDeviceProfile(host: String): DeviceProfile? {
+        val raw = context.dataStore.data.first()[KEY_PROFILES].orEmpty()
+        val encoded = raw.split('\n')
+            .firstOrNull { it.substringBefore('=') == host }
+            ?.substringAfter('=', "")
+            ?: return null
+        return DeviceProfileCodec.decode(encoded)
+    }
+
+    suspend fun loadDeviceProfiles(): Map<String, DeviceProfile> {
+        val raw = context.dataStore.data.first()[KEY_PROFILES].orEmpty()
+        return raw.split('\n').mapNotNull { line ->
+            val host = line.substringBefore('=', "")
+            if (host.isBlank()) return@mapNotNull null
+            val profile = DeviceProfileCodec.decode(line.substringAfter('=', ""))
+                ?: return@mapNotNull null
+            host to profile
+        }.toMap()
+    }
+
+    suspend fun forgetDeviceProfile(host: String) {
+        context.dataStore.edit { p ->
+            p[KEY_PROFILES] = p[KEY_PROFILES].orEmpty()
+                .split('\n')
+                .filter { it.isNotBlank() }
+                .filterNot { it.substringBefore('=') == host }
+                .joinToString("\n")
+        }
+    }
+
+    suspend fun savePinnedHost(host: String?) {
+        context.dataStore.edit { p ->
+            if (host.isNullOrBlank()) p.remove(KEY_PINNED_HOST) else p[KEY_PINNED_HOST] = host
+        }
+    }
+
+    suspend fun loadPinnedHost(): String? = context.dataStore.data.first()[KEY_PINNED_HOST]
+
+    // ---------------- room order ----------------
+
+    suspend fun saveRoomOrder(rooms: List<String>) {
+        context.dataStore.edit { p ->
+            p[KEY_ROOM_ORDER] = rooms.filter { it.isNotBlank() }.joinToString("\u001F")
+        }
+    }
+
+    suspend fun loadRoomOrder(): List<String> = context.dataStore.data.first()[KEY_ROOM_ORDER]
+        .orEmpty()
+        .split('\u001F')
+        .filter { it.isNotBlank() }
 }

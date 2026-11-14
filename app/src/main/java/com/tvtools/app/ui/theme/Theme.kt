@@ -8,12 +8,20 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.sp
 import com.tvtools.app.data.Accent
 import com.tvtools.app.data.AppSettings
+import com.tvtools.app.data.ColorBlindMode
 import com.tvtools.app.data.ThemeMode
+
+val LocalReducedMotion = staticCompositionLocalOf { false }
+val LocalExpressiveShapes = staticCompositionLocalOf { true }
 
 // ---------------- shared neutrals ----------------
 private val Ink = Color(0xFF171B16)
@@ -225,10 +233,40 @@ fun TvToolsTheme(
     }
     val amoled = settings.themeMode == ThemeMode.AMOLED
     val context = LocalContext.current
-    val scheme = if (settings.accent == Accent.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val baseScheme = if (settings.accent == Accent.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     } else {
         accentScheme(settings.accent, dark, amoled, settings.tvColor)
     }
-    MaterialTheme(colorScheme = scheme, typography = AppTypography, content = content)
+    val colorfulScheme = if (settings.colorBlind == ColorBlindMode.OFF) {
+        baseScheme
+    } else {
+        // Blue/orange status colours remain distinguishable for the common
+        // red-green colour-vision deficiencies.
+        baseScheme.copy(
+            error = if (dark) Color(0xFFFFB77C) else Color(0xFFB45309),
+            errorContainer = if (dark) Color(0xFF7C3E00) else Color(0xFFFFDCC2),
+            onErrorContainer = if (dark) Color(0xFFFFDCC2) else Color(0xFF2D1600),
+        )
+    }
+    val scheme = if (settings.highContrast) {
+        colorfulScheme.copy(
+            outline = colorfulScheme.onSurface.copy(alpha = 0.9f),
+            onSurfaceVariant = colorfulScheme.onSurface,
+        )
+    } else colorfulScheme
+
+    val baseDensity = LocalDensity.current
+    val scaledDensity = Density(
+        density = baseDensity.density * settings.uiDensity.scale,
+        fontScale = baseDensity.fontScale * settings.fontScale,
+    )
+
+    CompositionLocalProvider(
+        LocalDensity provides scaledDensity,
+        LocalReducedMotion provides settings.reducedMotion,
+        LocalExpressiveShapes provides settings.expressiveShapes,
+    ) {
+        MaterialTheme(colorScheme = scheme, typography = AppTypography, content = content)
+    }
 }

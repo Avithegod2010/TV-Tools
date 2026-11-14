@@ -3,7 +3,9 @@ package com.tvtools.app.data
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.tvtools.app.TvToolsApp
 import com.tvtools.app.adb.AdbClient
+import com.tvtools.app.media.MediaNotificationController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -171,6 +173,7 @@ class PlaybackController(private val adb: AdbClient) {
     fun stop() {
         stopPolling()
         _state.value = PlaybackState()
+        MediaNotificationController.stop(TvToolsApp.instance)
     }
 
     fun startTracking() {
@@ -216,8 +219,15 @@ class PlaybackController(private val adb: AdbClient) {
                 current = if (match >= 0) s.queue[match] else s.current,
                 index = if (match >= 0) match else s.index,
             )
+            MediaNotificationController.start(
+                TvToolsApp.instance,
+                np.title,
+                np.artist,
+                np.isPlaying,
+            )
         } else if (s.nowPlaying != null) {
             _state.value = s.copy(nowPlaying = null)
+            MediaNotificationController.stop(TvToolsApp.instance)
         }
     }
 

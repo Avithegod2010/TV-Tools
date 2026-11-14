@@ -13,8 +13,8 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 - JDK 17, Android SDK 35 (set `ANDROID_HOME`)
 - `./gradlew assembleDebug` (wrapper included; or a local Gradle 8.9 install: `gradle assembleDebug --no-daemon`)
 - `./gradlew testDebugUnitTest` — JVM tests for parsers/codecs (no device needed)
-- `compileSdk 35`, `targetSdk 34` (bumping to 35 needs an edge-to-edge pass)
-- Low-RAM machines: cap `org.gradle.jvmargs` (≈1.2 GB) and use `kotlin.compiler.execution.strategy=in-process`
+- `compileSdk 35`, `targetSdk 35`
+- Low-RAM machines: cap `org.gradle.jvmargs` (≈1.2 GB) and use `kotlin.compiler.execution.strategy=in-process`; release R8 needs `-Pandroid.r8.maxWorkers=1` (quoted in PowerShell).
 - **Kotlin has no octal literals** — use decimals for ADB mode bits (0644 = 420, S_IFDIR = 16384, S_IFMT = 61440)
 - **Kotlin nested comments**: never write `/*` inside a comment (e.g. `/sys/class/net/*/address` breaks parsing)
 - APK output → `app/build/outputs/apk/debug/app-debug.apk`
@@ -50,6 +50,18 @@ Android app that manages Android TV / Google TV / Xiaomi TV / Fire TV devices wi
 - No analytics, no telemetry, no network calls except to the user's TV.
 - ADB private key + cert stay in app-private storage (`files/adbkeys`).
 - ADB TLS uses the library's trust-all manager (inherent to ADB pairing).
+
+## Feature map (v1.9)
+- **Remote layout editor:** `ui/remote/RemoteLayoutEditor.kt` (1/2/3 columns, D-pad 200–340 dp, section visibility, quick-key add/reorder/remove, one-handed dock, reset, live preview). Per-TV layout lives in `DeviceProfile.layout` (`data/DeviceProfile.kt`), saved through `Prefs.saveDeviceProfile`; `RemoteControlSheet` loads it and the Tune icon opens the editor.
+- **Skins:** `ui/remote/RemoteSkins.kt` — Glass, Neon, Media-first, physical Classic remote; `PadStyle`, `CookieShape`; `DPadPad(size, expressive, style)`; spring/reduced-motion press feedback in `RemotePads`.
+- **Per-TV looks:** accent + light/dark/AMOLED + skin + font + density + contrast + colour-blind + motion + sound pack + haptics + kids + layout. Auto-applied by `DeviceViewModel`; Save look / Refresh palette / Forget look in `DeviceScreen`. `ThemePack` shares a look as text or imports one from the clipboard.
+- **Home dashboard:** pinned TV hero card (`Prefs.pinnedHost`) with manual preview (`HomeViewModel.refreshOverview`), now-playing line, long-press pin/reorder/remove, pinned macro tiles, and room ordering (`Prefs.loadRoomOrder`).
+- **Settings:** text size 80–200%, Compact/Comfortable/Spacious density, high contrast, colour-blind-safe signals, reduced motion, expressive shapes, sound packs, kids theme, TV look profiles, share/import.
+- **Widgets & notification:** `widget/NowPlayingWidgetProvider`, `media/TvMedia`, `media/MediaNotificationController`, `media/MediaActionReceiver`; `PlaybackController.refresh` starts/stops the media notification.
+- **Tablet/foldable:** `DeviceScreen` renders `RemoteControlSheet(inline = true)` beside the tabs at ≥600 dp.
+- **Identity & access:** `ui/common/BrandMark.kt` in the home header and empty states, TalkBack-labelled switches, 48 dp minimum keys, Hindi/Marathi widget strings, RTL.
+- **Mirroring:** `ui/mirror/H264Mirror.kt` streams `screenrecord` over raw ADB `exec:` (never PTY `shell:`, which inserts CR bytes and corrupts H.264); first IDR sent twice; fallback to screencap in `MirrorViewModel` on error, with a visible reason.
+- versionCode 13 / versionName 1.9.0; 57 JVM tests.
 
 ## Feature map (v1.6)
 - Connect: `ui/connect/QrHandoffScreen`, `NetworkMapScreen`, `HotspotGuideScreen`, `ConnectionDoctorScreen`, `MdnsBrowserScreen`, `RoomsScreen`; routes `qr`, `netmap`, `hotspot`, `doctor`, `mdns`, `rooms`.

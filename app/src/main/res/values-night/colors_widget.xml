@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Now-playing widget + media notification (dark). -->
+    <color name="widget_np_surface">#0D2B16</color>
+    <color name="widget_np_stroke">#2C5137</color>
+    <color name="widget_np_title">#E8F5E9</color>
+    <color name="widget_np_subtitle">#A5D6A7</color>
+    <color name="widget_np_accent">#86DA96</color>
+    <color name="widget_np_on_accent">#002106</color>
+    <color name="widget_np_key">#17351F</color>
+    <color name="widget_np_key_text">#E8F5E9</color>
+</resources>

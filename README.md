@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.8.2-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-1.9.0-166d32" alt="Version" />
     <img src="https://github.com/Avithegod2010/TV-Tools/actions/workflows/android.yml/badge.svg" alt="CI" />
   </p>
 </div>
@@ -41,11 +41,12 @@
 | 📊 **Device info** | Storage / RAM / CPU gauges, network usage, uptime |
 | ⚡ **Performance** | Local cold-start and frame-jank card in Settings, AndroidX ProfileInstaller baseline profiles, no background screenshot or media polling when idle |
 | 🎨 **Themes & haptics** | System/Light/Dark, 5 accent colors incl. Material You, haptic feedback |
-| 🧩 **System integration** | **Quick Settings tile** ("TV Remote") + **home-screen remote widget**, onboarding, splash screen |
+| 🧩 **System integration** | **Quick Settings tile** ("TV Remote") + **resizable home-screen remote widget**, **now-playing widget** with transport buttons, **media notification** (prev/play-pause/next), onboarding, splash screen |
 | 🧪 **Labs** | **DLNA casting**, **SFTP browser**, **speed test**, **live TV inputs**, **mouse & keyboard**, **health monitor**, **TV users**, **kids mode**, **launchpad**, **automations** |
 | 🔐 **Data & safety** | App **data backup** (external), **encrypted export/import** of backups, ambient mode, screen-timeout control, **wake & reconnect**, **local crash diagnostics** (never uploaded) |
-| ✨ **Visuals** | Thumbnail from your last explicit capture, **radar discovery animation**, **shared-element transitions**, AMOLED mode, auto day/night, **glass sheets**, animated logo |
-| 🎨 **Customization** | **Per-TV accent colors**, **palette matched from the TV screen**, 4 remote skins, **3 launcher icon variants**, haptic profiles, key sounds, custom typography |
+| ✨ **Visuals** | Thumbnail from your last explicit capture, **radar discovery animation**, **shared-element transitions**, AMOLED mode, auto day/night, **glass sheets**, branded TV + remote mark, animated logo |
+| ♿ **Accessibility** | **80–200% text**, Compact/Comfortable/Spacious density, high contrast, colour-blind-safe signals, reduced motion, TalkBack labels, 48 dp keys, RTL, Hindi/Marathi resources |
+| 🎨 **Customization** | **Per-TV look profiles** (accent, theme, skin, text size, density, contrast, motion, sound), **remote layout editor** (columns, D-pad size, hidden rows, quick-key order, one-handed dock), **7 remote skins** incl. Glass/Neon/Media-first/Classic, **palette matched from the TV screen**, **3 launcher icon variants**, sound packs, kids theme, portable look sharing |
 | 🖼 **Gallery & files** | **Per-TV screenshot folders**, date timeline, **multi-select share/delete**, **Show on TV**, automatic **10/25/50/100/unlimited retention**, **grid/list file manager**, health rings |
 
 ## 🔐 Privacy & security

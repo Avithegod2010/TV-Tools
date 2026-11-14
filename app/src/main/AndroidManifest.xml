@@ -141,5 +141,23 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/remote_widget_compact_info" />
         </receiver>
+
+        <!-- Now-playing widget: title/artist + previous / play-pause / next -->
+        <receiver
+            android:name=".widget.NowPlayingWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_now_playing_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/now_playing_widget_info" />
+        </receiver>
+
+        <!-- Transport buttons on the media notification (explicit intents only) -->
+        <receiver
+            android:name=".media.MediaActionReceiver"
+            android:exported="false" />
     </application>
 </manifest>

@@ -1,6 +1,7 @@
 package com.tvtools.app.ui.mirror
 
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.view.Surface
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -126,6 +127,7 @@ class MirrorViewModel : ViewModel() {
         if (fastJob?.isActive == true) return
         slowJob?.cancel()
         slowJob = null
+        Log.d(TAG, "startFast quality=${_ui.value.quality.label}")
         _ui.value = _ui.value.copy(
             running = true,
             fastMode = true,
@@ -156,13 +158,14 @@ class MirrorViewModel : ViewModel() {
                         }
                     },
                     onError = { message ->
+                        Log.w(TAG, "fast mirror error: $message")
                         if (wantRunning) {
                             _ui.value = _ui.value.copy(
                                 fastMode = false,
                                 error = "Fast mirror unavailable: $message",
                                 hasFrame = false,
                             )
-                            viewModelScope.launch { startSlow() }
+                            viewModelScope.launch { startSlow(preserveError = true) }
                         }
                     },
                 )
@@ -176,24 +179,28 @@ class MirrorViewModel : ViewModel() {
         }
 
         // If MediaCodec never produces a frame, fall back instead of spinning forever.
+        // A static TV screen may legitimately send only one frame, so give the
+        // decoder a generous window before giving up on the fast path.
         viewModelScope.launch {
-            delay(10_000)
+            delay(15_000)
             if (wantRunning && _ui.value.fastMode && !_ui.value.hasFrame) {
+                Log.w(TAG, "fast mirror produced no frame in 15s; falling back")
                 _ui.value = _ui.value.copy(
                     fastMode = false,
-                    error = "Fast mirror did not start; using slow mode",
+                    error = "Fast mirror did not start; using snapshots",
                 )
-                startSlow()
+                startSlow(preserveError = true)
             }
         }
     }
 
-    private fun startSlow() {
+    private fun startSlow(preserveError: Boolean = false) {
         if (slowJob?.isActive == true) return
+        Log.d(TAG, "startSlow preserveError=$preserveError")
         _ui.value = _ui.value.copy(
             running = true,
             fastMode = false,
-            error = null,
+            error = if (preserveError) _ui.value.error else null,
             hasFrame = false,
         )
         slowJob = viewModelScope.launch(Dispatchers.IO) {
@@ -279,5 +286,9 @@ class MirrorViewModel : ViewModel() {
         stop()
         surface?.release()
         surface = null
+    }
+
+    private companion object {
+        const val TAG = "MirrorViewModel"
     }
 }

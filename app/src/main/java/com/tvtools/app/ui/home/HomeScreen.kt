@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,12 +25,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
@@ -72,6 +75,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tvtools.app.data.TvDevice
+import com.tvtools.app.ui.common.BrandMark
 import com.tvtools.app.ui.common.rememberHaptics
 import com.tvtools.app.ui.settings.SettingsSheet
 
@@ -107,6 +111,10 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshMacros()
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         containerColor = MaterialTheme.colorScheme.background,
@@ -138,20 +146,7 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(38.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(26.dp),
-                        )
-                    }
-                }
+                BrandMark(size = 40.dp)
                 Spacer(Modifier.width(12.dp))
                 Text(
                     "TV Tools",
@@ -162,9 +157,9 @@ fun HomeScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            ui.lastConnected?.let { last ->
+            ui.heroDevice?.let { hero ->
                 Text(
-                    "Last connected",
+                    if (ui.pinnedHost == hero.host) "Pinned TV" else "Last connected",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -172,17 +167,27 @@ fun HomeScreen(
                 val titleModifier: Modifier = if (sharedScope != null && animatedScope != null) {
                     with(sharedScope) {
                         Modifier.sharedElement(
-                            rememberSharedContentState("device-title-${last.name}"),
+                            rememberSharedContentState("device-title-${hero.name}"),
                             animatedScope,
                         )
                     }
                 } else Modifier
-                DeviceCard(
-                    device = last,
-                    connecting = ui.connectingTo?.host == last.host,
-                    thumbPath = ui.lastThumbPath,
+                HeroDeviceCard(
+                    device = hero,
+                    connecting = ui.connectingTo?.host == hero.host,
+                    pinned = ui.pinnedHost == hero.host,
+                    thumbPath = viewModel.thumbFile(hero.host)
+                        ?.takeIf { file -> file.exists() }
+                        ?.absolutePath,
+                    previewBusy = ui.previewBusy,
+                    nowPlaying = ui.nowPlaying,
                     titleModifier = titleModifier,
-                    onClick = { haptics(); viewModel.connect(last) },
+                    onConnect = { haptics(); viewModel.connect(hero) },
+                    onRefresh = { haptics(); viewModel.refreshOverview(hero) },
+                    onTogglePin = {
+                        haptics()
+                        viewModel.pinDevice(if (ui.pinnedHost == hero.host) null else hero.host)
+                    },
                 )
                 Spacer(Modifier.height(20.dp))
             }
@@ -205,21 +210,55 @@ fun HomeScreen(
                         Text("Check all", style = MaterialTheme.typography.labelMedium)
                     }
                     Text(
-                        "hold to remove",
+                        "hold: pin · reorder · remove",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Spacer(Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(ui.savedDevices, key = { it.host }) { saved ->
+                    itemsIndexed(ui.savedDevices, key = { _, it -> it.host }) { index, saved ->
                         SavedDeviceChip(
                             device = saved,
                             connecting = ui.connectingTo?.host == saved.host,
                             status = ui.batchStatus[saved.host],
+                            pinned = ui.pinnedHost == saved.host,
+                            canMoveLeft = index > 0,
+                            canMoveRight = index < ui.savedDevices.lastIndex,
                             onClick = { haptics(); viewModel.connect(saved) },
-                            onLongClick = { viewModel.removeSavedDevice(saved.host) },
+                            onPin = {
+                                viewModel.pinDevice(if (ui.pinnedHost == saved.host) null else saved.host)
+                            },
+                            onMoveLeft = { viewModel.moveSavedDevice(saved.host, -1) },
+                            onMoveRight = { viewModel.moveSavedDevice(saved.host, 1) },
+                            onRemove = { viewModel.removeSavedDevice(saved.host) },
                         )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
+            if (ui.macros.isNotEmpty()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        "Pinned macros",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { viewModel.refreshMacros() }) {
+                        Text("Refresh", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(ui.macros.take(8), key = { it.name }) { macro ->
+                        MacroTile(macro = macro) {
+                            haptics()
+                            viewModel.runMacro(macro)
+                        }
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -292,10 +331,7 @@ fun HomeScreen(
                                 .padding(top = 24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Icon(
-                                Icons.Default.Info, null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            BrandMark(size = 58.dp)
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 "No devices found yet.\nMake sure the TV is on the same Wi-Fi\nwith ADB / Wireless debugging enabled.",
@@ -456,64 +492,321 @@ private fun SavedDeviceChip(
     device: TvDevice,
     connecting: Boolean,
     status: BatchState?,
+    pinned: Boolean,
+    canMoveLeft: Boolean,
+    canMoveRight: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onPin: () -> Unit,
+    onMoveLeft: () -> Unit,
+    onMoveRight: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+            ),
+            modifier = Modifier
+                .width(190.dp)
+                .pointerInput(device.host) {
+                    detectTapGestures(onTap = { onClick() }, onLongPress = { menuOpen = true })
+                },
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Default.Tv, null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        device.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                    Text(
+                        formatEndpoint(device.host, device.port),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+                if (pinned) {
+                    Icon(
+                        Icons.Default.PushPin,
+                        "Pinned",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp),
+                    )
+                } else if (connecting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        strokeCap = StrokeCap.Round,
+                    )
+                } else if (status != null) {
+                    Box(
+                        Modifier
+                            .size(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                when (status) {
+                                    BatchState.ONLINE -> MaterialTheme.colorScheme.primary
+                                    BatchState.CHECKING -> MaterialTheme.colorScheme.tertiary
+                                    BatchState.OFFLINE -> MaterialTheme.colorScheme.outline
+                                }
+                            )
+                    )
+                }
+            }
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(if (pinned) "Unpin from dashboard" else "Pin to dashboard") },
+                leadingIcon = { Icon(Icons.Default.PushPin, null) },
+                onClick = { menuOpen = false; onPin() },
+            )
+            DropdownMenuItem(
+                text = { Text("Move left") },
+                enabled = canMoveLeft,
+                onClick = { menuOpen = false; onMoveLeft() },
+            )
+            DropdownMenuItem(
+                text = { Text("Move right") },
+                enabled = canMoveRight,
+                onClick = { menuOpen = false; onMoveRight() },
+            )
+            DropdownMenuItem(
+                text = { Text("Remove from saved TVs") },
+                onClick = { menuOpen = false; onRemove() },
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroDeviceCard(
+    device: TvDevice,
+    connecting: Boolean,
+    pinned: Boolean,
+    thumbPath: String?,
+    previewBusy: Boolean,
+    nowPlaying: com.tvtools.app.data.NowPlaying?,
+    titleModifier: Modifier,
+    onConnect: () -> Unit,
+    onRefresh: () -> Unit,
+    onTogglePin: () -> Unit,
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(184.dp)
+            ) {
+                val thumb = thumbPath?.let { path ->
+                    remember(path, java.io.File(path).lastModified()) {
+                        android.graphics.BitmapFactory.decodeFile(path)
+                    }
+                }
+                if (thumb != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = thumb.asImageBitmap(),
+                        contentDescription = "Live preview of ${device.name}",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Default.Tv,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                            modifier = Modifier.size(64.dp),
+                        )
+                    }
+                }
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                listOf(androidx.compose.ui.graphics.Color.Transparent, androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.68f))
+                            )
+                        )
+                )
+                Column(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        device.name,
+                        modifier = titleModifier,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = androidx.compose.ui.graphics.Color.White,
+                    )
+                    Text(
+                        buildString {
+                            append(formatEndpoint(device.host, device.port))
+                            if (device.pairing) append("  •  pairing")
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f),
+                    )
+                    val track = nowPlaying
+                    if (track != null && track.title.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = androidx.compose.ui.graphics.Color.White,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                listOfNotNull(track.title, track.artist.takeIf { it.isNotBlank() })
+                                    .joinToString(" — "),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = androidx.compose.ui.graphics.Color.White,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+                if (pinned) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(10.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.PushPin,
+                                contentDescription = null,
+                                tint = androidx.compose.ui.graphics.Color.White,
+                                modifier = Modifier.size(13.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                "Pinned",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = androidx.compose.ui.graphics.Color.White,
+                            )
+                        }
+                    }
+                }
+                if (previewBusy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(30.dp),
+                        strokeWidth = 2.5.dp,
+                        color = androidx.compose.ui.graphics.Color.White,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onConnect) {
+                    if (connecting) {
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Tv, null, Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Text("Connect")
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onRefresh, enabled = !previewBusy) {
+                    Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (previewBusy) "Refreshing…" else "Preview")
+                }
+                IconButton(onClick = onTogglePin) {
+                    Icon(
+                        Icons.Default.PushPin,
+                        contentDescription = if (pinned) "Unpin this TV" else "Pin this TV to the dashboard",
+                        tint = if (pinned) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MacroTile(
+    macro: com.tvtools.app.data.Macro,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
         ),
         modifier = Modifier
-            .width(190.dp)
-            .pointerInput(device.host) {
-                detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
-            },
+            .width(150.dp)
+            .height(78.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Icon(
-                Icons.Default.Tv, null,
+                Icons.Default.Bolt,
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp),
             )
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    device.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                )
-                Text(
-                    formatEndpoint(device.host, device.port),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
-            }
-            if (connecting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    strokeWidth = 2.dp,
-                    strokeCap = StrokeCap.Round,
-                )
-            } else if (status != null) {
-                Box(
-                    Modifier
-                        .size(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            when (status) {
-                                BatchState.ONLINE -> MaterialTheme.colorScheme.primary
-                                BatchState.CHECKING -> MaterialTheme.colorScheme.tertiary
-                                BatchState.OFFLINE -> MaterialTheme.colorScheme.outline
-                            }
-                        )
-                )
-            }
+            Text(
+                macro.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
         }
     }
 }

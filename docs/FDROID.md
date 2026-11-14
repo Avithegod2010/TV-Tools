@@ -51,12 +51,12 @@ SourceCode: https://github.com/Avithegod2010/TV-Tools
 IssueTracker: https://github.com/Avithegod2010/TV-Tools/issues
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.8.2
-CurrentVersionCode: 12
+CurrentVersion: 1.9.0
+CurrentVersionCode: 13
 Builds:
-  - versionName: 1.8.2
-    versionCode: 12
-    commit: v1.8.2
+  - versionName: 1.9.0
+    versionCode: 13
+    commit: v1.9.0
     subdir: .
     gradle:
       - assembleRelease

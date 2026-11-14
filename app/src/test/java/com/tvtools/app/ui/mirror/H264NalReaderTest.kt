@@ -55,4 +55,14 @@ class H264NalReaderTest {
     fun `empty stream returns null`() {
         assertNull(H264NalReader(ByteArrayInputStream(ByteArray(0))).next())
     }
+
+    @Test
+    fun `shell fallback strips carriage returns`() {
+        val nal = startCode4() + byteArrayOf(0x65, 0x0D, 1, 0x0D, 2, 0x0D)
+        val reader = H264NalReader(ByteArrayInputStream(nal), stripCr = true)
+        assertArrayEquals(
+            startCode4() + byteArrayOf(0x65, 1, 2),
+            reader.next(),
+        )
+    }
 }

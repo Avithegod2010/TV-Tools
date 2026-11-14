@@ -2,9 +2,12 @@ package com.tvtools.app.ui.remote
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -101,6 +104,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
@@ -112,70 +118,131 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tvtools.app.AppServices
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.ui.common.rememberHaptics
+import com.tvtools.app.ui.theme.LocalExpressiveShapes
+import com.tvtools.app.ui.theme.LocalReducedMotion
 import com.tvtools.app.util.Wol
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 // ---------------- Pads and remote keys ----------------
 // ---------------- D-Pad ----------------
 
 @Composable
-internal fun DPadPad(onSend: (Int) -> Unit) {
+internal fun DPadPad(
+    onSend: (Int) -> Unit,
+    size: Dp = 260.dp,
+    expressive: Boolean = true,
+    style: PadStyle = PadStyle.SOLID,
+) {
+    val dialShape: Shape = if (expressive) remember { CookieShape() } else CircleShape
+    val keySize = (size.value * 0.235f).roundToInt().coerceAtLeast(48)
+    val okSize = (size.value * 0.335f).roundToInt().coerceAtLeast(62)
+    val iconSize = (size.value * 0.13f).dp
+    val edge = (size.value * 0.025f).dp
+
+    val dialColor = when (style) {
+        PadStyle.GLASS -> Color.White.copy(alpha = 0.10f)
+        PadStyle.NEON -> Color(0xFF150826)
+        PadStyle.SOLID -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+    }
+    val border = when (style) {
+        PadStyle.GLASS -> BorderStroke(1.dp, Color.White.copy(alpha = 0.45f))
+        PadStyle.NEON -> BorderStroke(1.5.dp, Color(0xFF7AF8FF).copy(alpha = 0.8f))
+        PadStyle.SOLID -> null
+    }
+    val keyColor = when (style) {
+        PadStyle.GLASS -> Color.White.copy(alpha = 0.16f)
+        PadStyle.NEON -> Color(0xFF2A1240)
+        PadStyle.SOLID -> MaterialTheme.colorScheme.surface
+    }
+    val keyTint = when (style) {
+        PadStyle.NEON -> Color(0xFF7AF8FF)
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
     Box(
-        modifier = Modifier.size(260.dp),
+        modifier = Modifier.size(size),
         contentAlignment = Alignment.Center,
     ) {
+        if (style == PadStyle.NEON) NeonGlow(size)
+        if (style == PadStyle.GLASS) {
+            Box(
+                Modifier
+                    .size(size * 1.06f)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(Color.White.copy(alpha = 0.16f), Color.Transparent),
+                        ),
+                        CircleShape,
+                    )
+            )
+        }
         Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
-            modifier = Modifier.size(260.dp),
+            shape = dialShape,
+            color = dialColor,
+            border = border,
+            modifier = Modifier.size(size),
         ) {}
 
         HoldKeyButton(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 6.dp),
+                .padding(top = edge),
             onClick = { onSend(KEY_DPAD_UP) },
             repeatable = true,
-        ) { Icon(Icons.Default.KeyboardArrowUp, "Up", Modifier.size(34.dp)) }
+            container = keyColor,
+            tint = keyTint,
+            size = keySize,
+        ) { Icon(Icons.Default.KeyboardArrowUp, "Up", Modifier.size(iconSize)) }
 
         HoldKeyButton(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 6.dp),
+                .padding(bottom = edge),
             onClick = { onSend(KEY_DPAD_DOWN) },
             repeatable = true,
-        ) { Icon(Icons.Default.KeyboardArrowDown, "Down", Modifier.size(34.dp)) }
+            container = keyColor,
+            tint = keyTint,
+            size = keySize,
+        ) { Icon(Icons.Default.KeyboardArrowDown, "Down", Modifier.size(iconSize)) }
 
         HoldKeyButton(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 6.dp),
+                .padding(start = edge),
             onClick = { onSend(KEY_DPAD_LEFT) },
             repeatable = true,
-        ) { Icon(Icons.Default.KeyboardArrowLeft, "Left", Modifier.size(34.dp)) }
+            container = keyColor,
+            tint = keyTint,
+            size = keySize,
+        ) { Icon(Icons.Default.KeyboardArrowLeft, "Left", Modifier.size(iconSize)) }
 
         HoldKeyButton(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 6.dp),
+                .padding(end = edge),
             onClick = { onSend(KEY_DPAD_RIGHT) },
             repeatable = true,
-        ) { Icon(Icons.Default.KeyboardArrowRight, "Right", Modifier.size(34.dp)) }
+            container = keyColor,
+            tint = keyTint,
+            size = keySize,
+        ) { Icon(Icons.Default.KeyboardArrowRight, "Right", Modifier.size(iconSize)) }
 
         HoldKeyButton(
             modifier = Modifier.align(Alignment.Center),
             onClick = { onSend(KEY_DPAD_CENTER) },
-            container = MaterialTheme.colorScheme.primary,
-            tint = MaterialTheme.colorScheme.onPrimary,
-            size = 88,
-        ) { Text("OK", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+            container = if (style == PadStyle.NEON) Color(0xFF55E7FF) else MaterialTheme.colorScheme.primary,
+            tint = if (style == PadStyle.NEON) Color(0xFF06121A) else MaterialTheme.colorScheme.onPrimary,
+            size = okSize,
+        ) { Text("OK", fontWeight = FontWeight.Bold, fontSize = (okSize * 0.2f).sp) }
     }
 }
 
@@ -666,7 +733,13 @@ internal fun HoldKeyButton(
 ) {
     val haptics = rememberHaptics()
     var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "press")
+    val reduced = LocalReducedMotion.current
+    val expressive = LocalExpressiveShapes.current
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && !reduced) 0.9f else 1f,
+        animationSpec = if (expressive) spring(dampingRatio = 0.45f, stiffness = 900f) else tween(90),
+        label = "press",
+    )
 
     LaunchedEffect(pressed) {
         if (pressed && repeatable) {
@@ -735,7 +808,13 @@ internal fun CircleKey(
 ) {
     val haptics = rememberHaptics()
     var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "circle-press")
+    val reduced = LocalReducedMotion.current
+    val expressive = LocalExpressiveShapes.current
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && !reduced) 0.9f else 1f,
+        animationSpec = if (expressive) spring(dampingRatio = 0.45f, stiffness = 900f) else tween(90),
+        label = "circle-press",
+    )
 
     LaunchedEffect(pressed) {
         if (pressed && repeatable) {

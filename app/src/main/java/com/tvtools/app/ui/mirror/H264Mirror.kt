@@ -2,6 +2,7 @@ package com.tvtools.app.ui.mirror
 
 import android.media.MediaCodec
 import android.media.MediaFormat
+import android.util.Log
 import android.view.Surface
 import com.tvtools.app.adb.AdbClient
 import io.github.muntashirakon.adb.AdbStream
@@ -56,25 +57,54 @@ internal class MirrorStream(
             val command = "screenrecord --output-format=h264 " +
                 "--size ${quality.width}x${quality.height} " +
                 "--bit-rate ${quality.bitRate} --time-limit 180 -"
-            val s = adb.openCommandStream(command)
+            var s = runCatching {
+                Log.d(TAG, "opening exec stream")
+                adb.openExecStream(command)
+            }.getOrElse {
+                Log.w(TAG, "exec stream failed (${it.message}); trying shell")
+                adb.openCommandStream(command)
+            }
             stream = s
-            val reader = H264NalReader(s.openInputStream())
-            val header = withTimeoutOrNull(7_000) {
+            Log.d(TAG, "stream open, reading header")
+            var reader = H264NalReader(s.openInputStream())
+            var header = withTimeoutOrNull(7_000) {
                 withContext(Dispatchers.IO) { readHeader(reader) }
-            } ?: throw IOException("No H.264 header (screenrecord unavailable)")
+            }
+            if (header == null) {
+                // Some ADB builds accept `exec:` but cannot run screenrecord
+                // through it. Retry the PTY shell path before giving up.
+                Log.w(TAG, "no header on first stream; retrying shell")
+                runCatching { s.close() }
+                s = adb.openCommandStream(command)
+                stream = s
+                reader = H264NalReader(s.openInputStream(), stripCr = true)
+                header = withTimeoutOrNull(7_000) {
+                    withContext(Dispatchers.IO) { readHeader(reader) }
+                }
+            }
+            val parsed = header ?: throw IOException("No H.264 header (screenrecord unavailable)")
+            Log.d(
+                TAG,
+                "header sps=${parsed.sps.size} pps=${parsed.pps.size} idr=${parsed.firstIdr.size}",
+            )
             val decoder = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             val format = MediaFormat.createVideoFormat(
                 MediaFormat.MIMETYPE_VIDEO_AVC,
                 quality.width,
                 quality.height,
             )
-            format.setByteBuffer("csd-0", ByteBuffer.wrap(header.sps + header.pps))
+            format.setByteBuffer("csd-0", ByteBuffer.wrap(parsed.sps + parsed.pps))
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 2 * 1024 * 1024)
             decoder.configure(format, surface, null, 0)
             decoder.start()
             codec = decoder
+            Log.d(TAG, "decoder started ${quality.width}x${quality.height}")
             val queue = Channel<ByteArray>(48)
-            queue.trySend(header.firstIdr)
+            // Some TV decoders only emit output after they see a second access
+            // unit. Re-sending the first IDR is harmless (same picture) and makes
+            // the first frame appear even when the TV screen is static.
+            queue.trySend(parsed.firstIdr)
+            queue.trySend(parsed.firstIdr)
             decoderJob = CoroutineScope(Dispatchers.Default).launch {
                 try {
                     decodeLoop(decoder, queue)
@@ -125,6 +155,7 @@ internal class MirrorStream(
     private suspend fun decodeLoop(decoder: MediaCodec, queue: Channel<ByteArray>) {
         val info = MediaCodec.BufferInfo()
         var ptsUs = 0L
+        var outputs = 0
         while (currentCoroutineContext().isActive) {
             var worked = false
             val nal = queue.tryReceive().getOrNull()
@@ -145,6 +176,10 @@ internal class MirrorStream(
             var outputIndex = decoder.dequeueOutputBuffer(info, 0)
             while (outputIndex >= 0) {
                 decoder.releaseOutputBuffer(outputIndex, true)
+                outputs++
+                if (outputs == 1) {
+                    Log.d(TAG, "decoded first frame (size=${info.size})")
+                }
                 onFrame()
                 worked = true
                 outputIndex = decoder.dequeueOutputBuffer(info, 0)
@@ -178,13 +213,20 @@ internal class MirrorStream(
         val pps: ByteArray,
         val firstIdr: ByteArray,
     )
+
+    private companion object {
+        const val TAG = "H264Mirror"
+    }
 }
 
 /**
  * Splits an Annex-B H.264 stream into NAL units, each normalised to a
  * four-byte start code. Reads through a buffered stream, so it is cheap.
  */
-internal class H264NalReader(input: InputStream) {
+internal class H264NalReader(
+    input: InputStream,
+    private val stripCr: Boolean = false,
+) {
 
     private val stream = BufferedInputStream(input, 64 * 1024)
     private val current = ByteArrayOutputStream()
@@ -201,6 +243,9 @@ internal class H264NalReader(input: InputStream) {
                 zeros = 0
                 return last
             }
+            // A PTY shell stream inserts CR before every LF. Strip those bytes so
+            // the fallback path does not feed corrupted NALs to MediaCodec.
+            if (stripCr && b == 13) continue
             if (b == 0) {
                 zeros++
                 if (started) current.write(0)

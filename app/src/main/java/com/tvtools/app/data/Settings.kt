@@ -3,6 +3,7 @@ package com.tvtools.app.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,10 +30,32 @@ enum class Accent(val label: String) {
 enum class HapticStrength(val label: String) { LIGHT("Light"), MEDIUM("Medium"), STRONG("Strong") }
 
 enum class RemoteSkin(val label: String) {
-    CLASSIC("Classic"),
+    CLASSIC("Classic remote"),
     CIRCULAR("Circular"),
     MINIMAL("Minimal"),
     GAMEPAD("Gamepad-first"),
+    GLASS("Glass"),
+    NEON("Neon"),
+    MEDIA("Media first"),
+}
+
+enum class UiDensity(val label: String, val scale: Float) {
+    COMPACT("Compact", 0.9f),
+    COMFORTABLE("Comfortable", 1f),
+    SPACIOUS("Spacious", 1.1f),
+}
+
+enum class SoundPack(val label: String) {
+    SOFT("Soft"),
+    MECHANICAL("Mechanical"),
+    TV_BEEP("TV beep"),
+}
+
+enum class ColorBlindMode(val label: String) {
+    OFF("Off"),
+    DEUTERANOPIA("Deuteranopia"),
+    PROTANOPIA("Protanopia"),
+    TRITANOPIA("Tritanopia"),
 }
 
 data class AppSettings(
@@ -55,6 +78,15 @@ data class AppSettings(
     val automationScreenshot: Boolean = false,
     /** How many screenshots to keep in the local gallery. 0 = unlimited. */
     val screenshotLimit: Int = 25,
+    val uiDensity: UiDensity = UiDensity.COMFORTABLE,
+    /** Multiplier for font scaling, 0.8–2.0. */
+    val fontScale: Float = 1f,
+    val highContrast: Boolean = false,
+    val colorBlind: ColorBlindMode = ColorBlindMode.OFF,
+    val reducedMotion: Boolean = false,
+    val expressiveShapes: Boolean = true,
+    val soundPack: SoundPack = SoundPack.SOFT,
+    val kidsTheme: Boolean = false,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -77,6 +109,14 @@ class SettingsRepository(private val context: Context) {
     private val KEY_GUEST = booleanPreferencesKey("guest_mode")
     private val KEY_BUBBLE = booleanPreferencesKey("overlay_bubble")
     private val KEY_SHOT_LIMIT = androidx.datastore.preferences.core.intPreferencesKey("screenshot_limit")
+    private val KEY_DENSITY = stringPreferencesKey("ui_density")
+    private val KEY_FONT_SCALE = floatPreferencesKey("font_scale")
+    private val KEY_CONTRAST = booleanPreferencesKey("high_contrast")
+    private val KEY_COLOR_BLIND = stringPreferencesKey("color_blind")
+    private val KEY_REDUCED_MOTION = booleanPreferencesKey("reduced_motion")
+    private val KEY_EXPRESSIVE = booleanPreferencesKey("expressive_shapes")
+    private val KEY_SOUND_PACK = stringPreferencesKey("sound_pack")
+    private val KEY_KIDS_THEME = booleanPreferencesKey("kids_theme")
 
     private val _state = MutableStateFlow(AppSettings())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
@@ -109,6 +149,17 @@ class SettingsRepository(private val context: Context) {
                 guestMode = p[KEY_GUEST] ?: false,
                 bubble = p[KEY_BUBBLE] ?: false,
                 screenshotLimit = p[KEY_SHOT_LIMIT] ?: 25,
+                uiDensity = runCatching { UiDensity.valueOf(p[KEY_DENSITY] ?: "COMFORTABLE") }
+                    .getOrDefault(UiDensity.COMFORTABLE),
+                fontScale = (p[KEY_FONT_SCALE] ?: 1f).coerceIn(0.8f, 2f),
+                highContrast = p[KEY_CONTRAST] ?: false,
+                colorBlind = runCatching { ColorBlindMode.valueOf(p[KEY_COLOR_BLIND] ?: "OFF") }
+                    .getOrDefault(ColorBlindMode.OFF),
+                reducedMotion = p[KEY_REDUCED_MOTION] ?: false,
+                expressiveShapes = p[KEY_EXPRESSIVE] ?: true,
+                soundPack = runCatching { SoundPack.valueOf(p[KEY_SOUND_PACK] ?: "SOFT") }
+                    .getOrDefault(SoundPack.SOFT),
+                kidsTheme = p[KEY_KIDS_THEME] ?: false,
             )
             if (_state.value.wakeEnabled) {
                 AutomationScheduler.setWake(true, _state.value.wakeMinutes)
@@ -218,6 +269,106 @@ class SettingsRepository(private val context: Context) {
         scope.launch {
             context.settingsStore.edit { it[KEY_SHOT_LIMIT] = safe }
             if (safe > 0) ScreenshotStore.prune(context, safe)
+        }
+    }
+
+    // ---------------- typography, contrast, motion, feedback ----------------
+
+    fun setUiDensity(density: UiDensity) {
+        _state.value = _state.value.copy(uiDensity = density)
+        scope.launch { context.settingsStore.edit { it[KEY_DENSITY] = density.name } }
+    }
+
+    fun setFontScale(scale: Float) {
+        val safe = scale.coerceIn(0.8f, 2f)
+        _state.value = _state.value.copy(fontScale = safe)
+        scope.launch { context.settingsStore.edit { it[KEY_FONT_SCALE] = safe } }
+    }
+
+    fun setHighContrast(enabled: Boolean) {
+        _state.value = _state.value.copy(highContrast = enabled)
+        scope.launch { context.settingsStore.edit { it[KEY_CONTRAST] = enabled } }
+    }
+
+    fun setColorBlind(mode: ColorBlindMode) {
+        _state.value = _state.value.copy(colorBlind = mode)
+        scope.launch { context.settingsStore.edit { it[KEY_COLOR_BLIND] = mode.name } }
+    }
+
+    fun setReducedMotion(enabled: Boolean) {
+        _state.value = _state.value.copy(reducedMotion = enabled)
+        scope.launch { context.settingsStore.edit { it[KEY_REDUCED_MOTION] = enabled } }
+    }
+
+    fun setExpressiveShapes(enabled: Boolean) {
+        _state.value = _state.value.copy(expressiveShapes = enabled)
+        scope.launch { context.settingsStore.edit { it[KEY_EXPRESSIVE] = enabled } }
+    }
+
+    fun setSoundPack(pack: SoundPack) {
+        _state.value = _state.value.copy(soundPack = pack)
+        scope.launch { context.settingsStore.edit { it[KEY_SOUND_PACK] = pack.name } }
+    }
+
+    fun setKidsTheme(enabled: Boolean) {
+        _state.value = _state.value.copy(
+            kidsTheme = enabled,
+            guestMode = enabled,
+            accent = if (enabled) Accent.ORANGE else _state.value.accent,
+            fontScale = if (enabled) _state.value.fontScale.coerceAtLeast(1.15f) else _state.value.fontScale,
+            expressiveShapes = if (enabled) true else _state.value.expressiveShapes,
+        )
+        scope.launch {
+            context.settingsStore.edit {
+                it[KEY_KIDS_THEME] = enabled
+                it[KEY_GUEST] = enabled
+                if (enabled) {
+                    it[KEY_ACCENT] = Accent.ORANGE.name
+                    it[KEY_FONT_SCALE] = _state.value.fontScale
+                    it[KEY_EXPRESSIVE] = true
+                }
+            }
+        }
+    }
+
+    // ---------------- per-TV look ----------------
+
+    fun currentProfile(): DeviceProfile = DeviceProfile.from(_state.value)
+
+    /** Apply a saved per-TV look and persist it as the live look. */
+    fun applyProfile(profile: DeviceProfile) {
+        val state = _state.value.copy(
+            accent = profile.accent,
+            themeMode = profile.themeMode,
+            remoteSkin = profile.remoteSkin,
+            fontScale = profile.fontScale,
+            uiDensity = profile.density,
+            highContrast = profile.highContrast,
+            colorBlind = profile.colorBlind,
+            reducedMotion = profile.reducedMotion,
+            expressiveShapes = profile.expressiveShapes,
+            soundPack = profile.soundPack,
+            hapticStrength = profile.hapticStrength,
+            kidsTheme = profile.kidsTheme,
+            guestMode = profile.kidsTheme || _state.value.guestMode,
+        )
+        _state.value = state
+        scope.launch {
+            context.settingsStore.edit {
+                it[KEY_ACCENT] = state.accent.name
+                it[KEY_MODE] = state.themeMode.name
+                it[KEY_SKIN] = state.remoteSkin.name
+                it[KEY_FONT_SCALE] = state.fontScale
+                it[KEY_DENSITY] = state.uiDensity.name
+                it[KEY_CONTRAST] = state.highContrast
+                it[KEY_COLOR_BLIND] = state.colorBlind.name
+                it[KEY_REDUCED_MOTION] = state.reducedMotion
+                it[KEY_EXPRESSIVE] = state.expressiveShapes
+                it[KEY_SOUND_PACK] = state.soundPack.name
+                it[KEY_HAPTIC_STRENGTH] = state.hapticStrength.name
+                it[KEY_KIDS_THEME] = state.kidsTheme
+                it[KEY_GUEST] = state.guestMode
+            }
         }
     }
 }
