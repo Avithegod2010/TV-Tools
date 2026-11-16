@@ -59,6 +59,7 @@ class MirrorViewModel : ViewModel() {
     /** Called by the TextureView when its output surface is created/destroyed. */
     fun setSurface(newSurface: Surface?) {
         if (surface === newSurface) return
+        Log.e(TAG, "setSurface available=${newSurface != null} running=$wantRunning")
         if (newSurface == null) {
             fastJob?.cancel()
             fastJob = null
@@ -74,17 +75,16 @@ class MirrorViewModel : ViewModel() {
     fun start() {
         wantRunning = true
         fetchScreenSize()
+        Log.e(TAG, "start surface=${surface != null} fast=${_ui.value.fastMode}")
         if (!_ui.value.running) {
             _ui.value = _ui.value.copy(running = true, error = null)
         }
         if (surface != null) {
             startFast()
         } else {
+            // Keep the TextureView composed until its SurfaceTexture arrives;
+            // switching to screencap here would throw the fast path away.
             _ui.value = _ui.value.copy(fastMode = true, hasFrame = false)
-            viewModelScope.launch {
-                delay(2_500)
-                if (wantRunning && surface == null && fastJob == null) startSlow()
-            }
         }
     }
 
@@ -127,7 +127,7 @@ class MirrorViewModel : ViewModel() {
         if (fastJob?.isActive == true) return
         slowJob?.cancel()
         slowJob = null
-        Log.d(TAG, "startFast quality=${_ui.value.quality.label}")
+        Log.e(TAG, "startFast quality=${_ui.value.quality.label}")
         _ui.value = _ui.value.copy(
             running = true,
             fastMode = true,
@@ -158,7 +158,7 @@ class MirrorViewModel : ViewModel() {
                         }
                     },
                     onError = { message ->
-                        Log.w(TAG, "fast mirror error: $message")
+                        Log.e(TAG, "fast mirror error: $message")
                         if (wantRunning) {
                             _ui.value = _ui.value.copy(
                                 fastMode = false,
@@ -184,7 +184,7 @@ class MirrorViewModel : ViewModel() {
         viewModelScope.launch {
             delay(15_000)
             if (wantRunning && _ui.value.fastMode && !_ui.value.hasFrame) {
-                Log.w(TAG, "fast mirror produced no frame in 15s; falling back")
+                Log.e(TAG, "fast mirror produced no frame in 15s; falling back")
                 _ui.value = _ui.value.copy(
                     fastMode = false,
                     error = "Fast mirror did not start; using snapshots",
@@ -196,7 +196,7 @@ class MirrorViewModel : ViewModel() {
 
     private fun startSlow(preserveError: Boolean = false) {
         if (slowJob?.isActive == true) return
-        Log.d(TAG, "startSlow preserveError=$preserveError")
+        Log.e(TAG, "startSlow preserveError=$preserveError")
         _ui.value = _ui.value.copy(
             running = true,
             fastMode = false,

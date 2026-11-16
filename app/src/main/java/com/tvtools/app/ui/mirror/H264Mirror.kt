@@ -58,14 +58,14 @@ internal class MirrorStream(
                 "--size ${quality.width}x${quality.height} " +
                 "--bit-rate ${quality.bitRate} --time-limit 180 -"
             var s = runCatching {
-                Log.d(TAG, "opening exec stream")
+                Log.e(TAG, "opening exec stream")
                 adb.openExecStream(command)
             }.getOrElse {
-                Log.w(TAG, "exec stream failed (${it.message}); trying shell")
+                Log.e(TAG, "exec stream failed (${it.message}); trying shell")
                 adb.openCommandStream(command)
             }
             stream = s
-            Log.d(TAG, "stream open, reading header")
+            Log.e(TAG, "stream open, reading header")
             var reader = H264NalReader(s.openInputStream())
             var header = withTimeoutOrNull(7_000) {
                 withContext(Dispatchers.IO) { readHeader(reader) }
@@ -73,7 +73,7 @@ internal class MirrorStream(
             if (header == null) {
                 // Some ADB builds accept `exec:` but cannot run screenrecord
                 // through it. Retry the PTY shell path before giving up.
-                Log.w(TAG, "no header on first stream; retrying shell")
+                Log.e(TAG, "no header on first stream; retrying shell")
                 runCatching { s.close() }
                 s = adb.openCommandStream(command)
                 stream = s
@@ -83,7 +83,7 @@ internal class MirrorStream(
                 }
             }
             val parsed = header ?: throw IOException("No H.264 header (screenrecord unavailable)")
-            Log.d(
+            Log.e(
                 TAG,
                 "header sps=${parsed.sps.size} pps=${parsed.pps.size} idr=${parsed.firstIdr.size}",
             )
@@ -98,7 +98,7 @@ internal class MirrorStream(
             decoder.configure(format, surface, null, 0)
             decoder.start()
             codec = decoder
-            Log.d(TAG, "decoder started ${quality.width}x${quality.height}")
+            Log.e(TAG, "decoder started ${quality.width}x${quality.height}")
             val queue = Channel<ByteArray>(48)
             // Some TV decoders only emit output after they see a second access
             // unit. Re-sending the first IDR is harmless (same picture) and makes
@@ -178,7 +178,7 @@ internal class MirrorStream(
                 decoder.releaseOutputBuffer(outputIndex, true)
                 outputs++
                 if (outputs == 1) {
-                    Log.d(TAG, "decoded first frame (size=${info.size})")
+                    Log.e(TAG, "decoded first frame (size=${info.size})")
                 }
                 onFrame()
                 worked = true
