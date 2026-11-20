@@ -2,33 +2,33 @@
 
 <h1>TV Tools</h1>
 
-<strong>Use your Android phone as a remote for your TV.</strong>
+<p><strong>Turn your Android phone into a remote for your TV.</strong></p>
 
-Android TV · Google TV · Xiaomi TV · Fire TV
+<p><strong><a href="https://github.com/Avithegod2010/TV-Tools/releases/download/v1.8.1/TV-Tools-v1.8.1-release.apk">⬇️ Download APK v1.8.1</a></strong> · <a href="#pair-your-tv">📡 Pair your TV</a> · <a href="#screenshots">🎮 See the remote</a> · <a href="https://github.com/Avithegod2010/TV-Tools/releases/tag/v1.8.1">Release notes</a></p>
 
-<p>
-  <strong><a href="https://github.com/Avithegod2010/TV-Tools/releases/download/v1.8.1/TV-Tools-v1.8.1-release.apk">Download APK v1.8.1</a></strong> ·
-  <a href="#pair-your-tv">Pair your TV</a> ·
-  <a href="#screenshots">Screenshots</a> ·
-  <a href="https://github.com/Avithegod2010/TV-Tools/releases/tag/v1.8.1">Release notes</a>
-</p>
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="readme-hero.png" />
+  <img src="readme-hero.gif" width="820" alt="An illustrated D-pad remote moves the selection across a television screen" />
+</picture>
 
-<sub>Android 8.0 or newer · Same Wi-Fi network as your TV · No root or account required</sub>
+<p><sub>Android 8.0+ · Android TV, Google TV, Xiaomi TV and Fire TV · Same Wi-Fi network · No root or account</sub></p>
 
 </div>
 
 <a name="-screenshots"></a>
 <a name="explore-the-app"></a>
 
-## Screenshots
+<a name="screenshots"></a>
+
+## 🎮 Screenshots
 
 <p align="center">
-  <a href="docs/screenshots/01-home.png"><img src="docs/screenshots/01-home.png" width="26%" alt="TV discovery and pairing dashboard" /></a>
-  <a href="docs/screenshots/03-remote.png"><img src="docs/screenshots/03-remote.png" width="29%" alt="D-pad remote with navigation and playback controls" /></a>
-  <a href="docs/screenshots/02-tools.png"><img src="docs/screenshots/02-tools.png" width="26%" alt="Quick tools for apps, file transfers and screen mirroring" /></a>
+  <a href="docs/screenshots/03-remote.png"><img src="docs/screenshots/03-remote.png" width="32%" alt="D-pad remote with navigation and playback controls" /></a>
+  <a href="docs/screenshots/01-home.png"><img src="docs/screenshots/01-home.png" width="25%" alt="TV discovery and pairing dashboard" /></a>
+  <a href="docs/screenshots/02-tools.png"><img src="docs/screenshots/02-tools.png" width="25%" alt="Quick tools for apps, file transfers and screen mirroring" /></a>
 </p>
 
-<p align="center"><sub>Find your TV · Use the remote · Manage apps and files</sub></p>
+<p align="center"><sub>Remote controls · Discover and pair · Apps and files</sub></p>
 
 <details>
 <summary>See 10 more screenshots</summary>
@@ -59,19 +59,23 @@ Android TV · Google TV · Xiaomi TV · Fire TV
 
 <a name="-features"></a>
 
-## What you can do
+<a name="what-you-can-do"></a>
 
-- **Control your TV.** Use a D-pad, touchpad or keyboard from your phone.
-- **Manage apps and files.** Install APKs, back up TV apps and move files over Wi-Fi.
-- **Mirror the screen.** View the TV on your phone and tap or swipe to control it.
-- **Manage multiple TVs.** Group devices by room, send remote commands to a group and schedule Wake-on-LAN.
+## 📺 What you can do
+
+| 🎮 Remote controls | 📦 Apps and files | 📺 Screen and rooms |
+| --- | --- | --- |
+| Use a D-pad, touchpad or keyboard from your phone. | Install APKs, back up TV apps and move files over Wi-Fi. | Mirror the screen with tap and swipe controls, or group TVs by room. Send remote commands to a group and schedule Wake-on-LAN. |
 
 <a name="-install"></a>
 <a name="-enable-adb-on-your-tv"></a>
 
-## Pair your TV
+<a name="pair-your-tv"></a>
 
-Install the signed APK on your **Android phone** and connect your phone and TV to the same Wi-Fi network.
+## 📡 Pair your TV
+
+> [!TIP]
+> Install the signed APK on your **Android phone** and connect your phone and TV to the same Wi-Fi network.
 
 ### Android TV, Google TV and Xiaomi TV
 
@@ -87,13 +91,17 @@ Install the signed APK on your **Android phone** and connect your phone and TV t
 
 <a name="-privacy--security"></a>
 
-## Privacy and security
+<a name="privacy-and-security"></a>
+
+## 🔒 Privacy and security
 
 TV Tools talks to your TV over your local network. The ADB key stays on your phone, and the app uses no analytics or cloud account. Enable debugging only on TVs you trust. [Security policy](SECURITY.md)
 
 <a name="-build-from-source"></a>
 
-## Build from source
+<a name="build-from-source"></a>
+
+## 🛠️ Build from source
 
 <details>
 <summary>Debug build instructions</summary>
