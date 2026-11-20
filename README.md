@@ -1,25 +1,23 @@
-<div align="center">
-  <img src="assets/banner.svg" alt="TV Tools — Your TV, in your pocket." width="100%" />
+# TV Tools
 
-  <h1>TV Tools</h1>
+Use your Android phone as a remote for Android TV, Google TV, Xiaomi TV or Fire TV. Pair over Wi‑Fi, then control the TV, install apps and browse its files.
 
-  <p>
-    <b>Manage your Android TV, Google TV, Xiaomi TV or Amazon Fire TV — wirelessly, from your phone.</b><br/>
-    Install apps, browse files, mirror the screen, run shell commands and use a modern remote.
-    No root. No accounts. No cloud.
-  </p>
+**[Download APK v1.8.1](https://github.com/Avithegod2010/TV-Tools/releases/download/v1.8.1/TV-Tools-v1.8.1-release.apk)** · [Release notes](https://github.com/Avithegod2010/TV-Tools/releases/tag/v1.8.1) · [TV setup](#-enable-adb-on-your-tv)
 
-  <p>
+| Pair a TV | Control it | Manage apps and files |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/01-home.png" width="225" alt="TV dashboard for connecting and pairing" /> | <img src="docs/screenshots/03-remote.png" width="225" alt="D-pad remote with TV navigation and playback controls" /> | <img src="docs/screenshots/02-tools.png" width="225" alt="TV tools for installing apps and working with files" /> |
+
+No root, account or cloud required. [See all 13 screenshots](#-screenshots).
+
+<p>
     <img src="https://img.shields.io/badge/Platform-Android%208.0%2B-3ddc84?logo=android&logoColor=white" alt="Platform" />
     <img src="https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
     <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285f4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
     <img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT License" />
-    <img src="https://img.shields.io/badge/Version-1.9.0-166d32" alt="Version" />
+    <img src="https://img.shields.io/badge/APK-1.8.1-166d32" alt="Published APK v1.8.1" />
     <img src="https://github.com/Avithegod2010/TV-Tools/actions/workflows/android.yml/badge.svg" alt="CI" />
   </p>
-</div>
-
----
 
 ## ✨ Features
 
