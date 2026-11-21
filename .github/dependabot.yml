@@ -36,6 +36,11 @@ updates:
       # toolchain migration happens as one reviewed change.
       - dependency-name: "gradle-wrapper"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # kotlinx-coroutines >=1.10 is compiled with Kotlin 2.1/2.2 metadata; this
+      # project compiles with Kotlin 2.0.21 and fails with "Module was compiled
+      # with an incompatible version of Kotlin ... metadata is 2.2.0".
+      - dependency-name: "org.jetbrains.kotlinx:kotlinx-coroutines-android"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # androidx releases increasingly require compileSdk 36/37 or AGP 9.1+. This
       # project builds against compileSdk 35 / AGP 8.7.3, so only patch updates are
       # safe to auto-propose; minor+major androidx bumps go through the toolchain
