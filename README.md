@@ -6,11 +6,6 @@
 
 <p><strong><a href="https://github.com/Avithegod2010/TV-Tools/releases/download/v1.8.1/TV-Tools-v1.8.1-release.apk">⬇️ Download APK v1.8.1</a></strong> · <a href="#pair-your-tv">📡 Pair your TV</a> · <a href="#screenshots">🎮 See the remote</a> · <a href="https://github.com/Avithegod2010/TV-Tools/releases/tag/v1.8.1">Release notes</a></p>
 
-<picture>
-  <source media="(prefers-reduced-motion: reduce)" srcset="readme-hero.png" />
-  <img src="readme-hero.gif" width="820" alt="An illustrated D-pad remote moves the selection across a television screen" />
-</picture>
-
 <p><sub>Android 8.0+ · Android TV, Google TV, Xiaomi TV and Fire TV · Same Wi-Fi network · No root or account</sub></p>
 
 </div>
@@ -23,10 +18,20 @@
 ## 🎮 Screenshots
 
 <p align="center">
-  <a href="docs/screenshots/03-remote.png"><img src="docs/screenshots/03-remote.png" width="32%" alt="D-pad remote with navigation and playback controls" /></a>
-  <a href="docs/screenshots/01-home.png"><img src="docs/screenshots/01-home.png" width="25%" alt="TV discovery and pairing dashboard" /></a>
-  <a href="docs/screenshots/02-tools.png"><img src="docs/screenshots/02-tools.png" width="25%" alt="Quick tools for apps, file transfers and screen mirroring" /></a>
+  <a href="docs/screenshots/03-remote.png"><img src="docs/screenshots/03-remote.png" width="42%" alt="D-pad remote with navigation and playback controls" /></a>
+  <a href="docs/screenshots/01-home.png"><img src="docs/screenshots/01-home.png" width="24%" alt="TV discovery and pairing dashboard" /></a>
+  <a href="docs/screenshots/02-tools.png"><img src="docs/screenshots/02-tools.png" width="24%" alt="Quick tools for apps, file transfers and screen mirroring" /></a>
 </p>
+
+<details>
+<summary>Project illustration</summary>
+
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="readme-hero.png" />
+  <img src="readme-hero.gif" width="820" alt="An illustrated D-pad remote moves the selection across a television screen" />
+</picture>
+
+</details>
 
 <p align="center"><sub>Remote controls · Discover and pair · Apps and files</sub></p>
 
