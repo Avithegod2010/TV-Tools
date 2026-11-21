@@ -87,7 +87,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
-    implementation("com.github.mwiede:jsch:0.2.17")
+    implementation("com.github.mwiede:jsch:2.28.8")
     implementation("com.google.zxing:core:3.5.4")
 
     implementation("androidx.compose.ui:ui")
