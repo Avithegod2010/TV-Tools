@@ -27,11 +27,15 @@ updates:
       - dependency-name: "com.android.tools.build:gradle"
         update-types: ["version-update:semver-major"]
       - dependency-name: "org.jetbrains.kotlin*"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # The plugin id is a separate dependency from the artifact above; without
       # this entry Dependabot proposes AGP 9.x, which needs Gradle 9 + compileSdk 37.
       - dependency-name: "com.android.application"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Kotlin 2.4 removed the `kotlinOptions { jvmTarget = "..." }` DSL this
+      # build still uses ("Using 'jvmTarget: String' is an error"), so the two
+      # Kotlin plugins must move together with AGP and Gradle, after that
+      # migration. Patch releases still flow.
       # Gradle 9 is only supported by AGP 9. The wrapper stays on 8.9 until the
       # toolchain migration happens as one reviewed change.
       - dependency-name: "gradle-wrapper"
