@@ -28,6 +28,20 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "org.jetbrains.kotlin*"
         update-types: ["version-update:semver-major"]
+      # The plugin id is a separate dependency from the artifact above; without
+      # this entry Dependabot proposes AGP 9.x, which needs Gradle 9 + compileSdk 37.
+      - dependency-name: "com.android.application"
+        update-types: ["version-update:semver-major"]
+      # Gradle 9 is only supported by AGP 9. The wrapper stays on 8.9 until the
+      # toolchain migration happens as one reviewed change.
+      - dependency-name: "gradle-wrapper"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # androidx releases increasingly require compileSdk 36/37 or AGP 9.1+. This
+      # project builds against compileSdk 35 / AGP 8.7.3, so only patch updates are
+      # safe to auto-propose; minor+major androidx bumps go through the toolchain
+      # migration branch where the release build is verified.
+      - dependency-name: "androidx.*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   - package-ecosystem: github-actions
     directory: "/"
