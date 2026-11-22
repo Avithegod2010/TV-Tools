@@ -82,6 +82,7 @@ class ShareFileNameTest {
     @Test
     fun `generated name is itself safe`() {
         assertTrue(ShareFileNames.isSafe(fallback))
+        assertFalse(ShareFileNames.isSafe("   "))
         assertFalse(ShareFileNames.isSafe("has/slash"))
     }
 }

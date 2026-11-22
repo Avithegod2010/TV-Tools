@@ -22,7 +22,7 @@ object ShareFileNames {
     }
 
     fun isSafe(name: String): Boolean =
-        name.isNotEmpty() &&
+        name.isNotBlank() &&
             name.length <= MAX_NAME_LENGTH &&
             !name.startsWith(".") &&
             !name.contains('/') &&
