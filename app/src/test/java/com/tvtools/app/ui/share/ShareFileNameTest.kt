@@ -47,7 +47,7 @@ class ShareFileNameTest {
             "TV Tools.apk",
             "song name.mp3",
         ).forEach { name ->
-            assertEquals(name, name, ShareFileNames.sanitize(name, fallback))
+            assertEquals("preserved: $name", name, ShareFileNames.sanitize(name, fallback))
         }
     }
 
