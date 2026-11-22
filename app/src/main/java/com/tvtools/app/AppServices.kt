@@ -10,6 +10,14 @@ import com.tvtools.app.data.Prefs
 import com.tvtools.app.data.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 
+/** A file an external app shared into TV Tools, with the sender's name already sanitised. */
+data class PendingShare(
+    val uri: Uri,
+    val mime: String?,
+    val displayName: String,
+    val size: Long,
+)
+
 /** Simple service locator — one place that owns long-lived singletons. */
 object AppServices {
 
@@ -26,8 +34,8 @@ object AppServices {
     lateinit var playback: PlaybackController
         private set
 
-    /** Incoming Android share-sheet payload (uri + mime). */
-    val pendingShare = MutableStateFlow<Pair<Uri, String?>?>(null)
+    /** Incoming Android share-sheet payload (uri + mime + sender-supplied name, already sanitised). */
+    val pendingShare = MutableStateFlow<PendingShare?>(null)
 
     fun init(context: Context) {
         if (::adb.isInitialized) return
