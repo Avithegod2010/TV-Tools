@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-Android-12 Auto Backup / adb backup rules. Kept in step with data_extraction_rules.xml. -->
+<full-backup-content>
+    <!-- ADB identity private key: already paired TVs trust this key with no further prompt. -->
+    <exclude domain="file" path="adbkeys/" />
+    <!-- Per-install widget broadcast token. -->
+    <exclude domain="file" path="widget_token" />
+    <!-- TV screenshots and local crash diagnostics. -->
+    <exclude domain="file" path="screenshots/" />
+    <exclude domain="file" path="diagnostics/" />
+</full-backup-content>

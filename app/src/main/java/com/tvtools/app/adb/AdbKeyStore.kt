@@ -31,7 +31,10 @@ import java.util.Random
  * Generates and persists the RSA key pair + self-signed certificate used to
  * authenticate this app to ADB daemons (the "ADB public key").
  */
-class AdbKeyStore(context: Context) {
+class AdbKeyStore(
+    context: Context,
+    private val protector: AdbKeyProtector = KeystoreKeyProtector(),
+) {
 
     private val keyDir = File(context.filesDir, "adbkeys")
     private val privFile = File(keyDir, "adb_key.pk8")
@@ -43,7 +46,7 @@ class AdbKeyStore(context: Context) {
     init {
         val loaded: Pair<KeyPair, Certificate>? = if (privFile.exists() && certFile.exists()) {
             try {
-                val privBytes = privFile.readBytes()
+                val privBytes = AdbKeyFile.readOrMigrate(privFile, protector)
                 val privateKey = KeyFactory.getInstance("RSA")
                     .generatePrivate(PKCS8EncodedKeySpec(privBytes))
                 val cert = CertificateFactory.getInstance("X.509")
@@ -94,7 +97,7 @@ class AdbKeyStore(context: Context) {
         val cert = X509CertImpl(info)
         cert.sign(kp.private, algorithmName)
 
-        privFile.writeBytes(kp.private.encoded)
+        AdbKeyFile.write(privFile, kp.private.encoded, protector)
         certFile.writeBytes(cert.encoded)
 
         return KeyPair(kp.public, kp.private) to cert
