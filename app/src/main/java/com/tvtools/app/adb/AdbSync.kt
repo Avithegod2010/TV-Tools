@@ -12,7 +12,7 @@ import java.io.OutputStream
 
 /**
  * Minimal implementation of the ADB `sync:` protocol (v1) on top of an [AdbStream].
- * Supports LIST / STAT / RECV / SEND — enough for a full file manager.
+ * Supports LIST / RECV / SEND — enough for a full file manager.
  *
  * Protocol notes (all integers little-endian):
  *  - Request : [id:4][length:4][payload]
@@ -31,11 +31,6 @@ class AdbSync(private val stream: AdbStream) {
         val size: Long,
         val mtime: Long,
     ) {
-        val isDirectory: Boolean get() = (mode and S_IFMT) == S_IFDIR
-    }
-
-    data class Stat(val mode: Int, val size: Long, val mtime: Long) {
-        val exists: Boolean get() = mode != 0
         val isDirectory: Boolean get() = (mode and S_IFMT) == S_IFDIR
     }
 
@@ -59,21 +54,6 @@ class AdbSync(private val stream: AdbStream) {
             entries.add(RemoteEntry(name, mode, size.toLong() and 0xFFFFFFFFL, mtime.toLong() and 0xFFFFFFFFL))
         }
         return entries
-    }
-
-    // ---------------- STAT ----------------
-
-    fun stat(path: String): Stat {
-        sendRequest(ID_STAT, path)
-        val id = readId()
-        if (id != ID_STAT) {
-            if (id == ID_FAIL) throw IOException("stat failed: ${readFailMessage()}")
-            throw IOException("Unexpected sync response: ${idString(id)}")
-        }
-        val mode = readIntLe()
-        val size = readIntLe()
-        val mtime = readIntLe()
-        return Stat(mode, size.toLong() and 0xFFFFFFFFL, mtime.toLong() and 0xFFFFFFFFL)
     }
 
     // ---------------- RECV (pull) ----------------
@@ -207,7 +187,6 @@ class AdbSync(private val stream: AdbStream) {
         private fun idOf(s: String): Int =
             (s[0].code) or (s[1].code shl 8) or (s[2].code shl 16) or (s[3].code shl 24)
 
-        private val ID_STAT = idOf("STAT")
         private val ID_LIST = idOf("LIST")
         private val ID_SEND = idOf("SEND")
         private val ID_RECV = idOf("RECV")
