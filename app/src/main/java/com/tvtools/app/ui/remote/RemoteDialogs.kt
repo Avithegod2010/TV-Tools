@@ -950,11 +950,3 @@ internal fun PowerRow(label: String, onClick: () -> Unit) {
         Text(label, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
     }
 }
-
-/** Small loading overlay used when switching modes. */
-@Composable
-internal fun RemoteLoading() {
-    Box(Modifier.size(260.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
-    }
-}
