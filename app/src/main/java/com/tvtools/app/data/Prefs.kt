@@ -40,10 +40,6 @@ class Prefs(private val context: Context) {
         )
     }
 
-    suspend fun clearLastDevice() {
-        context.dataStore.edit { it.clear() }
-    }
-
     /** TV Wi-Fi MAC, used for Wake-on-LAN when the TV is fully off. */
     suspend fun saveLastMac(mac: String) {
         context.dataStore.edit { it[KEY_MAC] = mac }

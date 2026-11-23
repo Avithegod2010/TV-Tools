@@ -245,7 +245,6 @@ class MediaHttpServer(private val file: File) {
 fun CastScreen(onBack: () -> Unit, vm: CastViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val ui by vm.ui.collectAsState()
     val context = LocalContext.current
-    var pickerOpen by remember { mutableStateOf(false) }
     var pendingUri by remember { mutableStateOf<Uri?>(null) }
     val picker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.GetContent()

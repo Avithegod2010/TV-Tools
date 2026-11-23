@@ -477,10 +477,4 @@ class AppsViewModel : ViewModel() {
         withContext(Dispatchers.IO) { adb.pullFile(app.apkPath, out) }
         "✅ Saved: ${out.absolutePath}"
     }
-
-    fun apkFileFor(app: TvApp): File {
-        val dir = File(context.getExternalFilesDir(null), "apks").apply { mkdirs() }
-        val safeName = (app.label ?: app.packageName).replace(Regex("[^A-Za-z0-9._-]"), "_")
-        return File(dir, "$safeName.apk")
-    }
 }
