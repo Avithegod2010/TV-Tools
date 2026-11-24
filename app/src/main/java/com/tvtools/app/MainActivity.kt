@@ -47,6 +47,7 @@ import com.tvtools.app.ui.labs.UsersScreen
 import com.tvtools.app.ui.mirror.MirrorScreen
 import com.tvtools.app.ui.music.MusicScreen
 import com.tvtools.app.ui.onboarding.OnboardingScreen
+import com.tvtools.app.ui.share.ShareFileNames
 import com.tvtools.app.ui.share.ShareToTvDialog
 import com.tvtools.app.ui.storage.StorageScreen
 import com.tvtools.app.ui.theme.TvToolsTheme
@@ -142,8 +143,33 @@ class MainActivity : ComponentActivity() {
         // Some apps put the file in the intent data instead of EXTRA_STREAM.
         val uri = extra ?: intent.data
         if (uri != null) {
-            AppServices.pendingShare.value = uri to intent.type
+            val (senderName, size) = queryShareMeta(uri)
+            val name = ShareFileNames.sanitize(
+                senderName,
+                ShareFileNames.generatedName(System.currentTimeMillis()),
+            )
+            AppServices.pendingShare.value = PendingShare(uri, intent.type, name, size)
         }
+    }
+
+    /**
+     * Reads the sender's DISPLAY_NAME/SIZE. The name is untrusted: it is only ever a hint and is
+     * validated by [ShareFileNames.sanitize] before becoming a path.
+     */
+    private fun queryShareMeta(uri: Uri): Pair<String?, Long> {
+        var name: String? = null
+        var size = 0L
+        runCatching {
+            contentResolver.query(uri, null, null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val ni = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    val si = c.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                    if (ni >= 0) name = c.getString(ni)
+                    if (si >= 0) size = c.getLong(si)
+                }
+            }
+        }
+        return name to size
     }
 
 }
@@ -267,10 +293,9 @@ private fun AppNav() {
     }
     } // SharedTransitionLayout
 
-    pendingShare?.let { (uri, mime) ->
+    pendingShare?.let { share ->
         ShareToTvDialog(
-            uri = uri,
-            mime = mime,
+            share = share,
             onDismiss = { AppServices.pendingShare.value = null },
             onOpenDevices = {
                 AppServices.pendingShare.value = null
