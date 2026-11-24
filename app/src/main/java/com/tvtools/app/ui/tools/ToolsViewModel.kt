@@ -456,30 +456,6 @@ class ToolsViewModel : ViewModel() {
         return dir.listFiles { f -> f.extension.equals("apk", true) }?.toList() ?: emptyList()
     }
 
-    fun uploadToDownloads(uri: Uri) {
-        if (_ui.value.busyLabel != null) return
-        _ui.value = _ui.value.copy(busyLabel = "Uploading…", progress = 0f)
-        viewModelScope.launch {
-            try {
-                val file = withContext(Dispatchers.IO) { copyUriToCache(uri, "") }
-                if (file == null) {
-                    _messages.emit("Couldn't read the selected file")
-                    return@launch
-                }
-                val total = file.length().coerceAtLeast(1)
-                adb.pushFile(file, "/sdcard/Download/${file.name}") { done ->
-                    _ui.value = _ui.value.copy(progress = done.toFloat() / total)
-                }
-                file.delete()
-                _messages.emit("✅ Uploaded to TV's Download folder")
-            } catch (e: Exception) {
-                _messages.emit("Upload failed: ${e.message}")
-            } finally {
-                _ui.value = _ui.value.copy(busyLabel = null, progress = -1f)
-            }
-        }
-    }
-
     fun clearCache() {
         if (_ui.value.busyLabel != null) return
         _ui.value = _ui.value.copy(busyLabel = "Clearing caches…", progress = -1f)

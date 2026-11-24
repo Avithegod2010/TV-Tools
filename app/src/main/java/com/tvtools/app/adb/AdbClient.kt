@@ -445,9 +445,6 @@ class AdbClient(context: Context) {
         manager.openStream("exec:$command")
     }
 
-    suspend fun execLines(command: String): List<String> =
-        exec(command).replace("\r\n", "\n").split("\n").filter { it.isNotBlank() }
-
     // ---------------- sync (file ops) ----------------
 
     private fun <T> withSync(block: (AdbSync) -> T): T {
@@ -465,10 +462,6 @@ class AdbClient(context: Context) {
     suspend fun listFiles(path: String): List<AdbSync.RemoteEntry> = withContext(Dispatchers.IO) {
         withSync { it.list(path) }
             .filter { it.name != "." && it.name != ".." }
-    }
-
-    suspend fun statFile(path: String): AdbSync.Stat = withContext(Dispatchers.IO) {
-        withSync { it.stat(path) }
     }
 
     suspend fun pullFile(remotePath: String, local: File, expectedSize: Long = -1,

@@ -124,16 +124,6 @@ class DeviceViewModel : ViewModel() {
         pollJob = null
     }
 
-    fun refreshStatsOnce() {
-        viewModelScope.launch {
-            try {
-                _stats.value = infoProvider.getStats()
-                _statsLoading.value = false
-            } catch (_: Exception) {
-            }
-        }
-    }
-
     fun disconnect() {
         stopStatsPolling()
         watchdogJob?.cancel()

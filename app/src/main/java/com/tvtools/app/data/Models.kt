@@ -32,7 +32,6 @@ data class DeviceStats(
     val model: String = "—",
     val brand: String = "",
     val androidVersion: String = "—",
-    val buildId: String = "",
     val abi: String = "",
     val storageTotal: Long = 0,
     val storageUsed: Long = 0,

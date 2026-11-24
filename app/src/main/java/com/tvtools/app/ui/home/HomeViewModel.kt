@@ -48,7 +48,6 @@ sealed interface HomeEvent {
     data class Error(val message: String) : HomeEvent
     data class Message(val text: String) : HomeEvent
     data class PairingRequested(val device: TvDevice) : HomeEvent
-    data object PairSuccessConnect : HomeEvent
 }
 
 /** Result of the last batch check for a saved TV. */
