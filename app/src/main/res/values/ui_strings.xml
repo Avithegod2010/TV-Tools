@@ -842,4 +842,15 @@
     <string name="tv_user_active_id">ID %1$d · active</string>
     <string name="connection_quality_metrics">Ping %1$s · ADB handshake %2$s · Wi-Fi %3$s</string>
     <string name="milliseconds">%1$d ms</string>
+    <string name="device_look_saved">Look saved for this TV</string>
+    <string name="device_palette_refreshed">Palette refreshed from the TV</string>
+    <string name="device_connect_first">Connect to the TV first</string>
+    <string name="device_saved_look_removed">Saved look removed</string>
+    <string name="gallery_opening_on_tv">Opening on the TV</string>
+    <string name="network_map_empty">No hosts with open ports were found in the addresses scanned.</string>
+    <string name="network_map_pairing_required">%1$s needs pairing. Use Home → Add IP and enter the pairing code.</string>
+    <string name="network_map_connect_failed">Couldn\'t connect to %1$s: %2$s</string>
+    <string name="network_map_no_ipv4">No local IPv4 network</string>
+    <string name="network_map_prefixes">Local addresses: %1$s</string>
+    <string name="network_map_phone_and_router">This phone: %1$s · Router: %2$s</string>
 </resources>

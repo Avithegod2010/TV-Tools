@@ -1,10 +1,12 @@
 package com.tvtools.app.ui.device
 
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
-import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.DeviceStats
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class DeviceViewModel : ViewModel() {
@@ -29,10 +32,8 @@ class DeviceViewModel : ViewModel() {
     private val _disconnected = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val disconnected: SharedFlow<Unit> = _disconnected.asSharedFlow()
 
-    private val _reconnected = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val reconnected: SharedFlow<Unit> = _reconnected.asSharedFlow()
-
-    private var watchdogJob: Job? = null
+    internal val connectionStatus = AppServices.recovery.status
+    internal val connectedDevice = adb.connections
 
     init {
         // Learn the TV's MAC now so Wake-on-LAN works even after it's powered off.
@@ -44,12 +45,9 @@ class DeviceViewModel : ViewModel() {
             } catch (_: Exception) {
             }
         }
-        // Cheap TVs drop the ADB socket silently; a heartbeat catches it before
-        // the next key press or screenshot fails with a cryptic error.
-        startWatchdog()
         // Apply the saved look for this TV as soon as its screen opens.
         viewModelScope.launch {
-            val host = adb.connectedDevice?.host ?: return@launch
+            val host = adb.connectedDevice?.preferencesHost ?: return@launch
             runCatching {
                 AppServices.prefs.loadDeviceProfile(host)?.let {
                     AppServices.settings.applyProfile(it)
@@ -65,32 +63,8 @@ class DeviceViewModel : ViewModel() {
         // captured when the user taps "Take screenshot" in Tools.
     }
 
-    private fun startWatchdog() {
-        if (watchdogJob?.isActive == true) return
-        watchdogJob = viewModelScope.launch {
-            var failures = 0
-            while (true) {
-                delay(15_000)
-                val alive = adb.isConnected && adb.ping()
-                failures = if (alive) {
-                    0
-                } else {
-                    failures + 1
-                }
-                if (failures < 2) continue
-
-                when (adb.reconnect()) {
-                    AdbClient.ConnectResult.Success -> {
-                        failures = 0
-                        _reconnected.tryEmit(Unit)
-                    }
-                    else -> {
-                        _disconnected.tryEmit(Unit)
-                        break
-                    }
-                }
-            }
-        }
+    fun reconnect() {
+        viewModelScope.launch { AppServices.recovery.reconnectManually() }
     }
 
     private var pollJob: Job? = null
@@ -99,22 +73,21 @@ class DeviceViewModel : ViewModel() {
     fun startStatsPolling() {
         if (pollJob?.isActive == true) return
         pollJob = viewModelScope.launch {
-            while (true) {
-                try {
-                    if (!adb.isConnected) {
-                        _disconnected.tryEmit(Unit)
-                        break
+            ProcessLifecycleOwner.get().lifecycle.currentStateFlow.collectLatest { state ->
+                if (!state.isAtLeast(Lifecycle.State.STARTED)) return@collectLatest
+                while (true) {
+                    try {
+                        if (adb.isConnected) {
+                            _stats.value = infoProvider.getStats()
+                            _statsLoading.value = false
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // Keep the last stats while the shared recovery checks the connection.
                     }
-                    _stats.value = infoProvider.getStats()
-                    _statsLoading.value = false
-                } catch (e: Exception) {
-                    // transient error: keep last stats, try again
-                    if (!adb.isConnected) {
-                        _disconnected.tryEmit(Unit)
-                        break
-                    }
+                    delay(3000)
                 }
-                delay(3000)
             }
         }
     }
@@ -136,8 +109,6 @@ class DeviceViewModel : ViewModel() {
 
     fun disconnect() {
         stopStatsPolling()
-        watchdogJob?.cancel()
-        watchdogJob = null
         viewModelScope.launch {
             adb.disconnect()
             _disconnected.emit(Unit)
@@ -145,8 +116,6 @@ class DeviceViewModel : ViewModel() {
     }
 
     override fun onCleared() {
-        watchdogJob?.cancel()
-        watchdogJob = null
         AppServices.playback.stopTracking()
         super.onCleared()
     }

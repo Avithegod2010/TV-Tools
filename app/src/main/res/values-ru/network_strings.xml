@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="network_default_tv_name">Android TV</string>
+    <string name="network_busy">Подключение к телевизору уже выполняется.</string>
+    <string name="network_pairing_rejected">Телевизор отклонил запрос на сопряжение.</string>
+    <string name="network_changed">Сеть или активное подключение изменилось. Повторите попытку.</string>
+    <string name="network_handshake_timeout">Телевизор не успел завершить подключение. Проверьте запрос на отладку на телевизоре и повторите попытку.</string>
+    <string name="network_tv_unreachable">Не удалось связаться с телевизором. Убедитесь, что он включён и отладка разрешена.</string>
+    <string name="network_no_session">Нет активного подключения к телевизору.</string>
+    <string name="network_stream_timeout">Телевизор перестал отвечать. Подключитесь заново и повторите попытку.</string>
+    <string name="network_command_timeout">Телевизор не выполнил команду за %1$d с.</string>
+    <string name="network_no_lan">Подключите телефон и телевизор к одной сети Wi-Fi или локальной сети.</string>
+    <string name="network_reconnecting">Повторное подключение к телевизору…</string>
+    <string name="network_reconnect">Подключиться снова</string>
+    <string name="network_reconnected">Подключение к телевизору восстановлено</string>
+    <string name="network_authorization_needed">Проверьте разрешение на отладку на телевизоре. Для авторизации или сопряжения выберите телевизор на главном экране.</string>
+    <string name="network_tv_disconnected">Подключение к телевизору потеряно.</string>
+</resources>

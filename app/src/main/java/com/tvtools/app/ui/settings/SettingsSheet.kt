@@ -443,7 +443,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(6.dp))
-            val connectedHost = AppServices.adb.connectedDevice?.host
+            val connectedHost = AppServices.adb.connectedDevice?.preferencesHost
             OutlinedButton(
                 enabled = connectedHost != null,
                 onClick = {
@@ -512,7 +512,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 OutlinedButton(onClick = {
                     haptics()
                     scope.launch {
-                        val host = AppServices.adb.connectedDevice?.host
+                        val host = AppServices.adb.connectedDevice?.preferencesHost
                         val profile = if (host != null) {
                             val existing = AppServices.prefs.loadDeviceProfile(host)
                             repo.currentProfile().copy(
@@ -529,7 +529,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     val imported = importTheme(context)
                     if (imported != null) {
                         repo.applyProfile(imported)
-                        val host = AppServices.adb.connectedDevice?.host
+                        val host = AppServices.adb.connectedDevice?.preferencesHost
                         if (host != null) {
                             scope.launch {
                                 AppServices.prefs.saveDeviceProfile(host, imported)

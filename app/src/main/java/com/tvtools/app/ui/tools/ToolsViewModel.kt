@@ -125,6 +125,7 @@ class ToolsViewModel : ViewModel() {
         _ui.value = _ui.value.copy(screenshotLoading = true)
         viewModelScope.launch {
             try {
+                val preferencesHost = adb.connectedDevice?.preferencesHost
                 captureWithReconnect()
                 val bmp = BitmapFactory.decodeFile(screenshotFile.absolutePath)
                 if (bmp != null) {
@@ -135,7 +136,7 @@ class ToolsViewModel : ViewModel() {
                         AppServices.settings.state.value.screenshotLimit,
                     )
                     // Home shows the last explicit capture instead of polling the TV.
-                    adb.connectedDevice?.host?.let { host ->
+                    (preferencesHost ?: adb.connectedDevice?.preferencesHost)?.let { host ->
                         runCatching {
                             val dir = File(context.filesDir, "tvthumbs").apply { mkdirs() }
                             screenshotFile.copyTo(File(dir, "${host.hashCode()}.png"), overwrite = true)

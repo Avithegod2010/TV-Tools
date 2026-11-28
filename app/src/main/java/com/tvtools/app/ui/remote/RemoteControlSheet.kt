@@ -215,10 +215,10 @@ fun RemoteControlSheet(
         savedDevices = AppServices.prefs.loadDevices()
         deviceRooms = AppServices.prefs.loadDeviceRooms()
         val storedQuick = AppServices.prefs.loadQuickKeys()
-        var host = adb.connectedDevice?.host
+        var host = adb.connectedDevice?.preferencesHost
         if (host == null) {
             delay(600)
-            host = adb.connectedDevice?.host
+            host = adb.connectedDevice?.preferencesHost
         }
         val profile = host?.let { AppServices.prefs.loadDeviceProfile(it) }
         layoutHost = host
@@ -290,7 +290,7 @@ fun RemoteControlSheet(
         quickKeys = next.quickOrder
         scope.launch {
             AppServices.prefs.saveQuickKeys(next.quickOrder)
-            val host = adb.connectedDevice?.host ?: layoutHost ?: return@launch
+            val host = adb.connectedDevice?.preferencesHost ?: layoutHost ?: return@launch
             val profile = AppServices.prefs.loadDeviceProfile(host)
                 ?: AppServices.settings.currentProfile()
             AppServices.prefs.saveDeviceProfile(host, profile.copy(layout = next))

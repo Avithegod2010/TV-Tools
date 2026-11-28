@@ -105,7 +105,7 @@ fun StorageScreen(
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = viewModel::trimCache, enabled = ui.busyLabel == null) {
-                                Text(ui.busyLabel ?: "Trim caches")
+                                Text(ui.busyLabel ?: stringResource(R.string.clear_cache))
                             }
                             TextButton(onClick = viewModel::scan) { Text(stringResource(R.string.rescan)) }
                         }

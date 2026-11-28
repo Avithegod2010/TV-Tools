@@ -40,8 +40,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.tvtools.app.R
 import com.tvtools.app.ui.labs.LabScaffold
 
 private data class MdnsEntry(
@@ -175,8 +178,7 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
     LabScaffold("mDNS browser", onBack) {
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Text(
-                "Devices advertise services like _googlecast._tcp or _adb-tls-connect._tcp. " +
-                    "Android can only browse types it knows, so add a custom type if you're hunting something specific.",
+                stringResource(R.string.devices_advertise_services_like_googlecast_tcp_or),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -185,7 +187,7 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
                 OutlinedTextField(
                     value = customType,
                     onValueChange = { customType = it.trim() },
-                    label = { Text("Custom type") },
+                    label = { Text(stringResource(R.string.custom_type)) },
                     placeholder = { Text("_mydevice._tcp") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
@@ -202,10 +204,10 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
                 ) {
                     Icon(Icons.Default.Search, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Add")
+                    Text(stringResource(R.string.add))
                 }
                 IconButton(onClick = { restartKey++ }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Restart browsing")
+                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.restart_browsing))
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -215,7 +217,7 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    "$status · ${entries.size} service(s)",
+                    pluralStringResource(R.plurals.mdns_service_count, entries.size, status, entries.size),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -273,7 +275,7 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
                                 )
                             } else if (isCast) {
                                 Text(
-                                    "Cast",
+                                    stringResource(R.string.cast),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                 )

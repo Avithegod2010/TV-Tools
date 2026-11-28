@@ -18,6 +18,7 @@ class Prefs(private val context: Context) {
     private val KEY_HOST = stringPreferencesKey("last_host")
     private val KEY_PORT = intPreferencesKey("last_port")
     private val KEY_PROTO = stringPreferencesKey("last_proto")
+    private val KEY_DISCOVERY_ID = stringPreferencesKey("last_discovery_id")
     private val KEY_MAC = stringPreferencesKey("last_mac")
     private val KEY_LAST_APK_DOCUMENT = stringPreferencesKey("last_apk_document")
 
@@ -27,6 +28,8 @@ class Prefs(private val context: Context) {
             p[KEY_HOST] = device.host
             p[KEY_PORT] = device.port
             p[KEY_PROTO] = device.proto.name
+            if (device.discoveryId == null) p.remove(KEY_DISCOVERY_ID)
+            else p[KEY_DISCOVERY_ID] = device.discoveryId
         }
     }
 
@@ -39,6 +42,7 @@ class Prefs(private val context: Context) {
             host = host,
             port = port,
             proto = runCatching { DeviceProto.valueOf(p[KEY_PROTO] ?: "TCP") }.getOrDefault(DeviceProto.TCP),
+            discoveryId = p[KEY_DISCOVERY_ID],
         )
     }
 
@@ -77,7 +81,7 @@ class Prefs(private val context: Context) {
 
     suspend fun saveDevice(device: TvDevice) {
         context.dataStore.edit { p ->
-            val entry = "${device.name}|${device.host}|${device.port}|${device.proto.name}"
+            val entry = "${device.name}|${device.host}|${device.port}|${device.proto.name}|${device.discoveryId.orEmpty()}"
             val others = p[KEY_SAVED].orEmpty()
                 .filterNot { it.substringAfter('|').substringBefore('|') == device.host }
             p[KEY_SAVED] = (others + entry).toSet()
@@ -105,6 +109,7 @@ class Prefs(private val context: Context) {
                 host = parts[1],
                 port = parts[2].toIntOrNull() ?: 5555,
                 proto = runCatching { DeviceProto.valueOf(parts[3]) }.getOrDefault(DeviceProto.TCP),
+                discoveryId = parts.getOrNull(4)?.takeIf { it.isNotBlank() },
             )
         }.sortedBy { device ->
             val index = order.indexOf(device.host)

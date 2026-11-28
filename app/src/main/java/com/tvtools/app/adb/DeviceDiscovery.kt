@@ -1,184 +1,240 @@
 package com.tvtools.app.adb
 
 import android.content.Context
-import android.net.ConnectivityManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
-import android.net.wifi.WifiManager
+import android.os.Build
 import android.util.Log
+import com.tvtools.app.R
 import com.tvtools.app.data.DeviceProto
 import com.tvtools.app.data.TvDevice
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import java.net.InetSocketAddress
-import java.net.Socket
-import java.util.Collections
+import kotlin.coroutines.resume
 
-/**
- * Discovers ADB-enabled devices on the LAN:
- *  - mDNS/NSD: `_adb-tls-connect._tcp` (Android 11+ wireless debugging),
- *    `_adb._tcp` (legacy network ADB, e.g. Fire TV), `_adb-tls-pairing._tcp` (pairing port).
- *  - Fallback: parallel scan of the local /24 subnet for open port 5555.
- */
-class DeviceDiscovery(private val context: Context) {
+/** Shared, network-scoped ADB service discovery and bounded legacy port scan. */
+@OptIn(ExperimentalCoroutinesApi::class)
+class DeviceDiscovery internal constructor(
+    private val context: Context,
+    private val networks: LanNetworkMonitor,
+    foreground: StateFlow<Boolean>,
+    scope: CoroutineScope,
+) {
+    data class DiscoveryEvent(val devices: List<TvDevice>, val scanning: Boolean)
 
-    data class DiscoveryEvent(
-        val devices: List<TvDevice>,
-        val scanning: Boolean,
+    private data class Snapshot(
+        val network: LanNetwork? = null,
+        val devices: List<TvDevice> = emptyList(),
+        val scanning: Boolean = false,
     )
 
-    fun discover(scanSubnetToo: Boolean = true): Flow<DiscoveryEvent> = callbackFlow {
-        val found = Collections.synchronizedList(mutableListOf<TvDevice>())
-        val nsd = context.getSystemService(Context.NSD_SERVICE) as NsdManager
-        val selfHost = localIpAddress() // don't list the phone itself
+    private val currentLan = combine(networks.current, foreground) { lan, active -> lan.takeIf { active } }
+    private val scans = MutableStateFlow(0)
+    private val sharing = SharingStarted.WhileSubscribed(replayExpirationMillis = 0)
+    private val mdns = currentLan.flatMapLatest { lan ->
+        if (lan == null) flowOf(Snapshot()) else browse(lan)
+    }.shareIn(scope, sharing, replay = 1)
+    private val subnet = combine(currentLan, scans) { lan, _ -> lan }.flatMapLatest { lan ->
+        if (lan == null) flowOf(Snapshot()) else scan(lan)
+    }.shareIn(scope, sharing, replay = 1)
 
-        fun emit(scanning: Boolean) {
-            val snapshot = synchronized(found) { found.toList() }
-                .distinctBy { Triple(it.host, it.port, it.proto) }
-                .sortedWith(compareBy({ it.pairing }, { it.name }))
-            trySend(DiscoveryEvent(snapshot, scanning))
+    fun refreshSubnet() = scans.update { it + 1 }
+
+    fun discover(scanSubnetToo: Boolean = true): Flow<DiscoveryEvent> = if (scanSubnetToo) {
+        combine(mdns, subnet, currentLan) { advertised, probed, lan ->
+            val mdnsSnapshot = advertised.takeIf { it.network == lan } ?: Snapshot()
+            val subnetSnapshot = probed.takeIf { it.network == lan } ?: Snapshot()
+            DiscoveryEvent(
+                (mdnsSnapshot.devices + subnetSnapshot.devices)
+                    .distinctBy { listOf(it.host, it.port, it.proto, it.pairing) }
+                    .sortedWith(compareBy({ it.pairing }, { it.name })),
+                mdnsSnapshot.scanning || subnetSnapshot.scanning,
+            )
         }
-
-        fun addDevice(device: TvDevice) {
-            if (device.host == selfHost) return
-            synchronized(found) {
-                if (found.none { it.host == device.host && it.port == device.port && it.proto == device.proto }) {
-                    found.add(device)
-                }
-            }
-            emit(scanning = true)
+    } else {
+        combine(mdns, currentLan) { snapshot, lan ->
+            snapshot.takeIf { it.network == lan }?.let { DiscoveryEvent(it.devices, it.scanning) }
+                ?: DiscoveryEvent(emptyList(), lan != null)
         }
+    }
 
-        fun removeDevice(host: String, proto: DeviceProto) {
-            synchronized(found) { found.removeAll { it.host == host && it.proto == proto } }
-            emit(scanning = true)
-        }
-
-        val listeners = mutableListOf<NsdManager.DiscoveryListener>()
-
-        fun startNsd(serviceType: String, proto: DeviceProto?) {
-            val listener = object : NsdManager.DiscoveryListener {
-                override fun onDiscoveryStarted(regType: String) {}
-
-                override fun onServiceFound(service: NsdServiceInfo) {
-                    nsd.resolveService(service, object : NsdManager.ResolveListener {
-                        override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
-
-                        override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                            val host = serviceInfo.host?.hostAddress ?: return
-                            val rawName = serviceInfo.serviceName
-                                .removeSuffix(".$serviceType")
-                                .ifBlank { host }
-                            val name = prettyName(rawName)
-                            if (proto != null) {
-                                addDevice(TvDevice(name, host, serviceInfo.port, proto))
-                            } else {
-                                // pairing service advertised → port is a pairing port
-                                addDevice(TvDevice(name, host, serviceInfo.port, DeviceProto.TLS, pairing = true))
-                            }
-                        }
-                    })
-                }
-
-                override fun onServiceLost(service: NsdServiceInfo) {
-                    // Host unknown after loss; refresh by name is unreliable — keep list.
-                }
-
-                override fun onDiscoveryStopped(serviceType: String) {}
-                override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-                    try { nsd.stopServiceDiscovery(this) } catch (_: Exception) {}
-                }
-                override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {}
-            }
-            try {
-                nsd.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, listener)
-                listeners.add(listener)
-            } catch (e: Exception) {
-                Log.w("Discovery", "NSD failed for $serviceType", e)
-            }
-        }
-
-        startNsd("_adb-tls-connect._tcp.", DeviceProto.TLS)
-        startNsd("_adb._tcp.", DeviceProto.TCP)
-        startNsd("_adb-tls-pairing._tcp.", null)
-
-        // --- subnet scan for port 5555 (Fire TV & boxes with manual ADB-over-network) ---
-        val scanJob = if (scanSubnetToo) {
-            CoroutineScope(Dispatchers.IO).launch {
-                val prefix = localSubnetPrefix() ?: return@launch run { emit(false) }
-                val semaphore = Semaphore(64)
-                val jobs = (1..254).map { i ->
+    private fun scan(lan: LanNetwork): Flow<Snapshot> = channelFlow {
+        trySend(Snapshot(lan, scanning = true))
+        val targets = lan.ipv4Subnets.flatMap { it.scanHosts() }.distinct().take(254)
+        val discovered = Channel<TvDevice>(Channel.UNLIMITED)
+        // At most 24 probes are concurrently running, even on a large link prefix.
+        val scanJob = launch(Dispatchers.IO) {
+            for (batch in targets.chunked(24)) {
+                val probes = batch.map { host ->
                     launch {
-                        semaphore.withPermit {
-                            val ip = "$prefix.$i"
-                            try {
-                                Socket().use { s ->
-                                    s.connect(InetSocketAddress(ip, 5555), 350)
-                                }
-                                addDevice(TvDevice(ip, ip, 5555, DeviceProto.TCP))
-                            } catch (_: Exception) {
+                        try {
+                            lan.handle.socketFactory.createSocket().use {
+                                it.connect(InetSocketAddress(host, 5555), 350)
                             }
+                            discovered.trySend(TvDevice(host, host, 5555, DeviceProto.TCP))
+                        } catch (_: java.io.IOException) {
                         }
                     }
                 }
-                jobs.forEach { it.join() }
-                emit(scanning = false)
+                probes.forEach { it.join() }
             }
-        } else null
-
-        awaitClose {
-            listeners.forEach { try { nsd.stopServiceDiscovery(it) } catch (_: Exception) {} }
-            scanJob?.cancel()
         }
-    }
-
-    /** mDNS names for TVs are serials ("adb-XXXXXXXX..."); use a friendly label until we know the model. */
-    private fun prettyName(raw: String): String {
-        val stripped = raw.removePrefix("adb-")
-        val looksLikeSerial = stripped.matches(Regex("[A-Za-z0-9-]{8,}")) && !stripped.contains(' ')
-        return if (looksLikeSerial) "Android TV" else stripped
-    }
-
-    /** Full local Wi-Fi IPv4 address, or null. */
-    private fun localIpAddress(): String? {
-        return try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val linkProps = cm.activeNetwork?.let { cm.getLinkProperties(it) }
-            linkProps?.linkAddresses
-                ?.firstOrNull { it.address is java.net.Inet4Address }
-                ?.address?.hostAddress
-        } catch (_: Exception) {
-            null
+        scanJob.invokeOnCompletion { discovered.close() }
+        val found = mutableListOf<TvDevice>()
+        for (device in discovered) {
+            found.add(device)
+            trySend(Snapshot(lan, found.toList(), scanning = true))
         }
+        trySend(Snapshot(lan, found.toList()))
     }
 
-    /** Returns "192.168.1" style /24 prefix of the Wi-Fi interface, or null. */
     @Suppress("DEPRECATION")
-    private fun localSubnetPrefix(): String? {
-        return try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val linkProps = cm.activeNetwork?.let { cm.getLinkProperties(it) }
-            val addr = linkProps?.linkAddresses
-                ?.firstOrNull { it.address is java.net.Inet4Address }
-                ?.address?.hostAddress
-            addr?.substringBeforeLast('.')
-        } catch (e: Exception) {
-            try {
-                val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                val ip = wm.connectionInfo.ipAddress
-                if (ip == 0) null else String.format(
-                    "%d.%d.%d",
-                    ip and 0xff, ip shr 8 and 0xff, ip shr 16 and 0xff
-                )
-            } catch (_: Exception) {
+    private fun browse(lan: LanNetwork): Flow<Snapshot> = callbackFlow {
+        val nsd = context.getSystemService(NsdManager::class.java)
+        if (nsd == null) {
+            trySend(Snapshot(lan))
+            close()
+            return@callbackFlow
+        }
+        val guard = Any()
+        val results = mutableMapOf<Pair<String, String>, TvDevice>()
+        val visible = mutableMapOf<Pair<String, String>, NsdServiceInfo>()
+        val pending = Channel<Pair<String, NsdServiceInfo>>(Channel.BUFFERED)
+        var scanning = true
+
+        fun emit() = trySend(Snapshot(lan, results.values.toList(), scanning))
+
+        fun startNsd(type: String): NsdManager.DiscoveryListener? {
+            val listener = object : NsdManager.DiscoveryListener {
+                override fun onDiscoveryStarted(serviceType: String) = Unit
+                override fun onDiscoveryStopped(serviceType: String) = Unit
+                override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) = Unit
+                override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) = Unit
+
+                override fun onServiceFound(service: NsdServiceInfo) {
+                    synchronized(guard) {
+                        val key = type to service.serviceName
+                        if (key !in visible) {
+                            if (pending.trySend(type to service).isSuccess) visible[key] = service
+                        }
+                    }
+                }
+
+                override fun onServiceLost(service: NsdServiceInfo) {
+                    synchronized(guard) {
+                        val key = type to service.serviceName
+                        visible.remove(key)
+                        results.remove(key)
+                        emit()
+                    }
+                }
+            }
+            return try {
+                if (Build.VERSION.SDK_INT >= 33) {
+                    nsd.discoverServices(type, NsdManager.PROTOCOL_DNS_SD, lan.handle, context.mainExecutor, listener)
+                } else {
+                    nsd.discoverServices(type, NsdManager.PROTOCOL_DNS_SD, listener)
+                }
+                listener
+            } catch (e: RuntimeException) {
+                Log.w("Discovery", "NSD unavailable for $type", e)
                 null
             }
         }
+
+        synchronized(guard) { emit() }
+        val listeners = listOfNotNull(
+            startNsd(TLS_CONNECT),
+            startNsd(TCP),
+            startNsd(TLS_PAIR),
+        )
+        launch {
+            delay(if (listeners.isEmpty()) 0 else 7_000)
+            synchronized(guard) {
+                scanning = false
+                emit()
+            }
+        }
+        // Android versions that allow only one resolution at a time still get all three service types.
+        launch {
+            for ((type, service) in pending) {
+                val key = type to service.serviceName
+                if (synchronized(guard) { visible[key] !== service }) continue
+                val resolved = withTimeoutOrNull(2_500) { resolve(nsd, service) }
+                val addresses = if (Build.VERSION.SDK_INT >= 34) resolved?.hostAddresses.orEmpty()
+                else listOfNotNull(resolved?.host)
+                val address = addresses.sortedBy { it.address.size }.firstOrNull { candidate ->
+                    lan.contains(candidate) && lan.addresses.none { it.first == candidate }
+                }
+                val host = address?.hostAddress
+                synchronized(guard) {
+                    if (visible[key] !== service) return@synchronized
+                    if (resolved == null || host == null) {
+                        visible.remove(key)
+                        return@synchronized
+                    }
+                    val name = service.serviceName.removeSuffix(".$type").ifBlank { host }
+                    val friendly = if (name.startsWith("adb-")) context.getString(R.string.network_default_tv_name) else name
+                    results[key] = TvDevice(
+                        friendly, host, resolved.port,
+                        if (type == TCP) DeviceProto.TCP else DeviceProto.TLS,
+                        pairing = type == TLS_PAIR,
+                        discoveryId = name,
+                    )
+                    emit()
+                }
+            }
+        }
+        awaitClose {
+            pending.close()
+            for (listener in listeners) runCatching { nsd.stopServiceDiscovery(listener) }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private suspend fun resolve(nsd: NsdManager, service: NsdServiceInfo): NsdServiceInfo? =
+        suspendCancellableCoroutine { continuation ->
+            val listener = object : NsdManager.ResolveListener {
+                override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                    continuation.resume(null)
+                }
+
+                override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
+                    continuation.resume(serviceInfo)
+                }
+            }
+            try {
+                nsd.resolveService(service, listener)
+                if (Build.VERSION.SDK_INT >= 34) {
+                    continuation.invokeOnCancellation { runCatching { nsd.stopServiceResolution(listener) } }
+                }
+            } catch (_: RuntimeException) {
+                continuation.resume(null)
+            }
+        }
+
+    private companion object {
+        const val TLS_CONNECT = "_adb-tls-connect._tcp."
+        const val TCP = "_adb._tcp."
+        const val TLS_PAIR = "_adb-tls-pairing._tcp."
     }
 }

@@ -854,4 +854,15 @@
     <string name="tv_user_active_id">ID %1$d · активен</string>
     <string name="connection_quality_metrics">Пинг %1$s · Подключение ADB %2$s · Wi-Fi %3$s</string>
     <string name="milliseconds">%1$d мс</string>
+    <string name="device_look_saved">Оформление этого телевизора сохранено</string>
+    <string name="device_palette_refreshed">Палитра телевизора обновлена</string>
+    <string name="device_connect_first">Сначала подключитесь к телевизору</string>
+    <string name="device_saved_look_removed">Сохранённое оформление удалено</string>
+    <string name="gallery_opening_on_tv">Открытие на телевизоре</string>
+    <string name="network_map_empty">По проверенным адресам не найдено устройств с открытыми портами.</string>
+    <string name="network_map_pairing_required">Для %1$s требуется сопряжение. На главной выберите «Добавить IP» и введите код.</string>
+    <string name="network_map_connect_failed">Не удалось подключиться к %1$s: %2$s</string>
+    <string name="network_map_no_ipv4">Нет локальной сети IPv4</string>
+    <string name="network_map_prefixes">Локальные адреса: %1$s</string>
+    <string name="network_map_phone_and_router">Этот телефон: %1$s · Роутер: %2$s</string>
 </resources>

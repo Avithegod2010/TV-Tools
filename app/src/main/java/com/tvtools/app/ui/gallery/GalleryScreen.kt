@@ -410,7 +410,7 @@ private fun shareFiles(context: android.content.Context, files: List<File>) {
 private fun showOnTv(context: android.content.Context, file: File) {
     val adb = AppServices.adb
     if (!adb.isConnected) {
-        android.widget.Toast.makeText(context, "Connect to the TV first", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(context, R.string.device_connect_first, android.widget.Toast.LENGTH_SHORT).show()
         return
     }
     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
@@ -419,7 +419,7 @@ private fun showOnTv(context: android.content.Context, file: File) {
             adb.pushFile(file, remote)
             adb.openFileOnTv(remote, "image/png")
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                android.widget.Toast.makeText(context, "Opening on the TV", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, R.string.gallery_opening_on_tv, android.widget.Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {

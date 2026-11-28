@@ -3,21 +3,34 @@ package com.tvtools.app.adb
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import com.tvtools.app.R
+import io.github.muntashirakon.adb.AdbAuthenticationFailedException
+import io.github.muntashirakon.adb.AdbConnection
 import io.github.muntashirakon.adb.AdbPairingRequiredException
 import io.github.muntashirakon.adb.AdbStream
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
@@ -25,34 +38,60 @@ import java.io.File
 import java.io.InputStreamReader
 import java.io.IOException
 import java.io.OutputStream
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 
 /**
  * High-level, coroutine-friendly API over [TvAdbConnectionManager].
  * Every blocking call runs on [Dispatchers.IO].
  */
-class AdbClient(context: Context) {
+class AdbClient internal constructor(context: Context, private val networks: LanNetworkMonitor) {
 
     private val appContext = context.applicationContext
     private val manager = TvAdbConnectionManager.getInstance(appContext)
 
-    data class ConnectedDevice(val host: String, val port: Int)
+    data class ConnectedDevice(val host: String, val port: Int, val preferencesHost: String = host)
 
-    var connectedDevice: ConnectedDevice? = null
-        private set
+    private class Session(val device: ConnectedDevice, val network: LanNetwork?, val transport: AdbConnection) {
+        // libadb's stream ID allocator is not thread-safe.
+        val opening = Mutex()
+        @Volatile var screenSize: Pair<Int, Int>? = null
+    }
 
-    /** Last address we successfully connected to, kept across a silent socket drop. */
+    private class OperationSession(val session: Session) : AbstractCoroutineContextElement(Key) {
+        companion object Key : CoroutineContext.Key<OperationSession>
+    }
+
+    private val connectionMutex = Mutex()
+    private val connectionWorker = Semaphore(1)
+    private val sessionGuard = Any()
+
+    @Volatile private var session: Session? = null
+    @Volatile private var lastDevice: ConnectedDevice? = null
+    @Volatile private var lastNetwork: LanNetwork? = null
+    @Volatile private var resumeSavedDevice = true
+    private val revision = MutableStateFlow(0L)
+    private val _connections = MutableStateFlow<ConnectedDevice?>(null)
+    internal val connections = _connections.asStateFlow()
+    internal val recoveryRevision: Long get() = revision.value
+    internal val mayResumeSavedDevice: Boolean get() = resumeSavedDevice
+    internal val previousDevice: ConnectedDevice? get() = lastDevice
+    internal val previousNetwork: LanNetwork? get() = lastNetwork
+
+    val connectedDevice: ConnectedDevice?
+        get() = currentSession()?.device
+
     @Volatile
-    private var lastDevice: ConnectedDevice? = null
-
-    /** Duration of the last successful ADB handshake, in milliseconds (0 = unknown). */
     var lastConnectMs: Long = 0
         private set
 
-    val isConnected: Boolean get() = manager.isConnected
-
-    // ---------------- connection ----------------
+    val isConnected: Boolean get() = connectedDevice != null
 
     sealed class ConnectResult {
         data object Success : ConnectResult()
@@ -60,75 +99,248 @@ class AdbClient(context: Context) {
         data class Error(val message: String) : ConnectResult()
     }
 
-    suspend fun pair(host: String, port: Int, code: String): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val ok = manager.pair(host, port, code.trim())
-            if (ok) Result.success(Unit) else Result.failure(IOException("Pairing rejected"))
+    suspend fun pair(host: String, port: Int, code: String): Result<Unit> {
+        val request = revision.updateAndGet { it + 1 }
+        connectionMutex.lock()
+        return try {
+            val network = networks.current.value
+            whileCurrent(network, request) {
+                val paired = runConnectionWork(timeoutMs = 15_000) {
+                    runInterruptible {
+                        val address = probe(host, port, network, authorizedOnly = false)
+                        manager.pair(address, port, code.trim())
+                    }
+                }
+                when (paired) {
+                    true -> Result.success(Unit)
+                    false -> Result.failure(IOException(message(R.string.network_pairing_rejected)))
+                    null -> Result.failure(IOException(message(R.string.network_handshake_timeout)))
+                }
+            }
+        } catch (e: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            Result.failure(IOException(message(R.string.network_changed)))
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            connectionMutex.unlock()
         }
     }
 
-    suspend fun connect(host: String, port: Int): ConnectResult = withContext(Dispatchers.IO) {
+    suspend fun connect(host: String, port: Int): ConnectResult =
+        establish(ConnectedDevice(host, port), authorizedOnly = false, expectedRevision = null)
+
+    internal suspend fun connectKnown(
+        device: ConnectedDevice,
+        expectedRevision: Long,
+        authorizedOnly: Boolean = true,
+    ): ConnectResult = establish(device, authorizedOnly, expectedRevision)
+
+    private suspend fun establish(
+        device: ConnectedDevice,
+        authorizedOnly: Boolean,
+        expectedRevision: Long?,
+    ): ConnectResult {
+        val request = expectedRevision ?: revision.updateAndGet { it + 1 }
+        if (expectedRevision == null) connectionMutex.lock()
+        else if (!connectionMutex.tryLock()) return ConnectResult.Error(message(R.string.network_busy))
         try {
-            fastMutex.withLock { closeFastShellLocked() }
-            inputServerMutex.withLock { closeInputServerState() }
-            if (manager.isConnected) manager.disconnect()
-            val started = System.currentTimeMillis()
-            val ok = manager.connect(host, port)
-            if (ok) {
-                lastConnectMs = System.currentTimeMillis() - started
-                connectedDevice = ConnectedDevice(host, port)
-                lastDevice = ConnectedDevice(host, port)
-                ConnectResult.Success
-            } else ConnectResult.Error("Connection refused")
-        } catch (e: AdbPairingRequiredException) {
-            ConnectResult.PairingRequired
-        } catch (e: Exception) {
-            ConnectResult.Error(e.message ?: e.javaClass.simpleName)
+            if (revision.value != request) return ConnectResult.Error(message(R.string.network_changed))
+
+            val network = networks.current.value
+            if (connectedDevice?.let { it.host == device.host && it.port == device.port } == true) {
+                return ConnectResult.Success
+            }
+            val started = SystemClock.elapsedRealtime()
+            val replaced = detach()
+            if (replaced != null) withTimeoutOrNull(500) { closeTransport(replaced.transport).join() }
+            val transport = AtomicReference<AdbConnection?>()
+            var installed = false
+            return try {
+                whileCurrent(network, request) {
+                    val connected = runConnectionWork(if (authorizedOnly) 8_000 else 15_000) {
+                        try {
+                            runInterruptible {
+                                val address = probe(device.host, device.port, network, authorizedOnly)
+                                val candidate = manager.createConnection(address, device.port)
+                                transport.set(candidate)
+                                candidate.connect(if (authorizedOnly) 5 else 12, TimeUnit.SECONDS, authorizedOnly)
+                            }
+                        } finally {
+                            if (!currentCoroutineContext().isActive) {
+                                transport.getAndSet(null)?.let(::closeTransport)
+                            }
+                        }
+                    }
+                    if (connected != true) {
+                        return@whileCurrent ConnectResult.Error(message(R.string.network_handshake_timeout))
+                    }
+                    // Clear abandoned fast-input handles after closing their transport.
+                    fastMutex.withLock { closeFastShellLocked() }
+                    inputServerMutex.withLock { closeInputServerState() }
+                    synchronized(sessionGuard) {
+                        if (networks.current.value != network || revision.value != request) {
+                            return@synchronized ConnectResult.Error(message(R.string.network_changed))
+                        }
+                        session = Session(device, network, checkNotNull(transport.get()))
+                        lastDevice = device
+                        lastNetwork = network
+                        resumeSavedDevice = true
+                        lastConnectMs = SystemClock.elapsedRealtime() - started
+                        installed = true
+                        _connections.value = device
+                        ConnectResult.Success
+                    }
+                }
+            } catch (e: CancellationException) {
+                currentCoroutineContext().ensureActive()
+                ConnectResult.Error(message(R.string.network_changed))
+            } catch (_: AdbPairingRequiredException) {
+                ConnectResult.PairingRequired
+            } catch (_: AdbAuthenticationFailedException) {
+                ConnectResult.PairingRequired
+            } catch (_: Exception) {
+                ConnectResult.Error(message(R.string.network_tv_unreachable))
+            } finally {
+                if (!installed) transport.getAndSet(null)?.let(::closeTransport)
+            }
+        } finally {
+            connectionMutex.unlock()
         }
     }
 
-    suspend fun disconnect() = withContext(Dispatchers.IO) {
-        try {
-            fastMutex.withLock { closeFastShellLocked() }
-        } catch (_: Exception) {
+    /** libadb opens TCP before its own handshake timer and cannot accept a Network socket. */
+    private fun probe(host: String, port: Int, network: LanNetwork?, authorizedOnly: Boolean): String {
+        val endpoint = InetSocketAddress(host, port)
+        return Socket().use { socket ->
+            socket.connect(endpoint, 1_500)
+            if (authorizedOnly && network?.addresses?.none { it.first == socket.localAddress } != false) {
+                throw IOException(message(R.string.network_changed))
+            }
+            endpoint.address?.hostAddress ?: host
         }
-        try {
-            inputServerMutex.withLock { closeInputServerState() }
-        } catch (_: Exception) {
-        }
-        try {
-            manager.disconnect()
-        } catch (_: Exception) {
-        }
-        connectedDevice = null
-        lastDevice = null
     }
 
-    /**
-     * Reconnect to the last known TV after a silent socket drop.
-     * Returns null when this process never connected, so callers can navigate home.
-     */
+    private fun message(id: Int): String = appContext.getString(id)
+
+    // Do not let a blocking libadb constructor hold the caller or accumulate worker threads.
+    private suspend fun <T> runConnectionWork(timeoutMs: Long, operation: suspend () -> T): T? {
+        if (!connectionWorker.tryAcquire()) throw IOException(message(R.string.network_busy))
+        val worker = fastScope.async { operation() }
+        worker.invokeOnCompletion { connectionWorker.release() }
+        return try {
+            withTimeoutOrNull(timeoutMs) { worker.await() }
+        } finally {
+            worker.cancel()
+        }
+    }
+
+    private suspend fun <T> whileCurrent(
+        network: LanNetwork?, request: Long, operation: suspend () -> T,
+    ): T = coroutineScope {
+        val work = async { operation() }
+        val changed = launch {
+            combine(networks.current, revision) { current, id -> current != network || id != request }
+                .first { it }
+            work.cancel()
+        }
+        try {
+            work.await()
+        } finally {
+            changed.cancel()
+        }
+    }
+
+    private fun currentSession(): Session? = session?.takeIf {
+        it.network == networks.current.value && it.transport.isConnected && it.transport.isConnectionEstablished
+    }
+
+    private suspend fun operationSession(): Session {
+        val active = currentSession()
+        val expected = currentCoroutineContext()[OperationSession]?.session
+        if (expected != null && expected !== active) throw IOException(message(R.string.network_changed))
+        return active ?: throw IOException(message(R.string.network_no_session))
+    }
+
+    private suspend fun <T> onSession(operation: suspend () -> T): T =
+        withContext(Dispatchers.IO + OperationSession(operationSession())) { operation() }
+
+    private fun detach(expected: Session? = null): Session? = synchronized(sessionGuard) {
+        val previous = session ?: return@synchronized null
+        if (expected != null && previous !== expected) return@synchronized null
+        session = null
+        _connections.value = null
+        previous
+    }
+
+    private fun closeTransport(transport: AdbConnection): Job =
+        fastScope.launch { runCatching { transport.close() } }
+
+    private fun closeOnDeadline(active: Session, timeoutMs: Long): Job = fastScope.launch {
+        delay(timeoutMs)
+        detach(active)?.let { closeTransport(it.transport) }
+    }
+
+    internal fun dropUnhealthyConnection() {
+        val obsolete = session ?: return
+        if (currentSession() !== obsolete) detach(obsolete)?.let { closeTransport(it.transport) }
+    }
+
+    suspend fun disconnect() {
+        revision.updateAndGet { it + 1 }
+        resumeSavedDevice = false
+        connectionMutex.withLock {
+            lastDevice = null
+            lastNetwork = null
+            detach()?.let { closeTransport(it.transport) }
+        }
+    }
+
+    /** Retry the last active endpoint, without prompting to authorize an unknown TV. */
     suspend fun reconnect(): ConnectResult? {
-        val device = lastDevice ?: connectedDevice ?: return null
-        return connect(device.host, device.port)
+        val device = lastDevice ?: return null
+        if (lastNetwork != networks.current.value) return ConnectResult.Error(message(R.string.network_changed))
+        return connectKnown(device, recoveryRevision)
     }
 
-    /**
-     * Heartbeat over the persistent input shell. A marker has to come back from
-     * the TV, so this detects a dead socket even when [isConnected] still says true.
-     */
-    suspend fun ping(timeoutMs: Long = 4_000): Boolean {
-        if (!manager.isConnected) return false
-        val before = fastPending.get()
-        if (!writeFast("true")) return false
-        val deadline = SystemClock.elapsedRealtime() + timeoutMs
-        while (SystemClock.elapsedRealtime() < deadline) {
-            if (fastPending.get() <= before) return true
-            delay(100)
+    /** Verify an actual reply on this session, independent of queued remote input. */
+    internal suspend fun ping(): Boolean {
+        val active = session ?: return false
+        val alive = try {
+            withContext(OperationSession(active)) {
+                exec("printf tvtools-heartbeat", timeoutMs = 4_000) == "tvtools-heartbeat"
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
         }
-        return false
+        if (!alive) detach(active)?.let { closeTransport(it.transport) }
+        return alive
+    }
+
+    private suspend fun openStream(destination: String, timeoutMs: Long = 5_000): AdbStream {
+        val active = operationSession()
+        val deadline = closeOnDeadline(active, timeoutMs)
+        val stream = try {
+            withTimeoutOrNull(timeoutMs) {
+                active.opening.withLock {
+                    if (currentSession() !== active) throw IOException(message(R.string.network_changed))
+                    runInterruptible(Dispatchers.IO) { active.transport.open(destination) }
+                }
+            }
+        } finally {
+            deadline.cancel()
+        }
+        if (stream == null) {
+            detach(active)?.let { closeTransport(it.transport) }
+            throw IOException(message(R.string.network_stream_timeout))
+        }
+        if (currentSession() !== active) {
+            runCatching { stream.close() }
+            throw IOException(message(R.string.network_changed))
+        }
+        return stream
     }
 
     // ---------------- fast input channel ----------------
@@ -181,9 +393,9 @@ class AdbClient(context: Context) {
     fun recentlyInteracted(withinMs: Long = 2_500): Boolean =
         lastInputAt > 0 && SystemClock.elapsedRealtime() - lastInputAt < withinMs
 
-    private fun ensureFastShell(): AdbStream {
+    private suspend fun ensureFastShell(): AdbStream {
         fastStream?.let { return it }
-        val stream = manager.openStream("shell:")
+        val stream = openStream("shell:")
         fastStream = stream
         fastOut = stream.openOutputStream()
         fastPending.set(0)
@@ -260,8 +472,8 @@ class AdbClient(context: Context) {
      * mechanism (old firmware, missing app_process), in which case callers keep
      * using the input shell.
      */
-    suspend fun startInputServer(): Boolean = withContext(Dispatchers.IO) {
-        if (inputServerReady) return@withContext true
+    suspend fun startInputServer(): Boolean = if (!isConnected) false else onSession {
+        if (inputServerReady) return@onSession true
         inputServerMutex.withLock {
             if (inputServerReady) return@withLock true
             var stream: AdbStream? = null
@@ -283,13 +495,13 @@ class AdbClient(context: Context) {
                     pushFile(jar, remoteJar)
                 }
 
-                stream = manager.openStream(
+                stream = openStream(
                     "shell:CLASSPATH=$remoteJar app_process /system/bin " +
                         "com.tvtools.app.input.InputServer"
                 )
                 val reader = BufferedReader(InputStreamReader(stream.openInputStream()))
                 val first = withTimeoutOrNull(6_000) {
-                    withContext(Dispatchers.IO) { reader.readLine() }
+                    runInterruptible(Dispatchers.IO) { reader.readLine() }
                 }
                 if (first != "TVT_READY") {
                     Log.w("TvToolsInput", "injector did not start: ${first ?: "timeout"}")
@@ -385,28 +597,25 @@ class AdbClient(context: Context) {
 
     /**
      * Execute a one-shot shell command, returning full stdout as String.
-     * Times out safely: the stream is force-closed on timeout so a stuck TV
-     * command can never block the caller forever.
+     * Close the underlying transport at the deadline even if libadb is blocked
+     * sending a stream close packet.
      */
-    suspend fun exec(command: String, timeoutMs: Long = 45_000): String = withContext(Dispatchers.IO) {
-        val stream = manager.openStream("shell:$command")
+    suspend fun exec(command: String, timeoutMs: Long = 45_000): String = onSession {
+        val active = operationSession()
+        val deadline = closeOnDeadline(active, timeoutMs)
         try {
-            val reader = async { readStreamFully(stream) }
+            val stream = openStream("shell:$command", timeoutMs = minOf(timeoutMs, 5_000))
             try {
-                withTimeout(timeoutMs) { reader.await() }
-            } catch (e: TimeoutCancellationException) {
-                try {
-                    stream.close()
-                } catch (_: Exception) {
+                val result = withTimeoutOrNull(timeoutMs) { runInterruptible { readStreamFully(stream) } }
+                if (result == null || currentSession() !== active) {
+                    throw IOException(appContext.getString(R.string.network_command_timeout, timeoutMs / 1000))
                 }
-                reader.cancel()
-                throw IOException("Command timed out after ${timeoutMs / 1000}s")
+                result
+            } finally {
+                runCatching { stream.close() }
             }
         } finally {
-            try {
-                stream.close()
-            } catch (_: Exception) {
-            }
+            deadline.cancel()
         }
     }
 
@@ -429,12 +638,12 @@ class AdbClient(context: Context) {
 
     /** Open an interactive shell stream (caller owns it, must close). */
     suspend fun openShell(): AdbStream = withContext(Dispatchers.IO) {
-        manager.openStream("shell:")
+        openStream("shell:")
     }
 
     /** Run a long-lived command whose stdout is binary (e.g. screenrecord). */
     suspend fun openCommandStream(command: String): AdbStream = withContext(Dispatchers.IO) {
-        manager.openStream("shell:$command")
+        openStream("shell:$command")
     }
 
     /**
@@ -442,7 +651,7 @@ class AdbClient(context: Context) {
      * (H.264, tar, …) is not translated or buffered by a terminal.
      */
     suspend fun openExecStream(command: String): AdbStream = withContext(Dispatchers.IO) {
-        manager.openStream("exec:$command")
+        openStream("exec:$command")
     }
 
     suspend fun execLines(command: String): List<String> =
@@ -450,8 +659,8 @@ class AdbClient(context: Context) {
 
     // ---------------- sync (file ops) ----------------
 
-    private fun <T> withSync(block: (AdbSync) -> T): T {
-        val stream = manager.openStream("sync:")
+    private suspend fun <T> withSync(block: (AdbSync) -> T): T {
+        val stream = openStream("sync:")
         try {
             return AdbSync(stream).let(block)
         } finally {
@@ -484,7 +693,7 @@ class AdbClient(context: Context) {
     suspend fun pushFile(local: File, remotePath: String,
                          onProgress: ((Long) -> Unit)? = null) = withContext(Dispatchers.IO) {
         val quoted = remotePath.replace("'", "'\\''")
-        val stream = manager.openStream("shell:cat > '$quoted'")
+        val stream = openStream("shell:cat > '$quoted'")
         try {
             val out = stream.openOutputStream()
             val input = local.inputStream()
@@ -604,18 +813,17 @@ class AdbClient(context: Context) {
         }
     }
 
-    private var cachedScreenSize: Pair<Int, Int>? = null
-
-    /** TV screen resolution (cached). */
-    suspend fun getScreenSize(): Pair<Int, Int> {
-        cachedScreenSize?.let { return it }
+    /** TV screen resolution, cached only for the current session. */
+    suspend fun getScreenSize(): Pair<Int, Int> = onSession {
+        val active = operationSession()
+        active.screenSize?.let { return@onSession it }
         val out = exec("wm size", timeoutMs = 15_000)
         val match = Regex("(\\d{3,5})x(\\d{3,5})").find(out)
         val size = if (match != null) {
             match.groupValues[1].toInt() to match.groupValues[2].toInt()
         } else 1920 to 1080
-        cachedScreenSize = size
-        return size
+        active.screenSize = size
+        size
     }
 
     /**
@@ -648,7 +856,7 @@ class AdbClient(context: Context) {
     suspend fun rebootTv(): String = exec("reboot", timeoutMs = 20_000)
 
     /** Take a screenshot: save on device then pull via sync (binary safe). */
-    suspend fun screencap(local: File) = withContext(Dispatchers.IO) {
+    suspend fun screencap(local: File) = onSession {
         val remote = "/data/local/tmp/tvtools_screen.png"
         exec("screencap -p $remote", timeoutMs = 120_000)
         try {
@@ -663,7 +871,7 @@ class AdbClient(context: Context) {
 
     /** Push an APK and install it. Returns pm output (contains "Success" on success). */
     suspend fun installApk(localApk: File, onProgress: ((Long) -> Unit)? = null): String =
-        withContext(Dispatchers.IO) {
+        onSession {
             val remote = "/data/local/tmp/tvtools_install.apk"
             withSync { it.push(localApk, remote, 420, onProgress) } // 0644
             try {
@@ -687,7 +895,7 @@ class AdbClient(context: Context) {
      * Pushes every APK to /data/local/tmp and runs `pm install-multiple`.
      */
     suspend fun installSplitApk(apks: List<File>, onProgress: ((Long) -> Unit)? = null): String =
-        withContext(Dispatchers.IO) {
+        onSession {
             require(apks.isNotEmpty()) { "No APK files" }
             val remotePaths = ArrayList<String>()
             try {

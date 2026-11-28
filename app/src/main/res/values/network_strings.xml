@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="network_default_tv_name">Android TV</string>
+    <string name="network_busy">A TV connection is already in progress.</string>
+    <string name="network_pairing_rejected">The TV rejected pairing.</string>
+    <string name="network_changed">The network or active connection changed. Try again.</string>
+    <string name="network_handshake_timeout">The TV did not finish connecting in time. Check its debugging prompt and try again.</string>
+    <string name="network_tv_unreachable">Could not reach the TV. Check that it is awake and debugging is enabled.</string>
+    <string name="network_no_session">No active TV connection.</string>
+    <string name="network_stream_timeout">The TV stopped responding. Reconnect and try again.</string>
+    <string name="network_command_timeout">The TV command timed out after %1$d s.</string>
+    <string name="network_no_lan">Connect your phone and TV to the same Wi-Fi or local network.</string>
+    <string name="network_reconnecting">Reconnecting to the TV…</string>
+    <string name="network_reconnect">Reconnect</string>
+    <string name="network_reconnected">Reconnected to the TV</string>
+    <string name="network_authorization_needed">Check debugging authorization on the TV. You can select the TV on Home to authorize or pair it.</string>
+    <string name="network_tv_disconnected">The TV connection was lost.</string>
+</resources>

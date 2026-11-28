@@ -1,7 +1,5 @@
 package com.tvtools.app.ui.connect
 
-import android.content.Context
-import android.net.ConnectivityManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,9 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.DeviceProto
 import com.tvtools.app.data.TvDevice
@@ -51,14 +53,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.net.Inet4Address
 import java.net.InetSocketAddress
-import java.net.Socket
-import java.util.concurrent.atomic.AtomicInteger
+import javax.net.SocketFactory
 
 private data class NetHost(
     val ip: String,
@@ -66,7 +68,8 @@ private data class NetHost(
     val kind: String,
     val detail: String,
 ) {
-    val isAdb: Boolean get() = 5555 in ports || 5554 in ports
+    val adbPort: Int? get() = ports.firstOrNull { it == 5555 || it == 5554 }
+    val isAdb: Boolean get() = adbPort != null
 }
 
 private val PROBE_PORTS = intArrayOf(5555, 5554, 8009, 8008, 7000, 9100, 22, 80, 443)
@@ -86,84 +89,107 @@ private fun classify(ports: List<Int>): Pair<String, String> = when {
 fun NetworkMapScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var hosts by remember { mutableStateOf<List<NetHost>>(emptyList()) }
-    var scanning by remember { mutableStateOf(false) }
-    var progress by remember { mutableIntStateOf(0) }
-    var scanned by remember { mutableIntStateOf(0) }
-    var status by remember { mutableStateOf<String?>(null) }
-    var scanJob by remember { mutableStateOf<Job?>(null) }
-    var connecting by remember { mutableStateOf<String?>(null) }
+    val lan by AppServices.networks.current.collectAsStateWithLifecycle()
+    var hosts by remember(lan) { mutableStateOf<List<NetHost>>(emptyList()) }
+    var scanning by remember(lan) { mutableStateOf(false) }
+    var scanned by remember(lan) { mutableIntStateOf(0) }
+    var status by remember(lan) { mutableStateOf<String?>(null) }
+    var scanJob by remember(lan) { mutableStateOf<Job?>(null) }
+    var connectJob by remember(lan) { mutableStateOf<Job?>(null) }
+    var connecting by remember(lan) { mutableStateOf<String?>(null) }
 
-    val localIp = remember { localIpv4(context) }
-    val gateway = remember { gatewayIp(context) }
-    val prefix = localIp?.substringBeforeLast('.')
+    DisposableEffect(lan) {
+        onDispose {
+            scanJob?.cancel()
+            connectJob?.cancel()
+        }
+    }
+
+    val subnets = lan?.ipv4Subnets.orEmpty()
+    val scanTargets = remember(lan) { subnets.flatMap { it.scanHosts() }.distinct().take(254) }
+    val gateways = lan?.gateways.orEmpty().filterIsInstance<Inet4Address>()
+        .mapNotNull { it.hostAddress }.joinToString(", ")
+    val prefix = subnets.joinToString(", ") { "${it.localAddress}/${it.prefixLength}" }
 
     fun startScan() {
-        if (prefix == null) {
-            status = "Not on Wi-Fi — connect to the same network as your TV."
-            return
-        }
-        scanJob?.cancel()
+        val network = lan ?: return
+        if (scanning || scanTargets.isEmpty() || AppServices.networks.current.value != network) return
         hosts = emptyList()
         scanned = 0
-        progress = 0
         status = null
         scanning = true
         scanJob = scope.launch {
-            val found = java.util.Collections.synchronizedList(mutableListOf<NetHost>())
-            withContext(Dispatchers.IO) {
-                val done = AtomicInteger(0)
-                val sem = Semaphore(48)
-                coroutineScope {
-                    (1..254).map { i ->
-                        async {
-                            sem.withPermit {
-                                val ip = "$prefix.$i"
-                                val open = PROBE_PORTS.filter { port -> portOpen(ip, port) }
-                                if (open.isNotEmpty()) {
-                                    val (kind, detail) = classify(open)
-                                    found.add(NetHost(ip, open, kind, detail))
-                                }
-                                val n = done.incrementAndGet()
-                                withContext(Dispatchers.Main) {
-                                    scanned = n
-                                    progress = n
-                                    hosts = found.sortedWith(
-                                        compareBy<NetHost> { if (it.isAdb) 0 else 1 }
-                                            .thenBy { ipSortKey(it.ip) }
-                                    )
+            try {
+                withContext(Dispatchers.IO) {
+                    val sockets = network.handle.socketFactory
+                    val sem = Semaphore(48)
+                    coroutineScope {
+                        scanTargets.map { ip ->
+                            async {
+                                sem.withPermit {
+                                    val open = PROBE_PORTS.filter { port ->
+                                        ensureActive()
+                                        AppServices.networks.current.value == network && portOpen(sockets, ip, port)
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        if (AppServices.networks.current.value == network) {
+                                            scanned++
+                                            if (open.isNotEmpty()) {
+                                                val (kind, detail) = classify(open)
+                                                hosts = (hosts + NetHost(ip, open, kind, detail)).sortedWith(
+                                                    compareBy<NetHost> { if (it.isAdb) 0 else 1 }
+                                                        .thenBy { ipSortKey(it.ip) }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }.awaitAll()
+                        }.awaitAll()
+                    }
                 }
+                if (AppServices.networks.current.value == network && hosts.isEmpty()) {
+                    status = context.getString(R.string.network_map_empty)
+                }
+            } finally {
+                scanning = false
             }
-            scanning = false
-            if (found.isEmpty()) status = "No hosts with open ports found on $prefix.0/24."
         }
     }
 
     fun connectTo(host: NetHost) {
+        val network = lan ?: return
+        val port = host.adbPort ?: return
+        if (connecting != null || AppServices.networks.current.value != network) return
         connecting = host.ip
-        scope.launch {
-            when (val result = AppServices.adb.connect(host.ip, 5555)) {
-                AdbClient.ConnectResult.Success -> {
-                    val model = runCatching {
-                        AppServices.adb.exec("getprop ro.product.model", timeoutMs = 8_000).trim()
-                    }.getOrNull().orEmpty().ifBlank { host.ip }
-                    val device = TvDevice(model, host.ip, 5555, DeviceProto.TCP)
-                    AppServices.prefs.saveLastDevice(device)
-                    AppServices.prefs.saveDevice(device)
-                    onConnected(model)
+        connectJob = scope.launch {
+            try {
+                val result = AppServices.adb.connect(host.ip, port)
+                if (AppServices.networks.current.value != network) return@launch
+                when (result) {
+                    AdbClient.ConnectResult.Success -> {
+                        val model = runCatching {
+                            AppServices.adb.exec("getprop ro.product.model", timeoutMs = 8_000).trim()
+                        }.getOrNull().orEmpty().ifBlank { host.ip }
+                        ensureActive()
+                        if (AppServices.networks.current.value != network) return@launch
+                        val device = TvDevice(model, host.ip, port, DeviceProto.TCP)
+                        AppServices.prefs.saveLastDevice(device)
+                        AppServices.prefs.saveDevice(device)
+                        onConnected(model)
+                    }
+                    AdbClient.ConnectResult.PairingRequired ->
+                        status = context.getString(R.string.network_map_pairing_required, host.ip)
+                    is AdbClient.ConnectResult.Error ->
+                        status = context.getString(R.string.network_map_connect_failed, host.ip, result.message)
                 }
-                AdbClient.ConnectResult.PairingRequired -> status = "${host.ip} needs pairing — use Home → Add IP and enter the pairing code."
-                is AdbClient.ConnectResult.Error -> status = "Couldn't connect to ${host.ip}: ${result.message}"
+            } finally {
+                connecting = null
             }
-            connecting = null
         }
     }
 
-    LabScaffold("Network map", onBack) {
+    LabScaffold(stringResource(R.string.network_map), onBack) {
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Card(
                 colors = CardDefaults.cardColors(
@@ -177,16 +203,14 @@ fun NetworkMapScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                if (localIp != null) "Your network: $prefix.0/24" else "No Wi-Fi network",
+                                if (subnets.isEmpty()) stringResource(R.string.network_map_no_ipv4)
+                                else stringResource(R.string.network_map_prefixes, prefix),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                buildString {
-                                    append("This phone: ")
-                                    append(localIp ?: "—")
-                                    if (gateway != null) append("  ·  router: $gateway")
-                                },
+                                if (gateways.isEmpty()) stringResource(R.string.doctor_phone_ip, subnets.firstOrNull()?.localAddress ?: "—")
+                                else stringResource(R.string.network_map_phone_and_router, subnets.firstOrNull()?.localAddress ?: "—", gateways),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -194,19 +218,19 @@ fun NetworkMapScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { startScan() }, enabled = !scanning) {
+                        OutlinedButton(onClick = { startScan() }, enabled = !scanning && scanTargets.isNotEmpty()) {
                             Icon(
                                 if (hosts.isEmpty()) Icons.Default.PlayArrow else Icons.Default.Refresh,
                                 null,
                                 Modifier.size(18.dp),
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text(if (hosts.isEmpty()) "Scan network" else "Scan again")
+                            Text(if (hosts.isEmpty()) stringResource(R.string.scan_network) else stringResource(R.string.scan_again))
                         }
                         if (scanning) {
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                             Text(
-                                "$scanned / 254",
+                                "$scanned / ${scanTargets.size}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -215,7 +239,7 @@ fun NetworkMapScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                     if (scanning) {
                         Spacer(Modifier.height(8.dp))
                         LinearProgressIndicator(
-                            progress = { progress / 254f },
+                            progress = { scanned.toFloat() / scanTargets.size },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -275,7 +299,7 @@ fun NetworkMapScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                             } else if (host.isAdb) {
                                 Text(
-                                    "Connect",
+                                    stringResource(R.string.connect),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.SemiBold,
@@ -289,8 +313,8 @@ fun NetworkMapScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
     }
 }
 
-private fun portOpen(ip: String, port: Int): Boolean = try {
-    Socket().use { it.connect(InetSocketAddress(ip, port), 180) }
+private fun portOpen(sockets: SocketFactory, ip: String, port: Int): Boolean = try {
+    sockets.createSocket().use { it.connect(InetSocketAddress(ip, port), 180) }
     true
 } catch (_: Exception) {
     false
@@ -298,23 +322,3 @@ private fun portOpen(ip: String, port: Int): Boolean = try {
 
 private fun ipSortKey(ip: String): Long =
     ip.split('.').fold(0L) { acc, part -> acc * 256 + (part.toLongOrNull() ?: 0) }
-
-private fun localIpv4(context: Context): String? = try {
-    val cm = context.getSystemService(ConnectivityManager::class.java)
-    cm.activeNetwork?.let { cm.getLinkProperties(it) }
-        ?.linkAddresses
-        ?.firstOrNull { it.address is Inet4Address }
-        ?.address?.hostAddress
-} catch (_: Exception) {
-    null
-}
-
-private fun gatewayIp(context: Context): String? = try {
-    val cm = context.getSystemService(ConnectivityManager::class.java)
-    cm.activeNetwork?.let { cm.getLinkProperties(it) }
-        ?.routes
-        ?.firstOrNull { it.isDefaultRoute }
-        ?.gateway?.hostAddress
-} catch (_: Exception) {
-    null
-}
