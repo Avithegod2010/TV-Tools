@@ -1,6 +1,7 @@
 package com.tvtools.app.data
 
 import android.content.Context
+import android.net.Uri
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -18,6 +19,7 @@ class Prefs(private val context: Context) {
     private val KEY_PORT = intPreferencesKey("last_port")
     private val KEY_PROTO = stringPreferencesKey("last_proto")
     private val KEY_MAC = stringPreferencesKey("last_mac")
+    private val KEY_LAST_APK_DOCUMENT = stringPreferencesKey("last_apk_document")
 
     suspend fun saveLastDevice(device: TvDevice) {
         context.dataStore.edit { p ->
@@ -41,8 +43,21 @@ class Prefs(private val context: Context) {
     }
 
     suspend fun clearLastDevice() {
-        context.dataStore.edit { it.clear() }
+        context.dataStore.edit {
+            it.remove(KEY_NAME)
+            it.remove(KEY_HOST)
+            it.remove(KEY_PORT)
+            it.remove(KEY_PROTO)
+            it.remove(KEY_MAC)
+        }
     }
+
+    suspend fun saveLastApkDocument(uri: Uri) {
+        context.dataStore.edit { it[KEY_LAST_APK_DOCUMENT] = uri.toString() }
+    }
+
+    suspend fun loadLastApkDocument(): Uri? =
+        context.dataStore.data.first()[KEY_LAST_APK_DOCUMENT]?.let(Uri::parse)
 
     /** TV Wi-Fi MAC, used for Wake-on-LAN when the TV is fully off. */
     suspend fun saveLastMac(mac: String) {

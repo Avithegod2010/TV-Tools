@@ -1,5 +1,6 @@
 package com.tvtools.app.ui.tools
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -68,6 +69,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,9 +84,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.AppServices
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.ui.common.InfoCard
 import com.tvtools.app.ui.common.rememberHaptics
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 @Composable
 fun ToolsTab(
@@ -104,6 +109,7 @@ fun ToolsTab(
     val snackbar = remember { SnackbarHostState() }
     val context = TvToolsApp.instance
     val haptics = rememberHaptics()
+    val pickerScope = rememberCoroutineScope()
 
     var showPhoneApps by remember { mutableStateOf(false) }
     var showUploadOptions by remember { mutableStateOf(false) }
@@ -115,7 +121,10 @@ fun ToolsTab(
     }
     LaunchedEffect(deviceName) { viewModel.setDevice(deviceName) }
 
-    val apkPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val apkPicker = rememberLauncherForActivityResult(ApkDocumentPicker()) { uri ->
+        uri?.let(viewModel::onApkDocumentSelected)
+    }
+    val legacyApkPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let(viewModel::installApk)
     }
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -130,7 +139,18 @@ fun ToolsTab(
 
     fun openTool(tool: ToolDef) {
         when (tool.id) {
-            "install" -> apkPicker.launch("*/*")
+            "install" -> pickerScope.launch {
+                val initialUri = try {
+                    AppServices.prefs.loadLastApkDocument()
+                } catch (_: IOException) {
+                    null
+                }
+                try {
+                    apkPicker.launch(initialUri)
+                } catch (_: ActivityNotFoundException) {
+                    legacyApkPicker.launch("*/*")
+                }
+            }
             "upload" -> filePicker.launch("*/*")
             "files" -> onOpenFiles()
             "cache" -> viewModel.clearCache()

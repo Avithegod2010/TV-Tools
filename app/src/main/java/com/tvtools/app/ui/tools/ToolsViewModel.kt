@@ -3,6 +3,7 @@ package com.tvtools.app.ui.tools
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 data class ToolsUiState(
     val screenshot: ImageBitmap? = null,
@@ -100,6 +102,20 @@ class ToolsViewModel : ViewModel() {
             // A silent drop can surface as "connect() must be called first"; retry once.
             if (adb.reconnect() != AdbClient.ConnectResult.Success) throw e
             withContext(Dispatchers.IO) { adb.screencap(screenshotFile) }
+        }
+    }
+
+    fun onApkDocumentSelected(uri: Uri) {
+        viewModelScope.launch {
+            if (DocumentsContract.isDocumentUri(context, uri)) {
+                try {
+                    // The URI is a picker hint. Installing uses only the current read grant.
+                    AppServices.prefs.saveLastApkDocument(uri)
+                } catch (_: IOException) {
+                    // A preference write failure should not prevent installing the selected APK.
+                }
+            }
+            installApk(uri)
         }
     }
 
