@@ -5,6 +5,20 @@ All notable changes to TV Tools are documented here.
 The project follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 Versions before 1.2 were development milestones and were not published as signed releases.
 
+## [Unreleased]
+
+### Added
+
+- Russian translations for the app interface. Use Android's app language settings where available.
+- Install APK remembers the last location across launches when the Android document provider can reopen it.
+
+### Fixed
+
+- Refresh discovery and invalidate stale TV connections when the local network changes, while keeping saved TVs and settings.
+- Recover interrupted ADB sessions while the app is in use with bounded retries and a manual reconnect option.
+
+Thanks to [Zidar05](https://github.com/Avithegod2010/TV-Tools/issues/11) for daily testing and reporting all four improvements.
+
 ## [1.9.0] — 2026-11-15
 
 ### Added
