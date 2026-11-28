@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.data.DeviceStats
 import com.tvtools.app.ui.common.LoadingRow
@@ -68,7 +70,7 @@ fun LabScaffold(title: String, onBack: () -> Unit, action: (@Composable () -> Un
             TopAppBar(
                 title = { Text(title, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
                 },
                 actions = { action?.invoke() },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -93,7 +95,7 @@ class CastViewModel : ViewModel() {
 
     fun scan() {
         if (_ui.value.scanning) return
-        _ui.value = _ui.value.copy(scanning = true, renderers = emptyList(), status = "Searching for DLNA renderers…")
+        _ui.value = _ui.value.copy(scanning = true, renderers = emptyList(), status = TvToolsApp.instance.getString(R.string.searching_for_dlna_renderers))
         viewModelScope.launch(Dispatchers.IO) {
             val found = ArrayList<Pair<String, String>>() // location -> name
             try {
@@ -124,7 +126,7 @@ class CastViewModel : ViewModel() {
             _ui.value = CastUiState(
                 scanning = false,
                 renderers = renderers,
-                status = if (renderers.isEmpty()) "No DLNA renderer found — make sure the TV is on and supports DLNA/DMR." else null,
+                status = if (renderers.isEmpty()) TvToolsApp.instance.getString(R.string.no_dlna_renderer_found_make_sure_the) else null,
             )
         }
     }
@@ -147,7 +149,7 @@ class CastViewModel : ViewModel() {
     }
 
     fun cast(uri: Uri, renderer: DlnaRenderer) {
-        _ui.value = _ui.value.copy(status = "Preparing…")
+        _ui.value = _ui.value.copy(status = TvToolsApp.instance.getString(R.string.preparing))
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = TvToolsApp.instance
@@ -158,14 +160,14 @@ class CastViewModel : ViewModel() {
                 }
                 val server = MediaHttpServer(file)
                 server.start()
-                _ui.value = _ui.value.copy(status = "Serving ${file.name} (${formatBytes(file.length())})…")
-                val phoneIp = localIp(context) ?: throw java.io.IOException("No Wi-Fi IP")
+                _ui.value = _ui.value.copy(status = TvToolsApp.instance.getString(R.string.dlna_serving_media, file.name, formatBytes(file.length())))
+                val phoneIp = localIp(context) ?: throw java.io.IOException(TvToolsApp.instance.getString(R.string.no_wi_fi_ip))
                 val url = "http://$phoneIp:${server.port}/${file.name}"
                 soap(renderer.controlUrl, "SetAVTransportURI", "<InstanceID>0</InstanceID><CurrentURI>$url</CurrentURI><CurrentURIMetaData></CurrentURIMetaData>")
                 soap(renderer.controlUrl, "Play", "<InstanceID>0</InstanceID><Speed>1</Speed>")
-                _ui.value = _ui.value.copy(status = "Casting to ${renderer.name} — keep this screen open.")
+                _ui.value = _ui.value.copy(status = TvToolsApp.instance.getString(R.string.dlna_casting, renderer.name))
             } catch (e: Exception) {
-                _ui.value = _ui.value.copy(status = "Cast failed: ${e.message}")
+                _ui.value = _ui.value.copy(status = TvToolsApp.instance.getString(R.string.dlna_cast_failed, e.message.orEmpty()))
             }
         }
     }
@@ -251,27 +253,27 @@ fun CastScreen(onBack: () -> Unit, vm: CastViewModel = androidx.lifecycle.viewmo
         androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri -> pendingUri = uri }
 
-    LabScaffold("Cast media to TV", onBack, action = {
-        IconButton(onClick = vm::scan) { Icon(Icons.Default.Refresh, "Scan") }
+    LabScaffold(stringResource(R.string.cast_media_to_tv), onBack, action = {
+        IconButton(onClick = vm::scan) { Icon(Icons.Default.Refresh, stringResource(R.string.scan)) }
     }) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                "Find DLNA renderers on your network, pick a video or music file and stream it from your phone to the TV.",
+                stringResource(R.string.find_dlna_renderers_on_your_network_pick),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { picker.launch("*/*") }) { Text(if (pendingUri == null) "Pick media" else "Change media") }
-                Button(onClick = vm::scan, enabled = !ui.scanning) { Text(if (ui.scanning) "Scanning…" else "Scan") }
+                Button(onClick = { picker.launch("*/*") }) { Text(if (pendingUri == null) stringResource(R.string.pick_media) else stringResource(R.string.change_media)) }
+                Button(onClick = vm::scan, enabled = !ui.scanning) { Text(if (ui.scanning) stringResource(R.string.scanning) else stringResource(R.string.scan)) }
             }
-            if (ui.scanning) LoadingRow("Looking for renderers…")
+            if (ui.scanning) LoadingRow(stringResource(R.string.looking_for_renderers))
             ui.status?.let {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))) {
                     Text(it, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
                 }
             }
             if (ui.renderers.isNotEmpty()) {
-                Text("Renderers", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.renderers), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 ui.renderers.forEach { r ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.weight(1f)) {
@@ -281,7 +283,7 @@ fun CastScreen(onBack: () -> Unit, vm: CastViewModel = androidx.lifecycle.viewmo
                         Button(
                             enabled = pendingUri != null,
                             onClick = { pendingUri?.let { vm.cast(it, r) } },
-                        ) { Text("Cast") }
+                        ) { Text(stringResource(R.string.cast)) }
                     }
                 }
             }
@@ -346,10 +348,10 @@ class SpeedTestViewModel : ViewModel() {
                     pingMs = ping,
                     uploadMbps = up * 8,
                     downloadMbps = down * 8,
-                    message = "Measured over the ADB/Wi-Fi link (8 MB transfer).",
+                    message = context.getString(R.string.measured_over_the_adb_wi_fi_link),
                 )
             } catch (e: Exception) {
-                _ui.value = SpeedUiState(running = false, message = "Speed test failed: ${e.message}")
+                _ui.value = SpeedUiState(running = false, message = context.getString(R.string.speed_test_failed, e.message.orEmpty()))
             }
         }
     }
@@ -358,18 +360,18 @@ class SpeedTestViewModel : ViewModel() {
 @Composable
 fun SpeedTestScreen(onBack: () -> Unit, vm: SpeedTestViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val ui by vm.ui.collectAsState()
-    LabScaffold("Speed test", onBack) {
+    LabScaffold(stringResource(R.string.speed_test), onBack) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                "Measures latency and throughput between your phone and the TV over the same Wi-Fi.",
+                stringResource(R.string.measures_latency_and_throughput_between_your_phone),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = vm::run, enabled = !ui.running) { Text(if (ui.running) "Testing…" else "Run speed test") }
-            if (ui.running) LoadingRow("Sending 8 MB to the TV and back…")
-            ui.pingMs?.let { MetricCard("Latency", "%.0f ms".format(it)) }
-            ui.uploadMbps?.let { MetricCard("Upload → TV", "%.1f Mbps".format(it)) }
-            ui.downloadMbps?.let { MetricCard("Download ← TV", "%.1f Mbps".format(it)) }
+            Button(onClick = vm::run, enabled = !ui.running) { Text(if (ui.running) stringResource(R.string.testing) else stringResource(R.string.run_speed_test)) }
+            if (ui.running) LoadingRow(stringResource(R.string.sending_8_mb_to_the_tv_and))
+            ui.pingMs?.let { MetricCard(stringResource(R.string.latency), "%.0f ms".format(it)) }
+            ui.uploadMbps?.let { MetricCard(stringResource(R.string.upload_tv), "%.1f Mbps".format(it)) }
+            ui.downloadMbps?.let { MetricCard(stringResource(R.string.download_tv), "%.1f Mbps".format(it)) }
             ui.message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }
@@ -402,9 +404,9 @@ class LiveTvViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val out = AppServices.adb.exec("dumpsys tv_input 2>/dev/null | head -c 12000", timeoutMs = 25_000)
-                _text.value = out.ifBlank { "No TV Input Framework data — this TV may not expose live channels." }
+                _text.value = out.ifBlank { TvToolsApp.instance.getString(R.string.no_tv_input_framework_data_this_tv) }
             } catch (e: Exception) {
-                _text.value = "Couldn't read TV inputs: ${e.message}"
+                _text.value = TvToolsApp.instance.getString(R.string.tv_inputs_failed, e.message.orEmpty())
             } finally {
                 _loading.value = false
             }
@@ -416,11 +418,11 @@ class LiveTvViewModel : ViewModel() {
 fun LiveTvScreen(onBack: () -> Unit, vm: LiveTvViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val text by vm.text.collectAsState()
     val loading by vm.loading.collectAsState()
-    LabScaffold("Live TV inputs", onBack, action = {
-        IconButton(onClick = vm::load) { Icon(Icons.Default.Refresh, "Reload") }
+    LabScaffold(stringResource(R.string.live_tv_inputs), onBack, action = {
+        IconButton(onClick = vm::load) { Icon(Icons.Default.Refresh, stringResource(R.string.reload)) }
     }) {
         when {
-            loading -> LoadingRow("Reading TV inputs…")
+            loading -> LoadingRow(stringResource(R.string.reading_tv_inputs))
             else -> Text(
                 text.orEmpty(),
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -479,10 +481,10 @@ class MouseKeyboardViewModel : ViewModel() {
 fun MouseKeyboardScreen(onBack: () -> Unit, vm: MouseKeyboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     var text by remember { mutableStateOf("") }
     var lastMove by remember { mutableLongStateOf(0L) }
-    LabScaffold("Mouse & keyboard", onBack) {
+    LabScaffold(stringResource(R.string.mouse_keyboard), onBack) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                "Use the pad as a TV mouse (tap = click, drag = move) and send text to the TV.",
+                stringResource(R.string.use_the_pad_as_a_tv_mouse),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -492,7 +494,7 @@ fun MouseKeyboardScreen(onBack: () -> Unit, vm: MouseKeyboardViewModel = android
                 OutlinedButton(onClick = { vm.key(21) }) { Text("◀") }
                 OutlinedButton(onClick = { vm.key(22) }) { Text("▶") }
                 OutlinedButton(onClick = { vm.key(23) }) { Text("OK") }
-                OutlinedButton(onClick = { vm.key(4) }) { Text("Back") }
+                OutlinedButton(onClick = { vm.key(4) }) { Text(stringResource(R.string.back)) }
             }
             Box(
                 modifier = Modifier
@@ -526,17 +528,17 @@ fun MouseKeyboardScreen(onBack: () -> Unit, vm: MouseKeyboardViewModel = android
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Mouse pad", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.mouse_pad), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type text for the TV…") },
+                    placeholder = { Text(stringResource(R.string.type_text_for_the_tv)) },
                     singleLine = true,
                 )
-                Button(onClick = { vm.text(text); text = "" }, enabled = text.isNotBlank()) { Text("Send") }
+                Button(onClick = { vm.text(text); text = "" }, enabled = text.isNotBlank()) { Text(stringResource(R.string.send)) }
             }
         }
     }
@@ -589,25 +591,25 @@ fun HealthScreen(onBack: () -> Unit, vm: HealthViewModel = androidx.lifecycle.vi
         vm.start()
         onDispose { vm.stop() }
     }
-    LabScaffold("TV health", onBack) {
+    LabScaffold(stringResource(R.string.tv_health), onBack) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             val st = s
             if (st == null) {
-                LoadingRow("Reading health…")
+                LoadingRow(stringResource(R.string.reading_health))
                 return@Column
             }
             val storagePct = if (st.storageTotal > 0) st.storageUsed.toFloat() / st.storageTotal else 0f
             val ramPct = if (st.ramTotal > 0) (st.ramTotal - st.ramAvailable).toFloat() / st.ramTotal else 0f
             HealthCard("CPU", "${st.cpuUsagePercent}%", cpu.lastOrNull() ?: 0f, cpu, Color(0xFF4ADE80))
             HealthCard("RAM", "${(ramPct * 100).toInt()}%", ramPct, ram, Color(0xFF60A5FA))
-            HealthCard("Storage", "${(storagePct * 100).toInt()}%", storagePct, emptyList(), Color(0xFFF59E0B))
+            HealthCard(stringResource(R.string.storage), "${(storagePct * 100).toInt()}%", storagePct, emptyList(), Color(0xFFF59E0B))
             val alerts = buildList {
                 if (storagePct > 0.9f) add("⚠ Storage is over 90% full")
                 if (ramPct > 0.9f) add("⚠ RAM is almost exhausted")
                 if (st.cpuUsagePercent > 90) add("⚠ CPU is very busy (${st.cpuUsagePercent}%)")
             }
             if (alerts.isEmpty()) {
-                Text("✅ Everything looks healthy", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.everything_looks_healthy), style = MaterialTheme.typography.bodyMedium)
             } else {
                 alerts.forEach {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -675,7 +677,7 @@ class UsersViewModel : ViewModel() {
                 }.toList()
                 _users.value = list
             } catch (e: Exception) {
-                _message.value = "Couldn't list users: ${e.message}"
+                _message.value = TvToolsApp.instance.getString(R.string.tv_users_failed, e.message.orEmpty())
             }
         }
     }
@@ -684,10 +686,10 @@ class UsersViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val out = adb.exec("am switch-user $id", timeoutMs = 20_000)
-                _message.value = if (out.isBlank()) "Switched to user $id" else out.trim()
+                _message.value = if (out.isBlank()) TvToolsApp.instance.getString(R.string.tv_user_switched, id) else out.trim()
                 load()
             } catch (e: Exception) {
-                _message.value = "Switch failed: ${e.message}"
+                _message.value = TvToolsApp.instance.getString(R.string.tv_user_switch_failed, e.message.orEmpty())
             }
         }
     }
@@ -697,20 +699,20 @@ class UsersViewModel : ViewModel() {
 fun UsersScreen(onBack: () -> Unit, vm: UsersViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val users by vm.users.collectAsState()
     val msg by vm.message.collectAsState()
-    LabScaffold("TV users", onBack, action = { IconButton(onClick = vm::load) { Icon(Icons.Default.Refresh, "Reload") } }) {
+    LabScaffold(stringResource(R.string.tv_users), onBack, action = { IconButton(onClick = vm::load) { Icon(Icons.Default.Refresh, stringResource(R.string.reload)) } }) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Switch between user profiles on the TV.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.switch_between_user_profiles_on_the_tv), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             msg?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             users.forEach { u ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(u.name, style = MaterialTheme.typography.bodyLarge)
-                        Text("id ${u.id}" + if (u.running) " · active" else "", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(if (u.running) R.string.tv_user_active_id else R.string.tv_user_id, u.id), style = MaterialTheme.typography.labelSmall)
                     }
-                    Button(onClick = { vm.switchUser(u.id) }, enabled = !u.running) { Text("Switch") }
+                    Button(onClick = { vm.switchUser(u.id) }, enabled = !u.running) { Text(stringResource(R.string.switch_action)) }
                 }
             }
-            if (users.isEmpty()) LoadingRow("Reading users…")
+            if (users.isEmpty()) LoadingRow(stringResource(R.string.reading_users))
         }
     }
 }
@@ -733,16 +735,16 @@ class IrViewModel : ViewModel() {
         val context = TvToolsApp.instance
         val ir = context.getSystemService(Context.CONSUMER_IR_SERVICE) as? android.hardware.ConsumerIrManager
         if (ir == null || !ir.hasIrEmitter()) {
-            _message.value = "This phone has no IR blaster."
+            _message.value = TvToolsApp.instance.getString(R.string.this_phone_has_no_ir_blaster)
             return
         }
         try {
             val pattern = patternText.split(',', ' ', '\n').mapNotNull { it.trim().toIntOrNull() }.toIntArray()
-            if (pattern.isEmpty()) throw IllegalArgumentException("Pattern is empty")
+            if (pattern.isEmpty()) throw IllegalArgumentException(TvToolsApp.instance.getString(R.string.pattern_is_empty))
             ir.transmit(freq, pattern)
-            _message.value = "IR pattern sent (${pattern.size} bursts)"
+            _message.value = TvToolsApp.instance.getString(R.string.ir_pattern_sent, pattern.size)
         } catch (e: Exception) {
-            _message.value = "IR failed: ${e.message}"
+            _message.value = TvToolsApp.instance.getString(R.string.ir_send_failed, e.message.orEmpty())
         }
     }
 }
@@ -753,15 +755,15 @@ fun IrScreen(onBack: () -> Unit, vm: IrViewModel = androidx.lifecycle.viewmodel.
     val msg by vm.message.collectAsState()
     var freq by remember { mutableStateOf("38000") }
     var pattern by remember { mutableStateOf("9000,4500,560,560,560,1690") }
-    LabScaffold("IR blaster", onBack) {
+    LabScaffold(stringResource(R.string.ir_blaster), onBack) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (!hasIr) {
-                Text("This phone doesn't have an IR blaster. This feature is available on phones with one (e.g. Xiaomi/Redmi models).", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.this_phone_doesnt_have_an_ir_blaster), style = MaterialTheme.typography.bodyMedium)
             } else {
-                Text("Send a raw IR pattern to the TV.", style = MaterialTheme.typography.bodySmall)
-                OutlinedTextField(value = freq, onValueChange = { freq = it.filter(Char::isDigit) }, label = { Text("Frequency (Hz)") })
-                OutlinedTextField(value = pattern, onValueChange = { pattern = it }, label = { Text("Pattern (µs, comma separated)") })
-                Button(onClick = { vm.send(freq.toIntOrNull() ?: 38000, pattern) }) { Text("Send IR") }
+                Text(stringResource(R.string.send_a_raw_ir_pattern_to_the), style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(value = freq, onValueChange = { freq = it.filter(Char::isDigit) }, label = { Text(stringResource(R.string.frequency_hz)) })
+                OutlinedTextField(value = pattern, onValueChange = { pattern = it }, label = { Text(stringResource(R.string.pattern_s_comma_separated)) })
+                Button(onClick = { vm.send(freq.toIntOrNull() ?: 38000, pattern) }) { Text(stringResource(R.string.send_ir)) }
             }
             msg?.let { Text(it) }
         }
@@ -788,7 +790,7 @@ class KidsViewModel : ViewModel() {
                 _apps.value = out.replace("\r\n", "\n").lines()
                     .map { it.removePrefix("package:") }.filter { it.isNotBlank() }
             } catch (e: Exception) {
-                _message.value = "Couldn't list apps: ${e.message}"
+                _message.value = TvToolsApp.instance.getString(R.string.lab_apps_list_failed, e.message.orEmpty())
             }
         }
     }
@@ -807,7 +809,7 @@ class KidsViewModel : ViewModel() {
                 } catch (_: Exception) {
                 }
             }
-            _message.value = if (enable) "Kids mode ON — $ok apps disabled" else "Kids mode OFF — $ok apps re-enabled"
+            _message.value = if (enable) TvToolsApp.instance.getString(R.string.kids_mode_enabled_count, ok) else TvToolsApp.instance.getString(R.string.kids_mode_disabled_count, ok)
         }
     }
 }
@@ -818,17 +820,17 @@ fun KidsScreen(onBack: () -> Unit, vm: KidsViewModel = androidx.lifecycle.viewmo
     val apps by vm.apps.collectAsState()
     val selected by vm.selected.collectAsState()
     val msg by vm.message.collectAsState()
-    LabScaffold("Kids mode", onBack) {
+    LabScaffold(stringResource(R.string.kids_mode), onBack) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                "Pick distracting apps and disable them on the TV. Turn kids mode off to re-enable them.",
+                stringResource(R.string.pick_distracting_apps_and_disable_them_on),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             msg?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.apply(true) }, enabled = selected.isNotEmpty()) { Text("Kids mode ON") }
-                OutlinedButton(onClick = { vm.apply(false) }, enabled = selected.isNotEmpty()) { Text("Kids mode OFF") }
+                Button(onClick = { vm.apply(true) }, enabled = selected.isNotEmpty()) { Text(stringResource(R.string.kids_mode_on)) }
+                OutlinedButton(onClick = { vm.apply(false) }, enabled = selected.isNotEmpty()) { Text(stringResource(R.string.kids_mode_off)) }
             }
             LazyColumn(Modifier.weight(1f)) {
                 items(apps.size) { i ->
@@ -898,18 +900,18 @@ fun LaunchpadScreen(onBack: () -> Unit, vm: LaunchpadViewModel = androidx.lifecy
     val all by vm.all.collectAsState()
     val favorites by vm.favorites.collectAsState()
     var showPicker by remember { mutableStateOf(false) }
-    LabScaffold("Launchpad", onBack, action = { TextButton(onClick = { showPicker = true }) { Text("Edit") } }) {
+    LabScaffold(stringResource(R.string.launchpad), onBack, action = { TextButton(onClick = { showPicker = true }) { Text(stringResource(R.string.edit)) } }) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (favorites.isEmpty()) {
-                Text("Add your favourite TV apps for one-tap launching.", style = MaterialTheme.typography.bodySmall)
-                Button(onClick = { showPicker = true }) { Text("Add apps") }
+                Text(stringResource(R.string.add_your_favourite_tv_apps_for_one), style = MaterialTheme.typography.bodySmall)
+                Button(onClick = { showPicker = true }) { Text(stringResource(R.string.add_apps)) }
             }
             favorites.forEach { pkg ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(pkg, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     TextButton(onClick = { vm.move(pkg, true) }) { Text("↑") }
                     TextButton(onClick = { vm.move(pkg, false) }) { Text("↓") }
-                    Button(onClick = { vm.launch(pkg) }) { Text("Open") }
+                    Button(onClick = { vm.launch(pkg) }) { Text(stringResource(R.string.open)) }
                 }
             }
         }
@@ -917,7 +919,7 @@ fun LaunchpadScreen(onBack: () -> Unit, vm: LaunchpadViewModel = androidx.lifecy
     if (showPicker) {
         AlertDialog(
             onDismissRequest = { showPicker = false },
-            title = { Text("Favourite apps") },
+            title = { Text(stringResource(R.string.favourite_apps)) },
             text = {
                 LazyColumn(Modifier.height(400.dp)) {
                     items(all.size) { i ->
@@ -929,7 +931,7 @@ fun LaunchpadScreen(onBack: () -> Unit, vm: LaunchpadViewModel = androidx.lifecy
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showPicker = false }) { Text("Done") } },
+            confirmButton = { TextButton(onClick = { showPicker = false }) { Text(stringResource(R.string.done)) } },
         )
     }
 }
@@ -939,18 +941,18 @@ fun LaunchpadScreen(onBack: () -> Unit, vm: LaunchpadViewModel = androidx.lifecy
 suspend fun ambientStart(adb: com.tvtools.app.adb.AdbClient): String {
     return try {
         val out = adb.exec("cmd dream start 2>&1", timeoutMs = 15_000)
-        if (out.contains("Unknown", true) || out.contains("Error", true)) "This TV doesn't expose an ambient/dream command." else "Ambient mode started"
+        if (out.contains("Unknown", true) || out.contains("Error", true)) TvToolsApp.instance.getString(R.string.this_tv_doesnt_expose_an_ambient_dream) else TvToolsApp.instance.getString(R.string.ambient_mode_started)
     } catch (e: Exception) {
-        "Ambient mode failed: ${e.message}"
+        TvToolsApp.instance.getString(R.string.ambient_mode_failed, e.message.orEmpty())
     }
 }
 
 suspend fun setScreenTimeout(adb: com.tvtools.app.adb.AdbClient, ms: Int): String {
     return try {
         adb.exec("settings put system screen_off_timeout $ms", timeoutMs = 15_000)
-        "Screen timeout set"
+        TvToolsApp.instance.getString(R.string.screen_timeout_set)
     } catch (e: Exception) {
-        "Timeout change failed: ${e.message}"
+        TvToolsApp.instance.getString(R.string.timeout_change_failed, e.message.orEmpty())
     }
 }
 

@@ -41,10 +41,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.R
 import com.tvtools.app.ui.common.InfoCard
 import com.tvtools.app.ui.common.LoadingRow
 import com.tvtools.app.ui.common.formatBytes
@@ -65,12 +67,12 @@ fun StorageScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Storage analyzer", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.storage_analyzer), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::scan) { Icon(Icons.Default.Refresh, "Rescan") }
+                    IconButton(onClick = viewModel::scan) { Icon(Icons.Default.Refresh, stringResource(R.string.rescan)) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -89,10 +91,10 @@ fun StorageScreen(
             ) {
                 item {
                     InfoCard(Modifier.fillMaxWidth()) {
-                        Text("Storage", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.storage), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "${formatBytes(ui.used)} used of ${formatBytes(ui.total)}",
+                            stringResource(R.string.storage_usage, formatBytes(ui.used), formatBytes(ui.total)),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Spacer(Modifier.height(8.dp))
@@ -105,13 +107,13 @@ fun StorageScreen(
                             Button(onClick = viewModel::trimCache, enabled = ui.busyLabel == null) {
                                 Text(ui.busyLabel ?: "Trim caches")
                             }
-                            TextButton(onClick = viewModel::scan) { Text("Rescan") }
+                            TextButton(onClick = viewModel::scan) { Text(stringResource(R.string.rescan)) }
                         }
                     }
                 }
 
                 item {
-                    Text("Largest items", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.largest_items), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 }
                 items(ui.folders, key = { it.path }) { item ->
                     Row(
@@ -135,7 +137,7 @@ fun StorageScreen(
                 if (ui.largeFiles.isNotEmpty()) {
                     item {
                         HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                        Text("Large files (>50 MB)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.large_files_50_mb), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     }
                     items(ui.largeFiles, key = { it.path }) { item ->
                         Row(
@@ -159,7 +161,7 @@ fun StorageScreen(
                             }
                             Text(formatBytes(item.size), style = MaterialTheme.typography.bodySmall)
                             IconButton(onClick = { deleteTarget = item }) {
-                                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                                Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -173,12 +175,12 @@ fun StorageScreen(
     deleteTarget?.let { target ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete this file?") },
+            title = { Text(stringResource(R.string.delete_this_file)) },
             text = { Text("${target.path}\n${formatBytes(target.size)}") },
             confirmButton = {
-                Button(onClick = { viewModel.delete(target); deleteTarget = null }) { Text("Delete") }
+                Button(onClick = { viewModel.delete(target); deleteTarget = null }) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

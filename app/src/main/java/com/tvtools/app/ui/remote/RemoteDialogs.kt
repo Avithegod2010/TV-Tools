@@ -104,12 +104,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.ui.common.rememberHaptics
 import com.tvtools.app.util.Wol
@@ -124,7 +127,7 @@ import kotlin.math.abs
 internal fun NumberPadDialog(onDismiss: () -> Unit, onKey: (Int) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Channel / numbers") },
+        title = { Text(stringResource(R.string.channel_numbers)) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 listOf(listOf(1, 2, 3), listOf(4, 5, 6), listOf(7, 8, 9), listOf(-1, 0, -2)).forEach { row ->
@@ -140,7 +143,7 @@ internal fun NumberPadDialog(onDismiss: () -> Unit, onKey: (Int) -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     )
 }
 @Composable
@@ -189,7 +192,7 @@ internal fun LiveKeyboardDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Live keyboard") },
+        title = { Text(stringResource(R.string.live_keyboard)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -210,8 +213,8 @@ internal fun LiveKeyboardDialog(
                         }
                         text = next
                     },
-                    label = { Text("Type — sent as you type") },
-                    placeholder = { Text("Focus a search box on the TV first") },
+                    label = { Text(stringResource(R.string.type_sent_as_you_type)) },
+                    placeholder = { Text(stringResource(R.string.focus_a_search_box_on_the_tv)) },
                     singleLine = false,
                     maxLines = 3,
                 )
@@ -222,11 +225,11 @@ internal fun LiveKeyboardDialog(
                 ) {
                     AssistChip(
                         onClick = { startVoice() },
-                        label = { Text("Speak to type") },
+                        label = { Text(stringResource(R.string.speak_to_type)) },
                         leadingIcon = { Icon(Icons.Default.Mic, null, Modifier.size(16.dp)) },
                     )
                     Text(
-                        "Uses the phone's speech recognizer, then sends the text.",
+                        stringResource(R.string.uses_the_phones_speech_recognizer_then_sends),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -254,12 +257,12 @@ internal fun LiveKeyboardDialog(
                     AssistChip(onClick = { onKey(21) }, label = { Text("←") })
                     AssistChip(onClick = { onKey(22) }, label = { Text("→") })
                     AssistChip(onClick = { onKey(KEY_DPAD_CENTER) }, label = { Text("OK") })
-                    AssistChip(onClick = { onKey(KEY_BACK) }, label = { Text("Back") })
+                    AssistChip(onClick = { onKey(KEY_BACK) }, label = { Text(stringResource(R.string.back)) })
                 }
 
                 if (ctrl || alt) {
                     Text(
-                        if (ctrl) "Ctrl + letter" else "Alt + letter",
+                        if (ctrl) stringResource(R.string.ctrl_letter) else stringResource(R.string.alt_letter),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -278,7 +281,7 @@ internal fun LiveKeyboardDialog(
                 }
 
                 Text(
-                    "Emoji",
+                    stringResource(R.string.emoji),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -289,7 +292,7 @@ internal fun LiveKeyboardDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) } },
     )
 }
 
@@ -297,37 +300,37 @@ internal val EMOJI = listOf("😀", "😂", "❤️", "👍", "🔥", "🎉", "�
 
 internal data class KeyPress(val code: Int, val label: String, val at: Long)
 
-internal fun keyLabel(code: Int): String = when (code) {
-    KEY_HOME -> "Home"
-    KEY_BACK -> "Back"
-    KEY_DPAD_UP -> "Up"
-    KEY_DPAD_DOWN -> "Down"
-    KEY_DPAD_LEFT -> "Left"
-    KEY_DPAD_RIGHT -> "Right"
-    KEY_DPAD_CENTER -> "OK"
-    KEY_VOL_UP -> "Volume +"
-    KEY_VOL_DOWN -> "Volume −"
-    KEY_MUTE -> "Mute"
-    KEY_MENU -> "Menu"
-    KEY_MEDIA_PLAY_PAUSE -> "Play/pause"
-    KEY_MEDIA_NEXT -> "Next"
-    KEY_MEDIA_PREV -> "Previous"
-    KEY_MEDIA_REWIND -> "Rewind"
-    KEY_MEDIA_FF -> "Fast forward"
-    KEY_CH_UP -> "Channel +"
-    KEY_CH_DOWN -> "Channel −"
-    KEY_POWER -> "Power"
-    KEY_SLEEP -> "Sleep"
-    KEY_WAKE -> "Wake"
-    84 -> "Search"
-    86 -> "Stop"
-    165 -> "Info"
-    175 -> "Subtitles"
-    176 -> "Settings"
-    178 -> "TV input"
-    219 -> "Assistant"
+internal fun keyLabel(context: android.content.Context, code: Int): String = when (code) {
+    KEY_HOME -> context.getString(R.string.home)
+    KEY_BACK -> context.getString(R.string.back)
+    KEY_DPAD_UP -> context.getString(R.string.up)
+    KEY_DPAD_DOWN -> context.getString(R.string.down)
+    KEY_DPAD_LEFT -> context.getString(R.string.left)
+    KEY_DPAD_RIGHT -> context.getString(R.string.right)
+    KEY_DPAD_CENTER -> context.getString(R.string.ok)
+    KEY_VOL_UP -> context.getString(R.string.volume)
+    KEY_VOL_DOWN -> context.getString(R.string.volume_2)
+    KEY_MUTE -> context.getString(R.string.mute)
+    KEY_MENU -> context.getString(R.string.menu)
+    KEY_MEDIA_PLAY_PAUSE -> context.getString(R.string.play_pause)
+    KEY_MEDIA_NEXT -> context.getString(R.string.media_next_action)
+    KEY_MEDIA_PREV -> context.getString(R.string.previous)
+    KEY_MEDIA_REWIND -> context.getString(R.string.rewind)
+    KEY_MEDIA_FF -> context.getString(R.string.fast_forward)
+    KEY_CH_UP -> context.getString(R.string.channel)
+    KEY_CH_DOWN -> context.getString(R.string.channel_2)
+    KEY_POWER -> context.getString(R.string.power)
+    KEY_SLEEP -> context.getString(R.string.sleep)
+    KEY_WAKE -> context.getString(R.string.wake)
+    84 -> context.getString(R.string.search)
+    86 -> context.getString(R.string.stop)
+    165 -> context.getString(R.string.info)
+    175 -> context.getString(R.string.subtitles)
+    176 -> context.getString(R.string.settings)
+    178 -> context.getString(R.string.tv_input)
+    219 -> context.getString(R.string.assistant)
     else -> com.tvtools.app.data.QuickKeys.catalog
-        .firstOrNull { it.keyCode == code }?.label ?: "Key $code"
+        .firstOrNull { it.keyCode == code }?.let { context.getString(it.label) } ?: context.getString(R.string.unknown_remote_key, code)
 }
 
 @Composable
@@ -341,16 +344,16 @@ internal fun KeyHistoryDialog(
     val formatter = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Key history") },
+        title = { Text(stringResource(R.string.key_history)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    "Session only. Undo sends a sensible inverse: volume and channel flip, mute and play toggle, everything else goes back.",
+                    stringResource(R.string.session_only_undo_sends_a_sensible_inverse),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (history.isEmpty()) {
-                    Text("Nothing pressed yet.", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.nothing_pressed_yet), style = MaterialTheme.typography.bodySmall)
                 } else {
                     Column(
                         Modifier
@@ -383,12 +386,12 @@ internal fun KeyHistoryDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onUndo, enabled = history.isNotEmpty()) { Text("Undo last") }
+            TextButton(onClick = onUndo, enabled = history.isNotEmpty()) { Text(stringResource(R.string.undo_last)) }
         },
         dismissButton = {
             Row {
-                TextButton(onClick = onClear, enabled = history.isNotEmpty()) { Text("Clear") }
-                TextButton(onClick = onDismiss) { Text("Close") }
+                TextButton(onClick = onClear, enabled = history.isNotEmpty()) { Text(stringResource(R.string.clear)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
             }
         },
     )
@@ -407,17 +410,16 @@ internal fun BroadcastDialog(
     val roomNames = rooms.values.filter { it.isNotBlank() }.distinct().sorted()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Broadcast keys") },
+        title = { Text(stringResource(R.string.broadcast_keys)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    "Every key press is also sent to the TVs in the chosen group. " +
-                        "ADB allows one connection at a time, so presses arrive a moment apart.",
+                    stringResource(R.string.every_key_press_is_also_sent_to),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(6.dp))
-                BroadcastRow("Off (this TV only)", selected == null) { onSelect(null) }
+                BroadcastRow(stringResource(R.string.off_this_tv_only), selected == null) { onSelect(null) }
                 if (devices.isNotEmpty()) {
                     BroadcastRow("All TVs (${devices.size})", selected == ALL_BROADCAST) {
                         onSelect(ALL_BROADCAST)
@@ -429,13 +431,13 @@ internal fun BroadcastDialog(
                 }
                 if (devices.isEmpty()) {
                     Text(
-                        "No saved TVs yet — connect to another TV first.",
+                        stringResource(R.string.no_saved_tvs_yet_connect_to_another),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     )
 }
 
@@ -465,17 +467,17 @@ internal fun QuickKeyEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Quick keys") },
+        title = { Text(stringResource(R.string.quick_keys)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "These buttons sit under the remote. Reorder with the arrows, or remove the ones you never use.",
+                    stringResource(R.string.these_buttons_sit_under_the_remote_reorder),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (list.isEmpty()) {
                     Text(
-                        "No quick keys yet — add one below.",
+                        stringResource(R.string.no_quick_keys_yet_add_one_below),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -495,7 +497,7 @@ internal fun QuickKeyEditorDialog(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        key.label,
+                                        stringResource(key.label),
                                         style = MaterialTheme.typography.bodyMedium,
                                         modifier = Modifier.weight(1f).padding(start = 12.dp),
                                     )
@@ -505,7 +507,7 @@ internal fun QuickKeyEditorDialog(
                                     ) {
                                         Icon(
                                             Icons.Default.KeyboardArrowUp,
-                                            contentDescription = "Move up",
+                                            contentDescription = stringResource(R.string.move_up),
                                             modifier = Modifier.size(18.dp),
                                         )
                                     }
@@ -515,7 +517,7 @@ internal fun QuickKeyEditorDialog(
                                     ) {
                                         Icon(
                                             Icons.Default.KeyboardArrowDown,
-                                            contentDescription = "Move down",
+                                            contentDescription = stringResource(R.string.move_down),
                                             modifier = Modifier.size(18.dp),
                                         )
                                     }
@@ -524,7 +526,7 @@ internal fun QuickKeyEditorDialog(
                                     }) {
                                         Icon(
                                             Icons.Default.Close,
-                                            contentDescription = "Remove ${key.label}",
+                                            contentDescription = stringResource(R.string.remove_quick_key, stringResource(key.label)),
                                             modifier = Modifier.size(16.dp),
                                         )
                                     }
@@ -540,12 +542,12 @@ internal fun QuickKeyEditorDialog(
                     ) {
                         Icon(Icons.Default.Add, null, Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Add key")
+                        Text(stringResource(R.string.add_key))
                     }
                     DropdownMenu(expanded = showAdd, onDismissRequest = { showAdd = false }) {
                         available.forEach { key ->
                             DropdownMenuItem(
-                                text = { Text(key.label) },
+                                text = { Text(stringResource(key.label)) },
                                 onClick = {
                                     list = list + key.id
                                     showAdd = false
@@ -555,12 +557,12 @@ internal fun QuickKeyEditorDialog(
                     }
                 }
                 TextButton(onClick = { list = com.tvtools.app.data.QuickKeys.defaultIds }) {
-                    Text("Reset to default")
+                    Text(stringResource(R.string.reset_to_default))
                 }
             }
         },
-        confirmButton = { Button(onClick = { onSave(list) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { Button(onClick = { onSave(list) }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -600,7 +602,7 @@ internal fun NowPlayingBlock(
                 }
             }
             Text(
-                if (track.isPlaying) "Playing" else "Paused",
+                if (track.isPlaying) stringResource(R.string.playing) else stringResource(R.string.paused),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (track.isPlaying) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -641,7 +643,7 @@ internal fun NowPlayingBlock(
             ) { Text("+10s") }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onPlayPause) {
-                Text(if (track.isPlaying) "Pause" else "Play")
+                Text(if (track.isPlaying) stringResource(R.string.pause) else stringResource(R.string.play))
             }
         }
     }
@@ -658,38 +660,38 @@ internal fun formatPlayback(ms: Long): String {
 
 
 /** Key codes: 84 = SEARCH, 86 = STOP, 87/88 = next/previous, 165 = INFO, 175 = CAPTIONS. */
-internal data class AppShortcuts(val label: String, val keys: List<Pair<String, Int>>)
+internal data class AppShortcuts(val label: String, val keys: List<Pair<Int, Int>>)
 
 internal fun appSpecificKeys(packageName: String?): AppShortcuts? {
     val pkg = packageName?.lowercase() ?: return null
     return when {
         "youtube" in pkg -> AppShortcuts(
             "YouTube",
-            listOf("Search" to 84, "Stats" to 165, "Subtitles" to 175, "Stop" to 86),
+            listOf(R.string.search to 84, R.string.stats to 165, R.string.subtitles to 175, R.string.stop to 86),
         )
         "netflix" in pkg -> AppShortcuts(
             "Netflix",
-            listOf("Search" to 84, "Play/pause" to 85, "Stop" to 86),
+            listOf(R.string.search to 84, R.string.play_pause to 85, R.string.stop to 86),
         )
         "kodi" in pkg -> AppShortcuts(
             "Kodi",
-            listOf("Info" to 165, "Subtitles" to 175, "Stop" to 86, "Search" to 84),
+            listOf(R.string.info to 165, R.string.subtitles to 175, R.string.stop to 86, R.string.search to 84),
         )
         "vlc" in pkg -> AppShortcuts(
             "VLC",
-            listOf("Info" to 165, "Subtitles" to 175, "Stop" to 86),
+            listOf(R.string.info to 165, R.string.subtitles to 175, R.string.stop to 86),
         )
-        "disney" in pkg -> AppShortcuts("Disney+", listOf("Search" to 84, "Stop" to 86))
+        "disney" in pkg -> AppShortcuts("Disney+", listOf(R.string.search to 84, R.string.stop to 86))
         "amazonvideo" in pkg || "primevideo" in pkg -> AppShortcuts(
             "Prime Video",
-            listOf("Search" to 84, "Stop" to 86),
+            listOf(R.string.search to 84, R.string.stop to 86),
         )
         "spotify" in pkg -> AppShortcuts(
             "Spotify",
-            listOf("Search" to 84, "Previous" to 88, "Next" to 87),
+            listOf(R.string.search to 84, R.string.previous to 88, R.string.media_next_action to 87),
         )
-        "plex" in pkg -> AppShortcuts("Plex", listOf("Info" to 165, "Stop" to 86))
-        "twitch" in pkg -> AppShortcuts("Twitch", listOf("Search" to 84))
+        "plex" in pkg -> AppShortcuts("Plex", listOf(R.string.info to 165, R.string.stop to 86))
+        "twitch" in pkg -> AppShortcuts("Twitch", listOf(R.string.search to 84))
         else -> null
     }
 }
@@ -707,17 +709,17 @@ internal fun MacroDialog(
     var confirmDelete by remember { mutableStateOf<com.tvtools.app.data.Macro?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Macros") },
+        title = { Text(stringResource(R.string.macros)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Record a few presses — open an app, start an episode — then replay them with one tap.",
+                    stringResource(R.string.record_a_few_presses_open_an_app),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (macros.isEmpty()) {
                     Text(
-                        "No macros yet. Tap \"Record new\", press keys on the remote, then save.",
+                        stringResource(R.string.no_macros_yet_tap_record_new_press),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 } else {
@@ -751,14 +753,14 @@ internal fun MacroDialog(
                                         IconButton(onClick = { onReplay(macro) }) {
                                             Icon(
                                                 Icons.Default.PlayArrow,
-                                                contentDescription = "Replay ${macro.name}",
+                                                contentDescription = stringResource(R.string.replay_named_macro, macro.name),
                                             )
                                         }
                                     }
                                     IconButton(onClick = { confirmDelete = macro }) {
                                         Icon(
                                             Icons.Default.Delete,
-                                            contentDescription = "Delete ${macro.name}",
+                                            contentDescription = stringResource(R.string.delete_named_macro, macro.name),
                                             modifier = Modifier.size(18.dp),
                                         )
                                     }
@@ -768,29 +770,29 @@ internal fun MacroDialog(
                     }
                 }
                 Text(
-                    "Pauses between presses are kept, so menus have time to open.",
+                    stringResource(R.string.pauses_between_presses_are_kept_so_menus),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
-            Button(onClick = onRecord, enabled = replaying == null) { Text("Record new") }
+            Button(onClick = onRecord, enabled = replaying == null) { Text(stringResource(R.string.record_new)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     )
 
     confirmDelete?.let { target ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
-            title = { Text("Delete \"${target.name}\"?") },
+            title = { Text(stringResource(R.string.delete_macro_question, target.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     onDelete(target)
                     confirmDelete = null
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -805,27 +807,27 @@ internal fun SaveMacroDialog(
     var name by remember { mutableStateOf(defaultName) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Save macro") },
+        title = { Text(stringResource(R.string.save_macro)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(40) },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.name)) },
                     singleLine = true,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "$stepCount key press(es) recorded, including the pauses between them.",
+                    pluralStringResource(R.plurals.macro_saved_count, stepCount, stepCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) { Text("Save") }
+            TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -849,31 +851,31 @@ internal fun PowerMenuDialog(
     if (!confirmRestart) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Power — $deviceName") },
+            title = { Text(stringResource(R.string.power_for_device, deviceName)) },
             text = {
                 Column {
-                    PowerRow("Turn screen off (sleep)") { onSleep() }
+                    PowerRow(stringResource(R.string.turn_screen_off_sleep)) { onSleep() }
                     PowerRow(
-                        if (sleepMinutesLeft != null) "Sleep timer — ${sleepMinutesLeft}m left"
-                        else "Sleep timer…"
+                        if (sleepMinutesLeft != null) stringResource(R.string.sleep_timer_remaining, sleepMinutesLeft)
+                        else stringResource(R.string.sleep_timer_2)
                     ) { onSleepTimer() }
-                    PowerRow(if (ringing) "Ringing the TV…" else "Ring TV (find my remote)") { onRing() }
-                    PowerRow("Power button (toggle)") { onPowerToggle() }
-                    PowerRow("Wake with Wake-on-LAN") { onWake() }
-                    PowerRow("Ambient / screensaver mode") { onAmbient() }
-                    PowerRow("Screen timeout → 30 min") { onTimeout() }
-                    PowerRow("Restart TV") { confirmRestart = true }
+                    PowerRow(if (ringing) stringResource(R.string.ringing_the_tv) else stringResource(R.string.ring_tv_find_my_remote)) { onRing() }
+                    PowerRow(stringResource(R.string.power_button_toggle)) { onPowerToggle() }
+                    PowerRow(stringResource(R.string.wake_with_wake_on_lan)) { onWake() }
+                    PowerRow(stringResource(R.string.ambient_screensaver_mode)) { onAmbient() }
+                    PowerRow(stringResource(R.string.screen_timeout_30_min)) { onTimeout() }
+                    PowerRow(stringResource(R.string.restart_tv_2)) { confirmRestart = true }
                 }
             },
-            confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+            confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
         )
     } else {
         AlertDialog(
             onDismissRequest = { confirmRestart = false },
-            title = { Text("Restart TV?") },
-            text = { Text("This asks the TV to reboot. Some TVs only allow this when rooted.") },
-            confirmButton = { Button(onClick = onRestart) { Text("Restart") } },
-            dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text("Cancel") } },
+            title = { Text(stringResource(R.string.restart_tv)) },
+            text = { Text(stringResource(R.string.this_asks_the_tv_to_reboot_some)) },
+            confirmButton = { Button(onClick = onRestart) { Text(stringResource(R.string.restart)) } },
+            dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -891,17 +893,17 @@ internal fun SleepTimerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Sleep timer") },
+        title = { Text(stringResource(R.string.sleep_timer)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Fades the volume over the last 20 seconds, then puts the TV to sleep.",
+                    stringResource(R.string.fades_the_volume_over_the_last_20),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (activeMinutesLeft != null) {
                     Text(
-                        "Timer running — sleeping in about $activeMinutesLeft min.",
+                        stringResource(R.string.sleep_timer_running, activeMinutesLeft),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -912,15 +914,15 @@ internal fun SleepTimerDialog(
                         FilterChip(
                             selected = minutes == preset,
                             onClick = { minutes = preset },
-                            label = { Text("$preset min") },
+                            label = { Text(stringResource(R.string.duration_minutes, preset)) },
                         )
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Fade volume out", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.fade_volume_out), style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "Ramps down from the TV's current level",
+                            stringResource(R.string.ramps_down_from_the_tvs_current_level),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -928,16 +930,16 @@ internal fun SleepTimerDialog(
                     Switch(checked = fade, onCheckedChange = { fade = it })
                 }
                 if (activeMinutesLeft != null) {
-                    TextButton(onClick = onCancelTimer) { Text("Cancel running timer") }
+                    TextButton(onClick = onCancelTimer) { Text(stringResource(R.string.cancel_running_timer)) }
                 }
             }
         },
         confirmButton = {
             Button(onClick = { onStart(minutes, fade) }) {
-                Text(if (activeMinutesLeft != null) "Restart timer" else "Start")
+                Text(if (activeMinutesLeft != null) stringResource(R.string.restart_timer) else stringResource(R.string.start))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     )
 }
 

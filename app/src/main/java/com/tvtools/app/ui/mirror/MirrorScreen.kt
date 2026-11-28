@@ -62,12 +62,14 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.R
 import com.tvtools.app.ui.common.rememberHaptics
 import kotlin.math.abs
 import kotlin.math.min
@@ -121,14 +123,14 @@ fun MirrorScreen(
         ) {
             Surface(shape = CircleShape, color = Color.Black.copy(alpha = 0.55f)) {
                 androidx.compose.material3.IconButton(onClick = onBack) {
-                    Icon(Icons.Default.Close, "Close", tint = Color.White)
+                    Icon(Icons.Default.Close, stringResource(R.string.close), tint = Color.White)
                 }
             }
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(deviceName, color = Color.White, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Screen mirroring",
+                    stringResource(R.string.screen_mirroring),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                 )
@@ -146,7 +148,7 @@ fun MirrorScreen(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        if (ui.running) "LIVE · %.1f fps".format(ui.fps) else "PAUSED",
+                        if (ui.running) stringResource(R.string.mirror_live_fps, ui.fps) else stringResource(R.string.paused_2),
                         color = Color.White,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
@@ -158,7 +160,7 @@ fun MirrorScreen(
             Box {
                 Surface(shape = CircleShape, color = Color.Black.copy(alpha = 0.55f)) {
                     androidx.compose.material3.IconButton(onClick = { qualityMenu = true }) {
-                        Icon(Icons.Default.Tune, "Mirror quality", tint = Color.White)
+                        Icon(Icons.Default.Tune, stringResource(R.string.mirror_quality), tint = Color.White)
                     }
                 }
                 DropdownMenu(
@@ -185,7 +187,7 @@ fun MirrorScreen(
                 androidx.compose.material3.IconButton(onClick = { viewModel.toggle() }) {
                     Icon(
                         if (ui.running) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (ui.running) "Pause" else "Resume",
+                        contentDescription = if (ui.running) stringResource(R.string.pause) else stringResource(R.string.resume),
                         tint = Color.White,
                     )
                 }
@@ -311,13 +313,13 @@ private fun FastMirrorView(viewModel: MirrorViewModel, ui: MirrorUiState) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        ui.error ?: "Starting fast mirror…",
+                        ui.error ?: stringResource(R.string.starting_fast_mirror),
                         color = Color.White.copy(alpha = 0.85f),
                         textAlign = TextAlign.Center,
                     )
                     if (ui.error != null) {
                         Spacer(Modifier.height(8.dp))
-                        Button(onClick = { viewModel.start() }) { Text("Retry") }
+                        Button(onClick = { viewModel.start() }) { Text(stringResource(R.string.retry)) }
                     }
                 }
             }
@@ -384,7 +386,7 @@ private fun SlowMirrorView(
         ) {
             Image(
                 bitmap = bitmap,
-                contentDescription = "TV screen",
+                contentDescription = stringResource(R.string.tv_screen),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -404,7 +406,7 @@ private fun LoadingMirror(error: String?, onRetry: () -> Unit) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(12.dp))
         Text(
-            error ?: "Starting mirror…",
+            error ?: stringResource(R.string.starting_mirror),
             color = Color.White.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,
         )
@@ -413,7 +415,7 @@ private fun LoadingMirror(error: String?, onRetry: () -> Unit) {
             Button(onClick = onRetry) {
                 Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Retry")
+                Text(stringResource(R.string.retry))
             }
         }
     }

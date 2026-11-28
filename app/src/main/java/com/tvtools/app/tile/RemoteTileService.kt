@@ -6,6 +6,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.tvtools.app.AppServices
 import com.tvtools.app.MainActivity
+import com.tvtools.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,7 +17,7 @@ class RemoteTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
         qsTile?.apply {
-            label = "TV Remote"
+            label = getString(R.string.remote_tile_title)
             state = if (AppServices.adb.isConnected) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
             updateTile()
         }

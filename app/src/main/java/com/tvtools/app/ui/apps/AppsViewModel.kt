@@ -7,6 +7,7 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.data.BackupManager
 import com.tvtools.app.data.TvApp
@@ -117,7 +118,7 @@ class AppsViewModel : ViewModel() {
                 autoLoadIcons(withCachedIcons)
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(loading = false)
-                _messages.emit("Failed to load apps: ${e.message}")
+                _messages.emit(context.getString(R.string.load_apps_failed, e.message.orEmpty()))
             }
         }
     }
@@ -295,12 +296,12 @@ class AppsViewModel : ViewModel() {
                     backupManager.create(AppServices.adb, app)
                     ok++
                 } catch (e: Exception) {
-                    _messages.emit("Backup failed for ${app.packageName}: ${e.message}")
+                    _messages.emit(context.getString(R.string.named_backup_failed, app.packageName, e.message.orEmpty()))
                 }
             }
             _ui.value = _ui.value.copy(busyLabel = null)
             clearSelection()
-            _messages.emit("✅ Backed up $ok app(s) — see App backups")
+            _messages.emit(context.getString(R.string.app_backups_created, ok))
         }
     }
 
@@ -322,7 +323,7 @@ class AppsViewModel : ViewModel() {
                 }
             }
             _ui.value = _ui.value.copy(busyLabel = null)
-            _messages.emit("✅ Data backed up for $ok/${apps.size} app(s)")
+            _messages.emit(context.getString(R.string.app_data_backups_created, ok, apps.size))
         }
     }
 
@@ -354,7 +355,7 @@ class AppsViewModel : ViewModel() {
             }
             loadRunningPkgs()
             _ui.value = _ui.value.copy(busyLabel = null)
-            _messages.emit("Force-stopped ${apps.size} app(s)")
+            _messages.emit(context.getString(R.string.apps_force_stopped, apps.size))
         }
     }
 
@@ -367,7 +368,7 @@ class AppsViewModel : ViewModel() {
                 try { adb.clearAppData(app.packageName) } catch (_: Exception) {}
             }
             _ui.value = _ui.value.copy(busyLabel = null)
-            _messages.emit("Cleared data for ${apps.size} app(s)")
+            _messages.emit(context.getString(R.string.app_data_cleared, apps.size))
         }
     }
 
@@ -384,7 +385,7 @@ class AppsViewModel : ViewModel() {
                 }
             }
             _ui.value = _ui.value.copy(busyLabel = null)
-            _messages.emit("Disabled ${apps.size} app(s)")
+            _messages.emit(context.getString(R.string.apps_disabled, apps.size))
         }
     }
 
@@ -403,7 +404,7 @@ class AppsViewModel : ViewModel() {
                 }
             }
             _ui.value = _ui.value.copy(busyLabel = null)
-            _messages.emit("APKs saved to app storage/Documents")
+            _messages.emit(context.getString(R.string.apks_saved_to_app_storage_documents))
         }
     }
     fun toggleSort() {
@@ -421,7 +422,7 @@ class AppsViewModel : ViewModel() {
                 val out = block()
                 if (out.isNotBlank()) _messages.emit(out.trim())
             } catch (e: Exception) {
-                _messages.emit("Error: ${e.message}")
+                _messages.emit(context.getString(R.string.error_detail, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busyPkg = null)
             }

@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -20,6 +21,7 @@ import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.ui.common.formatBytes
 import kotlinx.coroutines.Dispatchers
@@ -58,7 +60,7 @@ class SftpViewModel : ViewModel() {
     fun connect() {
         val s = _ui.value
         if (s.busy) return
-        _ui.value = s.copy(busy = true, status = "Connecting…")
+        _ui.value = s.copy(busy = true, status = TvToolsApp.instance.getString(R.string.connecting))
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val jsch = JSch()
@@ -70,10 +72,10 @@ class SftpViewModel : ViewModel() {
                 channel.connect(5000)
                 session = newSession
                 sftp = channel
-                _ui.value = _ui.value.copy(connected = true, busy = false, status = "Connected", path = "/")
+                _ui.value = _ui.value.copy(connected = true, busy = false, status = TvToolsApp.instance.getString(R.string.connected), path = "/")
                 list("/")
             } catch (e: Exception) {
-                _ui.value = _ui.value.copy(busy = false, connected = false, status = "Connection failed: ${e.message}")
+                _ui.value = _ui.value.copy(busy = false, connected = false, status = TvToolsApp.instance.getString(R.string.sftp_connect_error, e.message.orEmpty()))
             }
         }
     }
@@ -93,7 +95,7 @@ class SftpViewModel : ViewModel() {
                     .sortedWith(compareBy({ !it.isDir }, { it.name.lowercase() }))
                 _ui.value = _ui.value.copy(path = path, files = files, busy = false)
             } catch (e: Exception) {
-                _ui.value = _ui.value.copy(busy = false, status = "Listing failed: ${e.message}")
+                _ui.value = _ui.value.copy(busy = false, status = TvToolsApp.instance.getString(R.string.sftp_list_error, e.message.orEmpty()))
             }
         }
     }
@@ -109,17 +111,17 @@ class SftpViewModel : ViewModel() {
     fun sendToTv(file: SftpFile) {
         val channel = sftp ?: return
         if (file.isDir) return
-        _ui.value = _ui.value.copy(busy = true, status = "Downloading ${file.name}…")
+        _ui.value = _ui.value.copy(busy = true, status = TvToolsApp.instance.getString(R.string.sftp_downloading, file.name))
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val local = File(TvToolsApp.instance.cacheDir, "sftp_${file.name}")
                 channel.get(file.path, local.absolutePath)
-                _ui.value = _ui.value.copy(status = "Sending to TV…")
+                _ui.value = _ui.value.copy(status = TvToolsApp.instance.getString(R.string.sending_to_tv))
                 AppServices.adb.pushFile(local, "/sdcard/Download/${file.name}")
                 local.delete()
-                _ui.value = _ui.value.copy(busy = false, status = "✅ ${file.name} sent to the TV")
+                _ui.value = _ui.value.copy(busy = false, status = TvToolsApp.instance.getString(R.string.sftp_sent_to_tv, file.name))
             } catch (e: Exception) {
-                _ui.value = _ui.value.copy(busy = false, status = "Transfer failed: ${e.message}")
+                _ui.value = _ui.value.copy(busy = false, status = TvToolsApp.instance.getString(R.string.transfer_failed, e.message.orEmpty()))
             }
         }
     }
@@ -133,11 +135,11 @@ class SftpViewModel : ViewModel() {
 @Composable
 fun SftpScreen(onBack: () -> Unit, vm: SftpViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val ui by vm.ui.collectAsState()
-    LabScaffold("SFTP browser", onBack) {
+    LabScaffold(stringResource(R.string.sftp_browser), onBack) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!ui.connected) {
                 Text(
-                    "Browse an SFTP server and send files straight to the TV.",
+                    stringResource(R.string.browse_an_sftp_server_and_send_files),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -145,14 +147,14 @@ fun SftpScreen(onBack: () -> Unit, vm: SftpViewModel = androidx.lifecycle.viewmo
                     OutlinedTextField(
                         value = ui.host,
                         onValueChange = { v -> vm.update { it.copy(host = v.trim()) } },
-                        label = { Text("Host") },
+                        label = { Text(stringResource(R.string.host)) },
                         modifier = Modifier.weight(2f),
                         singleLine = true,
                     )
                     OutlinedTextField(
                         value = ui.port,
                         onValueChange = { v -> vm.update { it.copy(port = v.filter(Char::isDigit)) } },
-                        label = { Text("Port") },
+                        label = { Text(stringResource(R.string.port)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                     )
@@ -160,14 +162,14 @@ fun SftpScreen(onBack: () -> Unit, vm: SftpViewModel = androidx.lifecycle.viewmo
                 OutlinedTextField(
                     value = ui.user,
                     onValueChange = { v -> vm.update { it.copy(user = v) } },
-                    label = { Text("Username") },
+                    label = { Text(stringResource(R.string.username)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = ui.password,
                     onValueChange = { v -> vm.update { it.copy(password = v) } },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.password)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
@@ -176,7 +178,7 @@ fun SftpScreen(onBack: () -> Unit, vm: SftpViewModel = androidx.lifecycle.viewmo
                     onClick = vm::connect,
                     enabled = !ui.busy && ui.host.isNotBlank() && ui.user.isNotBlank(),
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (ui.busy) "Connecting…" else "Connect") }
+                ) { Text(stringResource(if (ui.busy) R.string.connecting else R.string.connect)) }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = vm::up) { Text("..") }
@@ -200,7 +202,7 @@ fun SftpScreen(onBack: () -> Unit, vm: SftpViewModel = androidx.lifecycle.viewmo
                                 Text(f.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
                                 if (!f.isDir) Text(formatBytes(f.size), style = MaterialTheme.typography.labelSmall)
                             }
-                            if (!f.isDir) Text("Send", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            if (!f.isDir) Text(stringResource(R.string.send), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }

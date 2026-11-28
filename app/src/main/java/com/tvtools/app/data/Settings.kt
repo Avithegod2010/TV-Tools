@@ -1,11 +1,13 @@
 package com.tvtools.app.data
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.tvtools.app.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,44 +20,44 @@ private val Context.settingsStore by preferencesDataStore(name = "settings")
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK, AMOLED, AUTO }
 
-enum class Accent(val label: String) {
-    GREEN("Green"),
-    BLUE("Blue"),
-    VIOLET("Violet"),
-    ORANGE("Orange"),
-    DYNAMIC("Dynamic"),
-    TV("Match TV"),
+enum class Accent(val label: String, @StringRes val labelRes: Int) {
+    GREEN("Green", R.string.green),
+    BLUE("Blue", R.string.blue),
+    VIOLET("Violet", R.string.violet),
+    ORANGE("Orange", R.string.orange),
+    DYNAMIC("Dynamic", R.string.dynamic),
+    TV("Match TV", R.string.match_tv),
 }
 
-enum class HapticStrength(val label: String) { LIGHT("Light"), MEDIUM("Medium"), STRONG("Strong") }
+enum class HapticStrength(@StringRes val labelRes: Int) { LIGHT(R.string.haptic_light), MEDIUM(R.string.medium), STRONG(R.string.strong) }
 
-enum class RemoteSkin(val label: String) {
-    CLASSIC("Classic remote"),
-    CIRCULAR("Circular"),
-    MINIMAL("Minimal"),
-    GAMEPAD("Gamepad-first"),
-    GLASS("Glass"),
-    NEON("Neon"),
-    MEDIA("Media first"),
+enum class RemoteSkin(val label: String, @StringRes val labelRes: Int) {
+    CLASSIC("Classic remote", R.string.classic_remote),
+    CIRCULAR("Circular", R.string.circular),
+    MINIMAL("Minimal", R.string.minimal),
+    GAMEPAD("Gamepad-first", R.string.gamepad_first),
+    GLASS("Glass", R.string.glass),
+    NEON("Neon", R.string.neon),
+    MEDIA("Media first", R.string.media_first),
 }
 
-enum class UiDensity(val label: String, val scale: Float) {
-    COMPACT("Compact", 0.9f),
-    COMFORTABLE("Comfortable", 1f),
-    SPACIOUS("Spacious", 1.1f),
+enum class UiDensity(@StringRes val labelRes: Int, val scale: Float) {
+    COMPACT(R.string.compact, 0.9f),
+    COMFORTABLE(R.string.comfortable, 1f),
+    SPACIOUS(R.string.spacious, 1.1f),
 }
 
-enum class SoundPack(val label: String) {
-    SOFT("Soft"),
-    MECHANICAL("Mechanical"),
-    TV_BEEP("TV beep"),
+enum class SoundPack(@StringRes val labelRes: Int) {
+    SOFT(R.string.soft),
+    MECHANICAL(R.string.mechanical),
+    TV_BEEP(R.string.tv_beep),
 }
 
-enum class ColorBlindMode(val label: String) {
-    OFF("Off"),
-    DEUTERANOPIA("Deuteranopia"),
-    PROTANOPIA("Protanopia"),
-    TRITANOPIA("Tritanopia"),
+enum class ColorBlindMode(@StringRes val labelRes: Int) {
+    OFF(R.string.off),
+    DEUTERANOPIA(R.string.deuteranopia),
+    PROTANOPIA(R.string.protanopia),
+    TRITANOPIA(R.string.tritanopia),
 }
 
 data class AppSettings(

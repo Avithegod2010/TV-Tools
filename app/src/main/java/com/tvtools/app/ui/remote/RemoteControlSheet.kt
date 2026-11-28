@@ -108,12 +108,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.ui.common.rememberHaptics
 import com.tvtools.app.util.Wol
@@ -258,7 +261,7 @@ fun RemoteControlSheet(
             recordedSteps = recordedSteps + com.tvtools.app.data.MacroStep(code, gap)
             lastStepAt = now
         }
-        keyHistory = (keyHistory + KeyPress(code, keyLabel(code), System.currentTimeMillis()))
+        keyHistory = (keyHistory + KeyPress(code, keyLabel(context, code), System.currentTimeMillis()))
             .takeLast(30)
         if (broadcastSelection != null) {
             broadcastQueue.trySend(code)
@@ -354,10 +357,10 @@ fun RemoteControlSheet(
             ringing = false
             powerMessage = result.fold(
                 onSuccess = {
-                    "Ringing the TV for 12 seconds. Turn the TV volume up if it's quiet."
+                    context.getString(R.string.ringing_the_tv_for_12_seconds_turn)
                 },
                 onFailure = {
-                    "Couldn't ring the TV: ${it.message}. No media player answered the beep."
+                    context.getString(R.string.ring_tv_failed, it.message.orEmpty())
                 },
             )
         }
@@ -426,7 +429,7 @@ fun RemoteControlSheet(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Remote",
+                        stringResource(R.string.remote),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
@@ -437,22 +440,22 @@ fun RemoteControlSheet(
                     )
                 }
                 IconButton(onClick = { showMacros = true }) {
-                    Icon(Icons.Default.Bolt, contentDescription = "Macros")
+                    Icon(Icons.Default.Bolt, contentDescription = stringResource(R.string.macros))
                 }
                 IconButton(onClick = {
                     layoutBackup = layout
                     showLayoutEditor = true
                 }) {
-                    Icon(Icons.Default.Tune, contentDescription = "Customise remote layout")
+                    Icon(Icons.Default.Tune, contentDescription = stringResource(R.string.customise_remote_layout))
                 }
                 IconButton(onClick = { showTextDialog = true }) {
-                    Icon(Icons.Default.Keyboard, contentDescription = "Send text")
+                    Icon(Icons.Default.Keyboard, contentDescription = stringResource(R.string.send_text))
                 }
                 IconButton(onClick = { scope.launch { adb.assistant() } }) {
-                    Icon(Icons.Default.Mic, contentDescription = "Google Assistant on the TV")
+                    Icon(Icons.Default.Mic, contentDescription = stringResource(R.string.google_assistant_on_the_tv))
                 }
                 IconButton(onClick = onOpenMirror) {
-                    Icon(Icons.Default.Cast, contentDescription = "Screen mirroring")
+                    Icon(Icons.Default.Cast, contentDescription = stringResource(R.string.screen_mirroring))
                 }
             }
 
@@ -477,24 +480,24 @@ fun RemoteControlSheet(
                         Spacer(Modifier.width(8.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "Recording macro",
+                                stringResource(R.string.recording_macro),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "${recordedSteps.size} key(s) — press the remote, then save",
+                                pluralStringResource(R.plurals.macro_recording_count, recordedSteps.size, recordedSteps.size),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         TextButton(onClick = { showSaveMacro = true }, enabled = recordedSteps.isNotEmpty()) {
-                            Text("Save")
+                            Text(stringResource(R.string.save))
                         }
                         IconButton(onClick = {
                             macroRecording = false
                             recordedSteps = emptyList()
                         }) {
-                            Icon(Icons.Default.Close, contentDescription = "Discard recording")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.discard_recording))
                         }
                     }
                 }
@@ -504,22 +507,22 @@ fun RemoteControlSheet(
                         selected = mode == RemoteMode.DPAD,
                         onClick = { mode = RemoteMode.DPAD },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 4),
-                    ) { Text("D-Pad") }
+                    ) { Text(stringResource(R.string.d_pad)) }
                     SegmentedButton(
                         selected = mode == RemoteMode.TOUCHPAD,
                         onClick = { mode = RemoteMode.TOUCHPAD },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 4),
-                    ) { Text("Touch") }
+                    ) { Text(stringResource(R.string.touch)) }
                     SegmentedButton(
                         selected = mode == RemoteMode.GAMEPAD,
                         onClick = { mode = RemoteMode.GAMEPAD },
                         shape = SegmentedButtonDefaults.itemShape(index = 2, count = 4),
-                    ) { Text("Game") }
+                    ) { Text(stringResource(R.string.game)) }
                     SegmentedButton(
                         selected = mode == RemoteMode.GESTURE,
                         onClick = { mode = RemoteMode.GESTURE },
                         shape = SegmentedButtonDefaults.itemShape(index = 3, count = 4),
-                    ) { Text("Gest.") }
+                    ) { Text(stringResource(R.string.gest)) }
                 }
             }
 
@@ -539,9 +542,9 @@ fun RemoteControlSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        NavPill(Icons.AutoMirrored.Filled.ArrowBack, "Back") { send(KEY_BACK) }
-                        NavPill(Icons.Default.Home, "Home") { send(KEY_HOME) }
-                        NavPill(Icons.Default.Menu, "Menu") { send(KEY_MENU) }
+                        NavPill(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) { send(KEY_BACK) }
+                        NavPill(Icons.Default.Home, stringResource(R.string.home)) { send(KEY_HOME) }
+                        NavPill(Icons.Default.Menu, stringResource(R.string.menu)) { send(KEY_MENU) }
                     }
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -549,8 +552,8 @@ fun RemoteControlSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        TextButton(onClick = { send(KEY_CH_DOWN) }) { Text("CH−") }
-                        TextButton(onClick = { send(KEY_CH_UP) }) { Text("CH+") }
+                        TextButton(onClick = { send(KEY_CH_DOWN) }) { Text(stringResource(R.string.ch)) }
+                        TextButton(onClick = { send(KEY_CH_UP) }) { Text(stringResource(R.string.ch_2)) }
                         TextButton(onClick = { showNumberPad = true }) { Text("0–9") }
                     }
                 }
@@ -567,27 +570,27 @@ fun RemoteControlSheet(
                         FilterChip(
                             selected = broadcastSelection != null,
                             onClick = { showBroadcastDialog = true },
-                            label = { Text(if (broadcastBusy) "Sending…" else "Broadcast") },
+                            label = { Text(if (broadcastBusy) stringResource(R.string.sending) else stringResource(R.string.broadcast)) },
                             leadingIcon = { Icon(Icons.Default.Groups, null, Modifier.size(14.dp)) },
                         )
                     }
                     item {
                         AssistChip(
                             onClick = { showHistory = true },
-                            label = { Text("History") },
+                            label = { Text(stringResource(R.string.history)) },
                             leadingIcon = { Icon(Icons.Default.History, null, Modifier.size(14.dp)) },
                         )
                     }
                     items(quickKeys.size) { index ->
                         val key = com.tvtools.app.data.QuickKeys.byId(quickKeys[index])
                         if (key != null) {
-                            AssistChip(onClick = { send(key.keyCode) }, label = { Text(key.label) })
+                            AssistChip(onClick = { send(key.keyCode) }, label = { Text(stringResource(key.label)) })
                         }
                     }
                     item {
                         AssistChip(
                             onClick = { showQuickKeyEditor = true },
-                            label = { Text("Edit") },
+                            label = { Text(stringResource(R.string.edit)) },
                             leadingIcon = { Icon(Icons.Default.Edit, null, Modifier.size(14.dp)) },
                         )
                     }
@@ -597,7 +600,7 @@ fun RemoteControlSheet(
                                 layoutBackup = layout
                                 showLayoutEditor = true
                             },
-                            label = { Text("Layout") },
+                            label = { Text(stringResource(R.string.layout)) },
                             leadingIcon = { Icon(Icons.Default.Tune, null, Modifier.size(14.dp)) },
                         )
                     }
@@ -635,11 +638,11 @@ fun RemoteControlSheet(
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            MediaButton(Icons.Default.SkipPrevious, "Previous") { send(KEY_MEDIA_PREV) }
-                            MediaButton(Icons.Default.FastRewind, "Rewind") { send(KEY_MEDIA_REWIND) }
-                            MediaButton(Icons.Default.PlayArrow, "Play/Pause") { send(KEY_MEDIA_PLAY_PAUSE) }
-                            MediaButton(Icons.Default.FastForward, "Fast forward") { send(KEY_MEDIA_FF) }
-                            MediaButton(Icons.Default.SkipNext, "Next") { send(KEY_MEDIA_NEXT) }
+                            MediaButton(Icons.Default.SkipPrevious, stringResource(R.string.previous)) { send(KEY_MEDIA_PREV) }
+                            MediaButton(Icons.Default.FastRewind, stringResource(R.string.rewind)) { send(KEY_MEDIA_REWIND) }
+                            MediaButton(Icons.Default.PlayArrow, stringResource(R.string.play_pause_2)) { send(KEY_MEDIA_PLAY_PAUSE) }
+                            MediaButton(Icons.Default.FastForward, stringResource(R.string.fast_forward)) { send(KEY_MEDIA_FF) }
+                            MediaButton(Icons.Default.SkipNext, stringResource(R.string.media_next_action)) { send(KEY_MEDIA_NEXT) }
                         }
                     }
                 }
@@ -658,7 +661,7 @@ fun RemoteControlSheet(
                     ) {
                         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                             Text(
-                                "${extras.label} shortcuts",
+                                stringResource(R.string.app_shortcuts, extras.label),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -669,7 +672,7 @@ fun RemoteControlSheet(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 extras.keys.forEach { (label, code) ->
-                                    AssistChip(onClick = { send(code) }, label = { Text(label) })
+                                    AssistChip(onClick = { send(code) }, label = { Text(stringResource(label)) })
                                 }
                             }
                         }
@@ -681,7 +684,7 @@ fun RemoteControlSheet(
             // One-handed dock: the pad sits below the media/nav cluster, near the thumb.
             if (layout.oneHanded) {
                 Text(
-                    "One-handed pad",
+                    stringResource(R.string.one_handed_pad),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -697,17 +700,17 @@ fun RemoteControlSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    CircleKey(Icons.AutoMirrored.Filled.VolumeDown, "Volume down", repeatable = true) {
+                    CircleKey(Icons.AutoMirrored.Filled.VolumeDown, stringResource(R.string.volume_down), repeatable = true) {
                         send(KEY_VOL_DOWN)
                     }
-                    CircleKey(Icons.Default.VolumeOff, "Mute") { send(KEY_MUTE) }
-                    CircleKey(Icons.AutoMirrored.Filled.VolumeUp, "Volume up", repeatable = true) {
+                    CircleKey(Icons.Default.VolumeOff, stringResource(R.string.mute)) { send(KEY_MUTE) }
+                    CircleKey(Icons.AutoMirrored.Filled.VolumeUp, stringResource(R.string.volume_up), repeatable = true) {
                         send(KEY_VOL_UP)
                     }
                     Spacer(Modifier.width(6.dp))
                     CircleKey(
                         Icons.Default.PowerSettingsNew,
-                        "Power menu",
+                        stringResource(R.string.power_menu),
                         container = MaterialTheme.colorScheme.errorContainer,
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                     ) { showPowerMenu = true }
@@ -769,11 +772,11 @@ fun RemoteControlSheet(
                 scope.launch {
                     val mac = AppServices.prefs.loadLastMac()
                     powerMessage = if (mac == null) {
-                        "No MAC saved yet — connect to the TV once first."
+                        context.getString(R.string.no_mac_saved_yet_connect_to_the)
                     } else if (Wol.send(mac)) {
-                        "Wake packet sent ✓"
+                        context.getString(R.string.wake_packet_sent)
                     } else {
-                        "Couldn't send the wake packet."
+                        context.getString(R.string.couldnt_send_the_wake_packet)
                     }
                 }
             },
@@ -782,9 +785,9 @@ fun RemoteControlSheet(
                 scope.launch {
                     powerMessage = try {
                         val out = adb.rebootTv().trim()
-                        if (out.isBlank()) "Restart command sent" else out
+                        if (out.isBlank()) context.getString(R.string.restart_command_sent) else out
                     } catch (e: Exception) {
-                        "Restart failed: ${e.message}"
+                        context.getString(R.string.tv_restart_failed, e.message.orEmpty())
                     }
                 }
             },
@@ -908,7 +911,7 @@ fun RemoteControlSheet(
 
     if (showSaveMacro) {
         SaveMacroDialog(
-            defaultName = "Macro ${macros.size + 1}",
+            defaultName = context.getString(R.string.default_macro_name, macros.size + 1),
             stepCount = recordedSteps.size,
             onDismiss = { showSaveMacro = false },
             onSave = { name ->
@@ -920,7 +923,7 @@ fun RemoteControlSheet(
                     macroRecording = false
                     recordedSteps = emptyList()
                     lastStepAt = 0
-                    powerMessage = "Saved \"${macro.name}\" — replay it from the bolt icon."
+                    powerMessage = context.getString(R.string.macro_saved, macro.name)
                 }
             },
         )

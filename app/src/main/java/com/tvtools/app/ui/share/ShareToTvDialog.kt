@@ -20,6 +20,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import com.tvtools.app.R
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -51,7 +53,7 @@ fun ShareToTvDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var state by remember { mutableStateOf<ShareState>(ShareState.Working("Connecting to your TV…")) }
+    var state by remember { mutableStateOf<ShareState>(ShareState.Working(context.getString(R.string.connecting_to_your_tv))) }
     var fileName by remember { mutableStateOf("file") }
     var fileSize by remember { mutableStateOf(0L) }
 
@@ -65,24 +67,24 @@ fun ShareToTvDialog(
             if (!adb.isConnected) {
                 val last = AppServices.prefs.loadLastDevice()
                     ?: run {
-                        state = ShareState.Failed("No TV saved yet. Open TV Tools and connect to your TV first.")
+                        state = ShareState.Failed(context.getString(R.string.no_tv_saved_yet_open_tv_tools))
                         return@LaunchedEffect
                     }
-                state = ShareState.Working("Connecting to ${last.name}…")
+                state = ShareState.Working(context.getString(R.string.share_connecting_to, last.name))
                 when (val r = adb.connect(last.host, last.port)) {
                     is AdbClient.ConnectResult.Error -> {
-                        state = ShareState.Failed("Could not reach ${last.name}: ${r.message}")
+                        state = ShareState.Failed(context.getString(R.string.share_tv_unreachable, last.name, r.message))
                         return@LaunchedEffect
                     }
                     AdbClient.ConnectResult.PairingRequired -> {
-                        state = ShareState.Failed("The TV needs pairing. Open TV Tools to pair it again.")
+                        state = ShareState.Failed(context.getString(R.string.the_tv_needs_pairing_open_tv_tools))
                         return@LaunchedEffect
                     }
                     AdbClient.ConnectResult.Success -> Unit
                 }
             }
 
-            state = ShareState.Working("Preparing $fileName…")
+            state = ShareState.Working(context.getString(R.string.preparing_app, fileName))
             val tmp = withContext(Dispatchers.IO) {
                 val f = File(TvToolsApp.instance.cacheDir, "share_$fileName")
                 context.contentResolver.openInputStream(uri)?.use { input ->
@@ -92,20 +94,20 @@ fun ShareToTvDialog(
             }
 
             val remotePath = "/sdcard/Download/$fileName"
-            state = ShareState.Working("Sending to TV…", 0f)
+            state = ShareState.Working(context.getString(R.string.sending_to_tv), 0f)
             val total = tmp.length().coerceAtLeast(1)
             adb.pushFile(tmp, remotePath) { done ->
-                state = ShareState.Working("Sending to TV…", done.toFloat() / total)
+                state = ShareState.Working(context.getString(R.string.sending_to_tv), done.toFloat() / total)
             }
             state = ShareState.Done(remotePath, tmp, mime)
         } catch (e: Exception) {
-            state = ShareState.Failed(e.message ?: "Share failed")
+            state = ShareState.Failed(e.message ?: context.getString(R.string.share_failed))
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (state is ShareState.Failed) "Send to TV" else "Send to TV") },
+        title = { Text(stringResource(R.string.send_to_tv)) },
         text = {
             Column {
                 when (val s = state) {
@@ -129,7 +131,7 @@ fun ShareToTvDialog(
                         }
                     }
                     is ShareState.Done -> {
-                        Text("✅ Sent to the TV", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.sent_to_the_tv), style = MaterialTheme.typography.titleSmall)
                         Spacer(Modifier.height(4.dp))
                         Text(
                             s.remotePath,
@@ -162,17 +164,17 @@ fun ShareToTvDialog(
                         }
                         onDismiss()
                     }) {
-                        Text(if (s.remotePath.endsWith(".apk", true)) "Install on TV" else "Open on TV")
+                        Text(if (s.remotePath.endsWith(".apk", true)) context.getString(R.string.install_on_tv) else context.getString(R.string.open_on_tv))
                     }
                 }
                 is ShareState.Failed -> {
-                    Button(onClick = { onDismiss(); onOpenDevices() }) { Text("Open devices") }
+                    Button(onClick = { onDismiss(); onOpenDevices() }) { Text(stringResource(R.string.open_devices)) }
                 }
                 else -> Unit
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
         },
     )
 }

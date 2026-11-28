@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.ScreenshotStore
@@ -143,16 +144,16 @@ class ToolsViewModel : ViewModel() {
                     _ui.value = _ui.value.copy(screenshot = bmp.asImageBitmap(), screenshotLoading = false)
                 } else {
                     _ui.value = _ui.value.copy(screenshotLoading = false)
-                    _messages.emit("Couldn't decode the screenshot")
+                    _messages.emit(context.getString(R.string.couldnt_decode_the_screenshot))
                 }
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(screenshotLoading = false)
                 val detail = e.message.orEmpty()
                 _messages.emit(
                     if (detail.contains("connect()", true) || detail.contains("offline", true)) {
-                        "Screenshot failed: the TV connection dropped. Go back and reconnect."
+                        context.getString(R.string.screenshot_failed_the_tv_connection_dropped_go)
                     } else {
-                        "Screenshot failed: $detail"
+                        context.getString(R.string.screenshot_failed, detail)
                     }
                 )
             }
@@ -189,7 +190,7 @@ class ToolsViewModel : ViewModel() {
                 }.sortedBy { it.label.lowercase() }
                 _phoneApps.value = list
             } catch (e: Exception) {
-                _messages.emit("Couldn't list phone apps: ${e.message}")
+                _messages.emit(context.getString(R.string.phone_apps_list_failed, e.message.orEmpty()))
             } finally {
                 _phoneAppsLoading.value = false
             }
@@ -198,20 +199,20 @@ class ToolsViewModel : ViewModel() {
 
     fun installPhoneApp(item: PhoneAppItem) {
         if (_ui.value.busyLabel != null) return
-        _ui.value = _ui.value.copy(busyLabel = "Preparing ${item.label}…", progress = -1f)
+        _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.preparing_app, item.label), progress = -1f)
         viewModelScope.launch {
             val copied = ArrayList<File>()
             try {
                 withContext(Dispatchers.IO) {
                     item.apkPaths.forEachIndexed { i, path ->
                         val src = File(path)
-                        if (!src.exists() || !src.canRead()) throw java.io.IOException("Phone blocks reading this app's APK")
+                        if (!src.exists() || !src.canRead()) throw java.io.IOException(context.getString(R.string.phone_blocks_reading_this_apps_apk))
                         val dst = File(context.cacheDir, "phone_${item.packageName}_$i.apk")
                         src.inputStream().use { input -> dst.outputStream().use { input.copyTo(it) } }
                         copied.add(dst)
                     }
                 }
-                _ui.value = _ui.value.copy(busyLabel = "Installing ${item.label} on TV…", progress = 0f)
+                _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.installing_app, item.label), progress = 0f)
                 val total = copied.sumOf { it.length() }.coerceAtLeast(1)
                 val result = if (copied.size > 1) {
                     adb.installSplitApk(copied) { done ->
@@ -223,11 +224,11 @@ class ToolsViewModel : ViewModel() {
                     }
                 }
                 _messages.emit(
-                    if (result.contains("Success", true)) "✅ ${item.label} installed on the TV"
-                    else result.trim().ifBlank { "Install failed" }
+                    if (result.contains("Success", true)) context.getString(R.string.installed_named_app, item.label)
+                    else result.trim().ifBlank { context.getString(R.string.install_failed) }
                 )
             } catch (e: Exception) {
-                _messages.emit("Install failed: ${e.message}")
+                _messages.emit(context.getString(R.string.install_error, e.message.orEmpty()))
             } finally {
                 copied.forEach { it.delete() }
                 _ui.value = _ui.value.copy(busyLabel = null, progress = -1f)
@@ -239,12 +240,12 @@ class ToolsViewModel : ViewModel() {
 
     fun uploadFiles(uris: List<Uri>) {
         if (uris.isEmpty() || _ui.value.busyLabel != null) return
-        _ui.value = _ui.value.copy(busyLabel = "Uploading 0/${uris.size}…", progress = 0f)
+        _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.upload_start, uris.size), progress = 0f)
         viewModelScope.launch {
             var ok = 0
             try {
                 uris.forEachIndexed { index, uri ->
-                    _ui.value = _ui.value.copy(busyLabel = "Uploading ${index + 1}/${uris.size}…")
+                    _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.upload_progress, index + 1, uris.size))
                     try {
                         val name = queryDisplayName(uri) ?: "file_${System.currentTimeMillis()}"
                         val tmp = withContext(Dispatchers.IO) {
@@ -260,7 +261,7 @@ class ToolsViewModel : ViewModel() {
                     } catch (_: Exception) {
                     }
                 }
-                _messages.emit("✅ Uploaded $ok/${uris.size} file(s) to the TV")
+                _messages.emit(context.getString(R.string.files_uploaded_progress, ok, uris.size))
             } finally {
                 _ui.value = _ui.value.copy(busyLabel = null, progress = -1f)
             }
@@ -269,11 +270,11 @@ class ToolsViewModel : ViewModel() {
 
     fun uploadFolder(treeUri: Uri) {
         if (_ui.value.busyLabel != null) return
-        _ui.value = _ui.value.copy(busyLabel = "Scanning folder…", progress = -1f)
+        _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.scanning_folder), progress = -1f)
         viewModelScope.launch {
             try {
                 val root = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, treeUri)
-                    ?: throw java.io.IOException("Cannot open folder")
+                    ?: throw java.io.IOException(context.getString(R.string.cannot_open_folder))
                 val files = ArrayList<Pair<androidx.documentfile.provider.DocumentFile, String>>()
                 fun walk(dir: androidx.documentfile.provider.DocumentFile, rel: String) {
                     if (files.size > 300) return
@@ -287,7 +288,7 @@ class ToolsViewModel : ViewModel() {
 
                 var ok = 0
                 files.forEachIndexed { index, (doc, relPath) ->
-                    _ui.value = _ui.value.copy(busyLabel = "Uploading ${index + 1}/${files.size}: ${doc.name}")
+                    _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.upload_named_progress, index + 1, files.size, doc.name.orEmpty()))
                     try {
                         val target = "/sdcard/Download/" + relPath.trimStart('/')
                         val dir = target.substringBeforeLast('/')
@@ -305,9 +306,9 @@ class ToolsViewModel : ViewModel() {
                     } catch (_: Exception) {
                     }
                 }
-                _messages.emit("✅ Uploaded $ok file(s) from folder")
+                _messages.emit(context.getString(R.string.uploaded_from_folder, ok))
             } catch (e: Exception) {
-                _messages.emit("Folder upload failed: ${e.message}")
+                _messages.emit(context.getString(R.string.folder_upload_failed, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busyLabel = null)
             }
@@ -318,21 +319,21 @@ class ToolsViewModel : ViewModel() {
 
     fun screenRecord(seconds: Int) {
         if (_ui.value.busyLabel != null) return
-        _ui.value = _ui.value.copy(busyLabel = "Recording ${seconds}s…", progress = -1f)
+        _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.recording_seconds, seconds), progress = -1f)
         viewModelScope.launch {
             val remote = "/data/local/tmp/tvtools_rec.mp4"
             try {
                 withContext(Dispatchers.IO) {
                     adb.exec("screenrecord --time-limit $seconds $remote", timeoutMs = seconds * 1000L + 25_000)
                 }
-                _ui.value = _ui.value.copy(busyLabel = "Saving recording…")
+                _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.saving_recording))
                 val local = File(context.cacheDir, "tv_record_${System.currentTimeMillis()}.mp4")
                 withContext(Dispatchers.IO) { adb.pullFile(remote, local) }
                 try { adb.exec("rm -f $remote", timeoutMs = 15_000) } catch (_: Exception) {}
                 saveVideoToGallery(local)
-                _messages.emit("✅ Recording saved to Movies/TV Tools")
+                _messages.emit(context.getString(R.string.recording_saved_to_movies_tv_tools))
             } catch (e: Exception) {
-                _messages.emit("Screen record failed: ${e.message}")
+                _messages.emit(context.getString(R.string.screen_record_failed, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busyLabel = null)
             }
@@ -350,7 +351,7 @@ class ToolsViewModel : ViewModel() {
         }
         val resolver = context.contentResolver
         val uri = resolver.insert(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
-            ?: throw java.io.IOException("MediaStore insert failed")
+            ?: throw java.io.IOException(context.getString(R.string.mediastore_insert_failed))
         resolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } }
     }
 
@@ -367,15 +368,15 @@ class ToolsViewModel : ViewModel() {
                 val resolver = context.contentResolver
                 val uri = resolver.insert(
                     android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
-                ) ?: throw java.io.IOException("MediaStore insert failed")
+                ) ?: throw java.io.IOException(context.getString(R.string.mediastore_insert_failed))
                 withContext(Dispatchers.IO) {
                     resolver.openOutputStream(uri)?.use { out ->
                         screenshotFile.inputStream().use { it.copyTo(out) }
-                    } ?: throw java.io.IOException("Cannot open destination")
+                    } ?: throw java.io.IOException(context.getString(R.string.cannot_open_destination))
                 }
-                _messages.emit("✅ Saved to Pictures/TV Tools")
+                _messages.emit(context.getString(R.string.saved_to_pictures_tv_tools))
             } catch (e: Exception) {
-                _messages.emit("Save failed: ${e.message}")
+                _messages.emit(context.getString(R.string.save_failed, e.message.orEmpty()))
             }
         }
     }
@@ -402,35 +403,35 @@ class ToolsViewModel : ViewModel() {
 
     fun installApk(uri: Uri) {
         if (_ui.value.busyLabel != null) return
-        _ui.value = _ui.value.copy(busyLabel = "Installing…", progress = 0f)
+        _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.installing), progress = 0f)
         viewModelScope.launch {
             var apksToDelete = emptyList<java.io.File>()
             try {
                 val picked = withContext(Dispatchers.IO) { copyUriToCache(uri, ".apk") }
                 if (picked == null) {
-                    _messages.emit("Couldn't read the selected file")
+                    _messages.emit(context.getString(R.string.couldnt_read_the_selected_file))
                     return@launch
                 }
                 val name = picked.name.lowercase()
                 if (name.endsWith(".apks") || name.endsWith(".xapk") || name.endsWith(".zip")) {
-                    _ui.value = _ui.value.copy(busyLabel = "Extracting…", progress = -1f)
+                    _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.extracting), progress = -1f)
                     val dir = java.io.File(context.cacheDir, "split_${System.currentTimeMillis()}")
                     val apks = withContext(Dispatchers.IO) { unzipApks(picked, dir) }
                     picked.delete()
                     apksToDelete = apks
                     if (apks.isEmpty()) {
-                        _messages.emit("No APK files found in the archive")
+                        _messages.emit(context.getString(R.string.no_apk_files_found_in_the_archive))
                         return@launch
                     }
-                    _ui.value = _ui.value.copy(busyLabel = "Installing ${apks.size} APKs…", progress = 0f)
+                    _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.installing_split_apks, apks.size), progress = 0f)
                     val total = apks.sumOf { it.length() }.coerceAtLeast(1)
                     val result = adb.installSplitApk(apks) { done ->
                         _ui.value = _ui.value.copy(progress = done.toFloat() / total)
                     }
                     if (result.contains("Success", ignoreCase = true)) {
-                        _messages.emit("✅ Installed successfully (${apks.size} APKs)")
+                        _messages.emit(context.getString(R.string.installed_split_apks, apks.size))
                     } else {
-                        _messages.emit("Install result: ${result.trim().ifBlank { "unknown" }}")
+                        _messages.emit(context.getString(R.string.install_result, result.trim().ifBlank { context.getString(R.string.unknown_result) }))
                     }
                 } else {
                     val total = picked.length().coerceAtLeast(1)
@@ -439,13 +440,13 @@ class ToolsViewModel : ViewModel() {
                     }
                     picked.delete()
                     if (result.contains("Success", ignoreCase = true)) {
-                        _messages.emit("✅ Installed successfully")
+                        _messages.emit(context.getString(R.string.installed_successfully))
                     } else {
-                        _messages.emit("Install result: ${result.trim().ifBlank { "unknown" }}")
+                        _messages.emit(context.getString(R.string.install_result, result.trim().ifBlank { context.getString(R.string.unknown_result) }))
                     }
                 }
             } catch (e: Exception) {
-                _messages.emit("Install failed: ${e.message}")
+                _messages.emit(context.getString(R.string.install_error, e.message.orEmpty()))
             } finally {
                 apksToDelete.forEach { it.parentFile?.deleteRecursively() }
                 _ui.value = _ui.value.copy(busyLabel = null, progress = -1f)
@@ -474,12 +475,12 @@ class ToolsViewModel : ViewModel() {
 
     fun uploadToDownloads(uri: Uri) {
         if (_ui.value.busyLabel != null) return
-        _ui.value = _ui.value.copy(busyLabel = "Uploading…", progress = 0f)
+        _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.uploading), progress = 0f)
         viewModelScope.launch {
             try {
                 val file = withContext(Dispatchers.IO) { copyUriToCache(uri, "") }
                 if (file == null) {
-                    _messages.emit("Couldn't read the selected file")
+                    _messages.emit(context.getString(R.string.couldnt_read_the_selected_file))
                     return@launch
                 }
                 val total = file.length().coerceAtLeast(1)
@@ -487,9 +488,9 @@ class ToolsViewModel : ViewModel() {
                     _ui.value = _ui.value.copy(progress = done.toFloat() / total)
                 }
                 file.delete()
-                _messages.emit("✅ Uploaded to TV's Download folder")
+                _messages.emit(context.getString(R.string.uploaded_to_tvs_download_folder))
             } catch (e: Exception) {
-                _messages.emit("Upload failed: ${e.message}")
+                _messages.emit(context.getString(R.string.upload_failed_detail, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busyLabel = null, progress = -1f)
             }
@@ -498,18 +499,18 @@ class ToolsViewModel : ViewModel() {
 
     fun clearCache() {
         if (_ui.value.busyLabel != null) return
-        _ui.value = _ui.value.copy(busyLabel = "Clearing caches…", progress = -1f)
+        _ui.value = _ui.value.copy(busyLabel = context.getString(R.string.clearing_caches), progress = -1f)
         viewModelScope.launch {
             try {
                 // pm trim-caches exists on Android 8..15+; it asks the system to evict app caches.
                 val out = adb.exec("pm trim-caches 32G 2>&1", timeoutMs = 120_000)
                 if (out.contains("Unknown command", true) || out.trimStart().startsWith("Error")) {
-                    _messages.emit("Cache trimming is not supported on this TV (${out.trim().take(120)})")
+                    _messages.emit(context.getString(R.string.cache_trim_unsupported, out.trim().take(120)))
                 } else {
-                    _messages.emit("✅ Caches trimmed")
+                    _messages.emit(context.getString(R.string.caches_trimmed))
                 }
             } catch (e: Exception) {
-                _messages.emit("Clear cache failed: ${e.message}")
+                _messages.emit(context.getString(R.string.cache_clear_failed, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busyLabel = null)
             }

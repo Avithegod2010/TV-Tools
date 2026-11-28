@@ -39,9 +39,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.R
 import com.tvtools.app.ui.common.LoadingRow
 import com.tvtools.app.ui.common.formatBytes
 import com.tvtools.app.ui.common.formatDate
@@ -77,18 +79,18 @@ fun BackupsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("App backups", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.app_backups), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { passphrase = ""; showExport = true }) {
-                        Icon(Icons.Default.Share, contentDescription = "Encrypted export")
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.encrypted_export))
                     }
                     IconButton(onClick = { importPicker.launch("*/*") }) {
-                        Icon(Icons.Default.Download, contentDescription = "Import encrypted backup")
+                        Icon(Icons.Default.Download, contentDescription = stringResource(R.string.import_encrypted_backup))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -100,7 +102,7 @@ fun BackupsScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Text(
-                "Backups are stored on this phone. Restore installs all splits of an app.",
+                stringResource(R.string.backups_are_stored_on_this_phone_restore),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -122,10 +124,10 @@ fun BackupsScreen(
                     Modifier.fillMaxWidth().padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("No backups yet", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.no_backups_yet), style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Select apps in the Apps tab → Backup.",
+                        stringResource(R.string.select_apps_in_the_apps_tab_backup),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -147,13 +149,13 @@ fun BackupsScreen(
                             Button(onClick = { viewModel.restore(backup) }) {
                                 Icon(Icons.Default.Upload, null, Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("App")
+                                Text(stringResource(R.string.app))
                             }
                             if (backup.hasData) {
-                                TextButton(onClick = { viewModel.restoreData(backup) }) { Text("Data") }
+                                TextButton(onClick = { viewModel.restoreData(backup) }) { Text(stringResource(R.string.data)) }
                             }
                             IconButton(onClick = { deleteTarget = backup }) {
-                                Icon(Icons.Default.Delete, "Delete")
+                                Icon(Icons.Default.Delete, stringResource(R.string.delete))
                             }
                         }
                     }
@@ -165,26 +167,26 @@ fun BackupsScreen(
     deleteTarget?.let { target ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete backup of ${target.label}?") },
+            title = { Text(stringResource(R.string.delete_named_backup, target.label)) },
             confirmButton = {
-                TextButton(onClick = { viewModel.delete(target); deleteTarget = null }) { Text("Delete") }
+                TextButton(onClick = { viewModel.delete(target); deleteTarget = null }) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 
     if (showExport) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showExport = false },
-            title = { Text("Encrypted export") },
+            title = { Text(stringResource(R.string.encrypted_export)) },
             text = {
                 Column {
-                    Text("Protect a copy of all backups with a password, then share/save it anywhere.")
+                    Text(stringResource(R.string.protect_a_copy_of_all_backups_with))
                     Spacer(Modifier.height(8.dp))
                     androidx.compose.material3.OutlinedTextField(
                         value = passphrase,
                         onValueChange = { passphrase = it },
-                        label = { Text("Password") },
+                        label = { Text(stringResource(R.string.password)) },
                         singleLine = true,
                     )
                 }
@@ -196,24 +198,24 @@ fun BackupsScreen(
                         viewModel.exportEncrypted(passphrase) { file -> shareFile(context, file) }
                     },
                     enabled = passphrase.length >= 4,
-                ) { Text("Export") }
+                ) { Text(stringResource(R.string.export)) }
             },
-            dismissButton = { TextButton(onClick = { showExport = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { showExport = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 
     if (showImport && importUri != null) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showImport = false },
-            title = { Text("Decrypt backup") },
+            title = { Text(stringResource(R.string.decrypt_backup)) },
             text = {
                 Column {
-                    Text("Enter the password used when exporting.")
+                    Text(stringResource(R.string.enter_the_password_used_when_exporting))
                     Spacer(Modifier.height(8.dp))
                     androidx.compose.material3.OutlinedTextField(
                         value = passphrase,
                         onValueChange = { passphrase = it },
-                        label = { Text("Password") },
+                        label = { Text(stringResource(R.string.password)) },
                         singleLine = true,
                     )
                 }
@@ -225,9 +227,9 @@ fun BackupsScreen(
                         importUri?.let { viewModel.importEncrypted(it, passphrase) }
                     },
                     enabled = passphrase.length >= 4,
-                ) { Text("Import") }
+                ) { Text(stringResource(R.string.import_action)) }
             },
-            dismissButton = { TextButton(onClick = { showImport = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { showImport = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

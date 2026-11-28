@@ -72,11 +72,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.R
 import com.tvtools.app.ui.common.LoadingRow
 import com.tvtools.app.ui.common.formatBytes
 import com.tvtools.app.ui.common.formatDate
@@ -110,24 +112,24 @@ fun FileManagerScreen(
         topBar = {
             if (selecting) {
                 TopAppBar(
-                    title = { Text("${ui.selection.size} selected") },
+                    title = { Text(stringResource(R.string.items_selected, ui.selection.size)) },
                     navigationIcon = {
                         IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.Default.Check, "Done")
+                            Icon(Icons.Default.Check, stringResource(R.string.done))
                         }
                     },
                     actions = {
                         IconButton(onClick = { viewModel.selectAll() }) {
-                            Icon(Icons.Default.SelectAll, "Select all")
+                            Icon(Icons.Default.SelectAll, stringResource(R.string.select_all))
                         }
                         IconButton(onClick = { viewModel.downloadSelected() }) {
-                            Icon(Icons.Default.Download, "Download")
+                            Icon(Icons.Default.Download, stringResource(R.string.download))
                         }
                         IconButton(onClick = { transferMove = false; showTransfer = true }) {
-                            Icon(Icons.Default.Folder, "Copy to")
+                            Icon(Icons.Default.Folder, stringResource(R.string.copy_to))
                         }
                         IconButton(onClick = { viewModel.deleteSelected() }) {
-                            Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -136,17 +138,17 @@ fun FileManagerScreen(
                 )
             } else {
                 TopAppBar(
-                    title = { Text("File manager", fontWeight = FontWeight.SemiBold) },
+                    title = { Text(stringResource(R.string.file_manager), fontWeight = FontWeight.SemiBold) },
                     navigationIcon = {
                         IconButton(onClick = { if (viewModel.isAtRoot) onBack() else viewModel.up() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                         }
                     },
                     actions = {
                         IconButton(onClick = viewModel::toggleGrid) {
                             Icon(
                                 if (ui.grid) Icons.Default.ViewList else Icons.Default.GridView,
-                                contentDescription = "Toggle grid",
+                                contentDescription = stringResource(R.string.toggle_grid),
                             )
                         }
                         IconButton(onClick = { showMkdir = true }) {
@@ -163,7 +165,7 @@ fun FileManagerScreen(
             FloatingActionButton(
                 onClick = { picker.launch("*/*") },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ) { Icon(Icons.Default.Add, "Upload file") }
+            ) { Icon(Icons.Default.Add, stringResource(R.string.upload_file)) }
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
@@ -183,9 +185,9 @@ fun FileManagerScreen(
             }
 
             when {
-                ui.loading -> LoadingRow("Opening…")
+                ui.loading -> LoadingRow(stringResource(R.string.opening))
                 ui.entries.isEmpty() -> Text(
-                    "Empty folder",
+                    stringResource(R.string.empty_folder),
                     modifier = Modifier.padding(24.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -255,7 +257,7 @@ fun FileManagerScreen(
                         Spacer(Modifier.width(8.dp))
                         Text(
                             buildString {
-                                append(ui.downloadLabel ?: "Downloading…")
+                                append(ui.downloadLabel ?: stringResource(R.string.downloading))
                                 if (ui.queueRemaining > 0) append("  (+${ui.queueRemaining} queued)")
                             },
                             style = MaterialTheme.typography.bodySmall,
@@ -271,9 +273,9 @@ fun FileManagerScreen(
 
     if (showTransfer) {
         TextInputDialog(
-            title = if (transferMove) "Move selected to" else "Copy selected to",
+            title = if (transferMove) stringResource(R.string.move_selected_to) else stringResource(R.string.copy_selected_to),
             initial = "/sdcard/Download",
-            confirmLabel = if (transferMove) "Move" else "Copy",
+            confirmLabel = if (transferMove) stringResource(R.string.move) else stringResource(R.string.copy),
             onDismiss = { showTransfer = false },
             onConfirm = { dest ->
                 if (transferMove) viewModel.moveSelected(dest) else viewModel.copySelected(dest)
@@ -284,9 +286,9 @@ fun FileManagerScreen(
 
     renameTarget?.let { target ->
         TextInputDialog(
-            title = "Rename",
+            title = stringResource(R.string.rename),
             initial = target.name,
-            confirmLabel = "Rename",
+            confirmLabel = stringResource(R.string.rename),
             onDismiss = { renameTarget = null },
             onConfirm = { viewModel.rename(target, it); renameTarget = null },
         )
@@ -295,25 +297,25 @@ fun FileManagerScreen(
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete ${target.name}?") },
+            title = { Text(stringResource(R.string.delete_named_item, target.name)) },
             text = {
                 Text(
-                    if (target.isDir) "The folder and all its contents will be deleted from the TV."
-                    else "The file will be deleted from the TV."
+                    if (target.isDir) stringResource(R.string.the_folder_and_all_its_contents_will)
+                    else stringResource(R.string.the_file_will_be_deleted_from_the)
                 )
             },
             confirmButton = {
-                Button(onClick = { viewModel.delete(target); deleteTarget = null }) { Text("Delete") }
+                Button(onClick = { viewModel.delete(target); deleteTarget = null }) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 
     if (showMkdir) {
         TextInputDialog(
-            title = "New folder",
+            title = stringResource(R.string.new_folder),
             initial = "",
-            confirmLabel = "Create",
+            confirmLabel = stringResource(R.string.create),
             onDismiss = { showMkdir = false },
             onConfirm = { viewModel.mkdir(it); showMkdir = false },
         )
@@ -328,8 +330,8 @@ fun FileManagerScreen(
 private fun PreviewDialog(p: FilePreview, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("Preview") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+        title = { Text(stringResource(R.string.preview)) },
         text = {
             when (p) {
                 is FilePreview.Image -> {
@@ -344,7 +346,7 @@ private fun PreviewDialog(p: FilePreview, onDismiss: () -> Unit) {
                             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
                         )
                     } else {
-                        Text("Couldn't decode image")
+                        Text(stringResource(R.string.couldnt_decode_image))
                     }
                 }
                 is FilePreview.Text -> {
@@ -370,7 +372,7 @@ private fun Breadcrumbs(path: String, onNavigate: (String) -> Unit, modifier: Mo
     val parts = if (rel.isBlank()) emptyList() else rel.split("/")
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(
-            "Home",
+            stringResource(R.string.home),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = if (parts.isEmpty()) FontWeight.Bold else FontWeight.Normal,
             color = MaterialTheme.colorScheme.primary,
@@ -448,22 +450,22 @@ private fun FileRow(
             var menuOpen by remember { mutableStateOf(false) }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Default.MoreVert, "Actions")
+                    Icon(Icons.Default.MoreVert, stringResource(R.string.actions))
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     if (!item.isDir) {
                         DropdownMenuItem(
-                            text = { Text("Download") },
+                            text = { Text(stringResource(R.string.download)) },
                             leadingIcon = { Icon(Icons.Default.Download, null) },
                             onClick = { menuOpen = false; onDownload() },
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text("Rename") },
+                        text = { Text(stringResource(R.string.rename)) },
                         onClick = { menuOpen = false; onRename() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete") },
+                        text = { Text(stringResource(R.string.delete)) },
                         leadingIcon = { Icon(Icons.Default.Delete, null) },
                         onClick = { menuOpen = false; onDelete() },
                     )
@@ -526,6 +528,6 @@ private fun TextInputDialog(
         confirmButton = {
             Button(onClick = { onConfirm(text) }, enabled = text.isNotBlank()) { Text(confirmLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

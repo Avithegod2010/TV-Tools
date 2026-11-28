@@ -26,6 +26,7 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.TvTools.Starting"
         tools:targetApi="35">
@@ -102,7 +103,7 @@
             android:name=".tile.RemoteTileService"
             android:exported="true"
             android:icon="@drawable/ic_tile_remote"
-            android:label="TV Remote"
+            android:label="@string/remote_tile_title"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

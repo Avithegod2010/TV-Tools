@@ -26,10 +26,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 
 @Composable
 fun AutomationsScreen(onBack: () -> Unit) {
@@ -37,7 +39,7 @@ fun AutomationsScreen(onBack: () -> Unit) {
     var showExportInfo by remember { mutableStateOf(false) }
     var showWakeTime by remember { mutableStateOf(false) }
 
-    LabScaffold("Automations", onBack) {
+    LabScaffold(stringResource(R.string.automations), onBack) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -45,22 +47,22 @@ fun AutomationsScreen(onBack: () -> Unit) {
                 .padding(16.dp)
         ) {
             Text(
-                "Daily jobs run while the app is installed. The TV must be reachable on Wi-Fi; if not, the job retries later.",
+                stringResource(R.string.daily_jobs_run_while_the_app_is),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Text(
-                "Wake",
+                stringResource(R.string.wake),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(top = 20.dp),
             )
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Wake TV at a set time")
+                    Text(stringResource(R.string.wake_tv_at_a_set_time))
                     Text(
-                        "Sends a Wake-on-LAN packet every day at ${formatMinutes(settings.wakeMinutes)}",
+                        stringResource(R.string.send_wake_packet_at, formatMinutes(settings.wakeMinutes)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -72,11 +74,11 @@ fun AutomationsScreen(onBack: () -> Unit) {
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = { showWakeTime = true }) {
-                    Text("Time: ${formatMinutes(settings.wakeMinutes)}")
+                    Text(stringResource(R.string.wake_time_value, formatMinutes(settings.wakeMinutes)))
                 }
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "Needs the TV's MAC — connect once over ADB to learn it.",
+                    stringResource(R.string.needs_the_tvs_mac_connect_once_over),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -84,9 +86,9 @@ fun AutomationsScreen(onBack: () -> Unit) {
 
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Wake when I get home")
+                    Text(stringResource(R.string.wake_when_i_get_home))
                     Text(
-                        "When Wi-Fi returns and the TV doesn't answer, send a wake packet once",
+                        stringResource(R.string.when_wi_fi_returns_and_the_tv),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -98,16 +100,16 @@ fun AutomationsScreen(onBack: () -> Unit) {
             }
 
             Text(
-                "Maintenance",
+                stringResource(R.string.maintenance),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(top = 24.dp),
             )
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Daily cache trim")
+                    Text(stringResource(R.string.daily_cache_trim))
                     Text(
-                        "Runs pm trim-caches every 24h",
+                        stringResource(R.string.runs_pm_trim_caches_every_24h),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -119,9 +121,9 @@ fun AutomationsScreen(onBack: () -> Unit) {
             }
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Daily TV screenshot")
+                    Text(stringResource(R.string.daily_tv_screenshot))
                     Text(
-                        "Saves a screenshot to Pictures/TV Tools every 24h",
+                        stringResource(R.string.saves_a_screenshot_to_pictures_tv_tools),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -132,7 +134,7 @@ fun AutomationsScreen(onBack: () -> Unit) {
                 )
             }
             TextButton(onClick = { showExportInfo = true }, modifier = Modifier.padding(top = 16.dp)) {
-                Text("How it works")
+                Text(stringResource(R.string.how_it_works))
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -152,13 +154,13 @@ fun AutomationsScreen(onBack: () -> Unit) {
     if (showExportInfo) {
         AlertDialog(
             onDismissRequest = { showExportInfo = false },
-            title = { Text("Background jobs") },
+            title = { Text(stringResource(R.string.background_jobs)) },
             text = {
                 Text(
-                    "Scheduled with WorkManager (24h, minimum periodic interval). Each run connects to your last TV over ADB, performs the task, then disconnects. Some TVs drop wireless debugging after a reboot — enable 'Wireless debugging' again for jobs to resume. Wake-on-LAN works when the TV is off but still powered and reachable on the same network."
+                    stringResource(R.string.scheduled_with_workmanager_24h_minimum_periodic_interval)
                 )
             },
-            confirmButton = { TextButton(onClick = { showExportInfo = false }) { Text("Got it") } },
+            confirmButton = { TextButton(onClick = { showExportInfo = false }) { Text(stringResource(R.string.got_it)) } },
         )
     }
 }
@@ -173,14 +175,14 @@ private fun WakeTimeDialog(
     var minute by remember { mutableStateOf("%02d".format(initialMinutes % 60)) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Wake time") },
+        title = { Text(stringResource(R.string.wake_time)) },
         text = {
             Column {
                 Row {
                     OutlinedTextField(
                         value = hour,
                         onValueChange = { hour = it.filter(Char::isDigit).take(2) },
-                        label = { Text("Hour") },
+                        label = { Text(stringResource(R.string.hour)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.width(110.dp),
@@ -189,7 +191,7 @@ private fun WakeTimeDialog(
                     OutlinedTextField(
                         value = minute,
                         onValueChange = { minute = it.filter(Char::isDigit).take(2) },
-                        label = { Text("Minute") },
+                        label = { Text(stringResource(R.string.minute)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.width(110.dp),
@@ -197,7 +199,7 @@ private fun WakeTimeDialog(
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "24-hour time, local to this phone. WorkManager runs it approximately on time (battery saver may delay it).",
+                    stringResource(R.string.text_24_hour_time_local_to_this_phone),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -208,9 +210,9 @@ private fun WakeTimeDialog(
                 val h = hour.toIntOrNull()?.coerceIn(0, 23) ?: 7
                 val m = minute.toIntOrNull()?.coerceIn(0, 59) ?: 0
                 onConfirm(h * 60 + m)
-            }) { Text("Save") }
+            }) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

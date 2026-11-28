@@ -78,6 +78,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,6 +89,7 @@ import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.ui.common.InfoCard
 import com.tvtools.app.ui.common.rememberHaptics
@@ -174,38 +179,38 @@ fun ToolsTab(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Quick tools",
+                        stringResource(R.string.quick_tools),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        "Pick the tools you use most",
+                        stringResource(R.string.pick_the_tools_you_use_most),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                TextButton(onClick = { showAllFeatures = true }) { Text("All features") }
+                TextButton(onClick = { showAllFeatures = true }) { Text(stringResource(R.string.all_features)) }
             }
 
             val quickTools = favorites.mapNotNull(ToolCatalog::byId)
             if (quickTools.isEmpty()) {
                 InfoCard(Modifier.fillMaxWidth()) {
-                    Text("Your quick grid is empty", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.your_quick_grid_is_empty), style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Open All features and tap the star next to the tools you want here.",
+                        stringResource(R.string.open_all_features_and_tap_the_star),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(10.dp))
-                    Button(onClick = { showAllFeatures = true }) { Text("Choose tools") }
+                    Button(onClick = { showAllFeatures = true }) { Text(stringResource(R.string.choose_tools)) }
                 }
             } else {
                 quickTools.chunked(2).forEach { pair ->
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         pair.forEach { tool ->
                             ToolAction(
-                                title = tool.title,
+                                title = stringResource(tool.title),
                                 icon = { Icon(tool.icon, null) },
                                 modifier = Modifier.weight(1f),
                                 onClick = { openTool(tool) },
@@ -240,12 +245,12 @@ fun ToolsTab(
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "All features",
+                            stringResource(R.string.all_features),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            "${ToolCatalog.all.size} tools and labs — search, open or pin them",
+                            pluralStringResource(R.plurals.available_tools_count, ToolCatalog.all.size, ToolCatalog.all.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -281,7 +286,7 @@ fun ToolsTab(
 
             InfoCard(Modifier.fillMaxWidth()) {
                 Text(
-                    "Screenshot",
+                    stringResource(R.string.screenshot),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -295,12 +300,12 @@ fun ToolsTab(
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeCap = StrokeCap.Round)
                         Spacer(Modifier.width(12.dp))
-                        Text("Capturing…")
+                        Text(stringResource(R.string.capturing))
                     }
                     shot != null -> {
                         Image(
                             bitmap = shot,
-                            contentDescription = "TV screenshot",
+                            contentDescription = stringResource(R.string.tv_screenshot),
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -334,9 +339,9 @@ fun ToolsTab(
                             }
                         }
                         Spacer(Modifier.height(10.dp))
-                        Text("No screenshot yet", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.no_screenshot_yet), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "Nothing is captured in the background — the TV is only captured when you tap below.",
+                            stringResource(R.string.nothing_is_captured_in_the_background_the),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -350,7 +355,7 @@ fun ToolsTab(
             }
 
             Text(
-                "Screenshots are saved on this phone only. Change how many are kept in Settings → Screenshots.",
+                stringResource(R.string.screenshots_are_saved_on_this_phone_only),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -391,20 +396,20 @@ fun ToolsTab(
     if (showUploadOptions) {
         AlertDialog(
             onDismissRequest = { showUploadOptions = false },
-            title = { Text("Upload to TV") },
+            title = { Text(stringResource(R.string.upload_to_tv)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = { showUploadOptions = false; multiPicker.launch("*/*") },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Pick multiple files") }
+                    ) { Text(stringResource(R.string.pick_multiple_files)) }
                     Button(
                         onClick = { showUploadOptions = false; folderPicker.launch(null) },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Pick a folder") }
+                    ) { Text(stringResource(R.string.pick_a_folder)) }
                 }
             },
-            confirmButton = { TextButton(onClick = { showUploadOptions = false }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = { showUploadOptions = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 
@@ -432,12 +437,13 @@ private fun AllFeaturesSheet(
     val haptics = rememberHaptics()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
-    val filtered = remember(query) {
+    val resources = LocalContext.current.resources
+    val filtered = remember(query, LocalConfiguration.current) {
         ToolCatalog.all.filter { tool ->
             query.isBlank() ||
-                tool.title.contains(query, ignoreCase = true) ||
-                tool.subtitle.contains(query, ignoreCase = true) ||
-                tool.category.label.contains(query, ignoreCase = true)
+                resources.getString(tool.title).contains(query, ignoreCase = true) ||
+                resources.getString(tool.subtitle).contains(query, ignoreCase = true) ||
+                resources.getString(tool.category.label).contains(query, ignoreCase = true)
         }
     }
 
@@ -456,17 +462,17 @@ private fun AllFeaturesSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "All features",
+                        stringResource(R.string.all_features),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        "Tap to open · star to pin on Quick tools",
+                        stringResource(R.string.tap_to_open_star_to_pin_on),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                TextButton(onClick = { haptics(); onReset() }) { Text("Reset") }
+                TextButton(onClick = { haptics(); onReset() }) { Text(stringResource(R.string.reset)) }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -474,7 +480,7 @@ private fun AllFeaturesSheet(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search tools and labs") },
+                placeholder = { Text(stringResource(R.string.search_tools_and_labs)) },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 singleLine = true,
                 shape = RoundedCornerShape(28.dp),
@@ -483,10 +489,10 @@ private fun AllFeaturesSheet(
                 FilterChip(
                     selected = false,
                     onClick = { haptics(); onSelectAll() },
-                    label = { Text("Select all") },
+                    label = { Text(stringResource(R.string.select_all)) },
                 )
                 Text(
-                    "${selected.size} pinned",
+                    stringResource(R.string.tools_pinned, selected.size),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.CenterVertically),
@@ -497,7 +503,7 @@ private fun AllFeaturesSheet(
 
             if (filtered.isEmpty()) {
                 Text(
-                    "No tool matches \"$query\"",
+                    stringResource(R.string.no_tool_matches, query),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(vertical = 24.dp),
                 )
@@ -508,7 +514,7 @@ private fun AllFeaturesSheet(
                         if (tools.isEmpty()) return@forEach
                         item(key = "header-${category.name}") {
                             Text(
-                                category.label.uppercase(),
+                                stringResource(category.label).uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
@@ -562,14 +568,14 @@ private fun ToolRow(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                tool.title,
+                stringResource(tool.title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                tool.subtitle,
+                stringResource(tool.subtitle),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -652,7 +658,7 @@ private fun ToolAction(
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
             if (onLongClick != null) {
                 Text(
-                    "hold for more",
+                    stringResource(R.string.hold_for_more),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -670,13 +676,13 @@ private fun PhoneAppsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Install a phone app on the TV") },
+        title = { Text(stringResource(R.string.install_a_phone_app_on_the_tv)) },
         text = {
             if (loading) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(10.dp))
-                    Text("Loading phone apps…")
+                    Text(stringResource(R.string.loading_phone_apps))
                 }
             } else {
                 LazyColumn(modifier = Modifier.height(380.dp)) {
@@ -696,13 +702,13 @@ private fun PhoneAppsDialog(
                                     maxLines = 1,
                                 )
                             }
-                            TextButton(onClick = { onPick(item) }) { Text("Install") }
+                            TextButton(onClick = { onPick(item) }) { Text(stringResource(R.string.install)) }
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     )
 }
 
@@ -731,11 +737,11 @@ private fun ScreenRecordDialog(onDismiss: () -> Unit, onStart: (Int) -> Unit) {
     var seconds by remember { mutableStateOf(30) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Screen record TV") },
+        title = { Text(stringResource(R.string.screen_record_tv)) },
         text = {
             Column {
                 Text(
-                    "Records the TV screen with `screenrecord` and saves it to your phone's Movies.",
+                    stringResource(R.string.records_the_tv_screen_with_screenrecord_and),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -745,14 +751,14 @@ private fun ScreenRecordDialog(onDismiss: () -> Unit, onStart: (Int) -> Unit) {
                         FilterChip(
                             selected = seconds == s,
                             onClick = { seconds = s },
-                            label = { Text("${s}s") },
+                            label = { Text(stringResource(R.string.duration_seconds, s)) },
                         )
                     }
                 }
             }
         },
-        confirmButton = { Button(onClick = { onStart(seconds) }) { Text("Start recording") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { Button(onClick = { onStart(seconds) }) { Text(stringResource(R.string.start_recording)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

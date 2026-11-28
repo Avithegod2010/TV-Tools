@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -52,6 +53,7 @@ import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeWriter
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.DeviceProto
 import com.tvtools.app.data.TvDevice
@@ -142,7 +144,7 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
         if (text.isNullOrBlank()) status = "Clipboard is empty." else handleText(text)
     }
 
-    LabScaffold("Share TV via QR", onBack) {
+    LabScaffold(stringResource(R.string.share_tv_via_qr), onBack) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -151,7 +153,7 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "Point another phone's camera at this code. Both phones must be on the same Wi-Fi as the TV.",
+                stringResource(R.string.point_another_phones_camera_at_this_code),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -167,7 +169,7 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                     val bmp = remember(link) { qrBitmap(link, 640) }
                     Image(
                         bitmap = bmp.asImageBitmap(),
-                        contentDescription = "TV profile QR code",
+                        contentDescription = stringResource(R.string.tv_profile_qr_code),
                         modifier = Modifier.padding(16.dp).size(240.dp),
                     )
                 }
@@ -185,16 +187,16 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                             putExtra(Intent.EXTRA_TEXT, link)
                         }
                         context.startActivity(Intent.createChooser(send, "Share TV profile"))
-                    }) { Text("Share link") }
+                    }) { Text(stringResource(R.string.share_link)) }
                     OutlinedButton(onClick = {
                         val cm = context.getSystemService(android.content.ClipboardManager::class.java)
                         cm?.setPrimaryClip(android.content.ClipData.newPlainText("TV profile", link))
                         status = "Link copied — paste it on the other phone."
-                    }) { Text("Copy link") }
+                    }) { Text(stringResource(R.string.copy_link)) }
                 }
             } else {
                 Text(
-                    "Connect to a TV once — its profile will appear here as a QR code.",
+                    stringResource(R.string.connect_to_a_tv_once_its_profile),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -208,17 +210,17 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Connect with a QR", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.connect_with_a_qr), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Scan a code shown on another phone running TV Tools.",
+                        stringResource(R.string.scan_a_code_shown_on_another_phone),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Button(onClick = { scanWithCamera() }, enabled = !busy) { Text("Scan with camera") }
-                        TextButton(onClick = { pasteFromClipboard() }, enabled = !busy) { Text("Paste link") }
+                        Button(onClick = { scanWithCamera() }, enabled = !busy) { Text(stringResource(R.string.scan_with_camera)) }
+                        TextButton(onClick = { pasteFromClipboard() }, enabled = !busy) { Text(stringResource(R.string.paste_link)) }
                         if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     }
                 }

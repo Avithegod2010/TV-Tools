@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tvtools.app.R
 import com.tvtools.app.data.NowPlaying
 import kotlin.math.cos
 import kotlin.math.min
@@ -149,7 +151,7 @@ internal fun MediaFirstPad(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "NOW PLAYING",
+                stringResource(R.string.now_playing_heading),
                 style = MaterialTheme.typography.labelSmall,
                 letterSpacing = 2.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -201,10 +203,10 @@ internal fun MediaFirstPad(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FilledIconButton(onClick = { onSend(KEY_MEDIA_REWIND) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.FastRewind, "Rewind")
+                    Icon(Icons.Default.FastRewind, stringResource(R.string.rewind))
                 }
                 FilledIconButton(onClick = { onSend(KEY_MEDIA_PREV) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.SkipPrevious, "Previous")
+                    Icon(Icons.Default.SkipPrevious, stringResource(R.string.previous))
                 }
                 FilledIconButton(
                     onClick = { onSend(KEY_MEDIA_PLAY_PAUSE) },
@@ -217,25 +219,25 @@ internal fun MediaFirstPad(
                     )
                 }
                 FilledIconButton(onClick = { onSend(KEY_MEDIA_NEXT) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.SkipNext, "Next")
+                    Icon(Icons.Default.SkipNext, stringResource(R.string.media_next_action))
                 }
                 FilledIconButton(onClick = { onSend(KEY_MEDIA_FF) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.FastForward, "Fast forward")
+                    Icon(Icons.Default.FastForward, stringResource(R.string.fast_forward))
                 }
             }
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilledIconButton(onClick = { onSend(KEY_DPAD_LEFT) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.KeyboardArrowLeft, "Left")
+                    Icon(Icons.Default.KeyboardArrowLeft, stringResource(R.string.left))
                 }
                 FilledIconButton(onClick = { onSend(KEY_DPAD_UP) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.KeyboardArrowUp, "Up")
+                    Icon(Icons.Default.KeyboardArrowUp, stringResource(R.string.up))
                 }
                 FilledIconButton(onClick = { onSend(KEY_DPAD_DOWN) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.KeyboardArrowDown, "Down")
+                    Icon(Icons.Default.KeyboardArrowDown, stringResource(R.string.down))
                 }
                 FilledIconButton(onClick = { onSend(KEY_DPAD_RIGHT) }, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Default.KeyboardArrowRight, "Right")
+                    Icon(Icons.Default.KeyboardArrowRight, stringResource(R.string.right))
                 }
             }
             Row(
