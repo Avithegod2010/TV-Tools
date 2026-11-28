@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Hindi and Marathi cover widgets and playback. Other screens use the English fallback. -->
+    <issue id="MissingTranslation">
+        <ignore regexp=' is not translated in (?:"hi" \(Hindi\)(?: or "mr" \(Marathi\))?|"mr" \(Marathi\))$' />
+    </issue>
+</lint>
