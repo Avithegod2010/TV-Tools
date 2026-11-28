@@ -74,15 +74,15 @@ private data class NetHost(
 
 private val PROBE_PORTS = intArrayOf(5555, 5554, 8009, 8008, 7000, 9100, 22, 80, 443)
 
-private fun classify(ports: List<Int>): Pair<String, String> = when {
-    5555 in ports -> "Android TV / ADB" to "ADB over network · tap to connect"
-    5554 in ports -> "Android TV / emulator" to "ADB port open"
-    8009 in ports || 8008 in ports -> "Chromecast / Google TV" to "Cast ports open"
-    7000 in ports -> "AirPlay device" to "AirPlay port open"
-    9100 in ports -> "Printer" to "JetDirect port open"
-    22 in ports -> "SSH host" to "Port 22 open"
-    443 in ports || 80 in ports -> "Web device" to "HTTP(S) open"
-    else -> "Device" to "Open ports"
+private fun classify(ports: List<Int>): Pair<Int, Int> = when {
+    5555 in ports -> R.string.network_map_adb_tv to R.string.network_map_adb_connect
+    5554 in ports -> R.string.network_map_emulator to R.string.network_map_adb_open
+    8009 in ports || 8008 in ports -> R.string.network_map_cast_device to R.string.network_map_cast_open
+    7000 in ports -> R.string.network_map_airplay_device to R.string.network_map_airplay_open
+    9100 in ports -> R.string.network_map_printer to R.string.network_map_print_open
+    22 in ports -> R.string.network_map_ssh_host to R.string.network_map_ssh_open
+    443 in ports || 80 in ports -> R.string.network_map_web_device to R.string.network_map_web_open
+    else -> R.string.network_map_device to R.string.network_map_ports_open
 }
 
 @Composable
@@ -136,7 +136,8 @@ fun NetworkMapScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                                             scanned++
                                             if (open.isNotEmpty()) {
                                                 val (kind, detail) = classify(open)
-                                                hosts = (hosts + NetHost(ip, open, kind, detail)).sortedWith(
+                                                val host = NetHost(ip, open, context.getString(kind), context.getString(detail))
+                                                hosts = (hosts + host).sortedWith(
                                                     compareBy<NetHost> { if (it.isAdb) 0 else 1 }
                                                         .thenBy { ipSortKey(it.ip) }
                                                 )

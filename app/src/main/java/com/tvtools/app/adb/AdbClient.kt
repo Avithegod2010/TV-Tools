@@ -70,6 +70,7 @@ class AdbClient internal constructor(context: Context, private val networks: Lan
 
     private val connectionMutex = Mutex()
     private val connectionWorker = Semaphore(1)
+    private val pairingWorker = Semaphore(1)
     private val sessionGuard = Any()
 
     @Volatile private var session: Session? = null
@@ -105,7 +106,7 @@ class AdbClient internal constructor(context: Context, private val networks: Lan
         return try {
             val network = networks.current.value
             whileCurrent(network, request) {
-                val paired = runConnectionWork(timeoutMs = 15_000) {
+                val paired = runConnectionWork(timeoutMs = 15_000, workerSlot = pairingWorker) {
                     runInterruptible {
                         val address = probe(host, port, network, authorizedOnly = false)
                         manager.pair(address, port, code.trim())
@@ -224,10 +225,12 @@ class AdbClient internal constructor(context: Context, private val networks: Lan
     private fun message(id: Int): String = appContext.getString(id)
 
     // Do not let a blocking libadb constructor hold the caller or accumulate worker threads.
-    private suspend fun <T> runConnectionWork(timeoutMs: Long, operation: suspend () -> T): T? {
-        if (!connectionWorker.tryAcquire()) throw IOException(message(R.string.network_busy))
+    private suspend fun <T> runConnectionWork(
+        timeoutMs: Long, workerSlot: Semaphore = connectionWorker, operation: suspend () -> T,
+    ): T? {
+        if (!workerSlot.tryAcquire()) throw IOException(message(R.string.network_busy))
         val worker = fastScope.async { operation() }
-        worker.invokeOnCompletion { connectionWorker.release() }
+        worker.invokeOnCompletion { workerSlot.release() }
         return try {
             withTimeoutOrNull(timeoutMs) { worker.await() }
         } finally {
@@ -602,14 +605,16 @@ class AdbClient internal constructor(context: Context, private val networks: Lan
      */
     suspend fun exec(command: String, timeoutMs: Long = 45_000): String = onSession {
         val active = operationSession()
+        val started = SystemClock.elapsedRealtime()
         val deadline = closeOnDeadline(active, timeoutMs)
         try {
             val stream = openStream("shell:$command", timeoutMs = minOf(timeoutMs, 5_000))
             try {
                 val result = withTimeoutOrNull(timeoutMs) { runInterruptible { readStreamFully(stream) } }
-                if (result == null || currentSession() !== active) {
+                if (result == null || SystemClock.elapsedRealtime() - started >= timeoutMs) {
                     throw IOException(appContext.getString(R.string.network_command_timeout, timeoutMs / 1000))
                 }
+                if (currentSession() !== active) throw IOException(message(R.string.network_changed))
                 result
             } finally {
                 runCatching { stream.close() }

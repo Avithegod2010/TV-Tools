@@ -52,6 +52,7 @@ class Prefs(private val context: Context) {
             it.remove(KEY_HOST)
             it.remove(KEY_PORT)
             it.remove(KEY_PROTO)
+            it.remove(KEY_DISCOVERY_ID)
             it.remove(KEY_MAC)
         }
     }
@@ -102,7 +103,7 @@ class Prefs(private val context: Context) {
             .split(',')
             .filter { it.isNotBlank() }
         return prefs[KEY_SAVED].orEmpty().mapNotNull { raw ->
-            val parts = raw.split('|')
+            val parts = raw.split('|', limit = 5)
             if (parts.size < 4) return@mapNotNull null
             TvDevice(
                 name = parts[0],

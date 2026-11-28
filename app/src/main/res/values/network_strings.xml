@@ -15,4 +15,20 @@
     <string name="network_reconnected">Reconnected to the TV</string>
     <string name="network_authorization_needed">Check debugging authorization on the TV. You can select the TV on Home to authorize or pair it.</string>
     <string name="network_tv_disconnected">The TV connection was lost.</string>
+    <string name="network_map_adb_tv">Android TV / ADB</string>
+    <string name="network_map_adb_connect">ADB over network · tap to connect</string>
+    <string name="network_map_emulator">Android TV / emulator</string>
+    <string name="network_map_adb_open">ADB port open</string>
+    <string name="network_map_cast_device">Chromecast / Google TV</string>
+    <string name="network_map_cast_open">Cast ports open</string>
+    <string name="network_map_airplay_device">AirPlay device</string>
+    <string name="network_map_airplay_open">AirPlay port open</string>
+    <string name="network_map_printer">Printer</string>
+    <string name="network_map_print_open">JetDirect port open</string>
+    <string name="network_map_ssh_host">SSH host</string>
+    <string name="network_map_ssh_open">Port 22 open</string>
+    <string name="network_map_web_device">Web device</string>
+    <string name="network_map_web_open">HTTP(S) open</string>
+    <string name="network_map_device">Device</string>
+    <string name="network_map_ports_open">Open ports</string>
 </resources>
