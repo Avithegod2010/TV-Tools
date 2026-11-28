@@ -19,6 +19,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import com.tvtools.app.MainActivity
+import com.tvtools.app.R
 
 /**
  * Draggable overlay bubble that keeps TV Tools one tap away while another app
@@ -139,10 +140,10 @@ class OverlayBubbleService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Floating remote",
+            getString(R.string.floating_remote),
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Draggable TV Tools bubble"
+            description = getString(R.string.draggable_tv_tools_bubble)
             setShowBadge(false)
         }
         manager.createNotificationChannel(channel)
@@ -162,8 +163,8 @@ class OverlayBubbleService : Service() {
         )
 
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("TV Tools bubble")
-            .setContentText("Tap the bubble to open the remote")
+            .setContentTitle(getString(R.string.tv_tools_bubble))
+            .setContentText(getString(R.string.tap_the_bubble_to_open_the_remote))
             .setSmallIcon(android.R.drawable.ic_menu_send)
             .setOngoing(true)
             .setContentIntent(openIntent)

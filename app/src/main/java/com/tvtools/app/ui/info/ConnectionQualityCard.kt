@@ -26,9 +26,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.ui.common.CardTitle
 import com.tvtools.app.ui.common.InfoCard
 import kotlinx.coroutines.Dispatchers
@@ -59,15 +61,15 @@ fun ConnectionQualityCard() {
 
     val score = qualityScore(latency, handshake, rssi)
     val label = when {
-        score >= 85 -> "Excellent"
-        score >= 65 -> "Good"
-        score >= 45 -> "Fair"
-        else -> "Poor"
+        score >= 85 -> stringResource(R.string.excellent)
+        score >= 65 -> stringResource(R.string.good)
+        score >= 45 -> stringResource(R.string.fair)
+        else -> stringResource(R.string.poor)
     }
 
     InfoCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            CardTitle("Connection")
+            CardTitle(stringResource(R.string.connection))
             Spacer(Modifier.weight(1f))
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.width(8.dp))
@@ -98,20 +100,18 @@ fun ConnectionQualityCard() {
         }
         Spacer(Modifier.height(10.dp))
         Text(
-            buildString {
-                append("Ping ")
-                append(latency?.let { "$it ms" } ?: "—")
-                append("  ·  ADB handshake ")
-                append(if (handshake > 0) "$handshake ms" else "—")
-                append("  ·  Wi-Fi ")
-                append(rssi?.let { "$it dBm" } ?: "—")
-            },
+            stringResource(
+                R.string.connection_quality_metrics,
+                latency?.let { stringResource(R.string.milliseconds, it) } ?: "—",
+                if (handshake > 0) stringResource(R.string.milliseconds, handshake) else "—",
+                rssi?.let { "$it dBm" } ?: "—",
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { refresh++ }, enabled = !measuring) {
-                Text(if (measuring) "Measuring…" else "Measure again")
+                Text(if (measuring) stringResource(R.string.measuring) else stringResource(R.string.measure_again))
             }
             if (measuring) {
                 androidx.compose.material3.CircularProgressIndicator(

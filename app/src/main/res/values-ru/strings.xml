@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TV Tools</string>
+    <string name="widget_description">Пульт управления телевизором</string>
+
+    <!-- Now-playing widget -->
+    <string name="widget_now_playing_label">Сейчас играет</string>
+    <string name="widget_now_playing_description">Что играет на ТВ, с управлением воспроизведением</string>
+    <string name="now_playing_nothing">Ничего не воспроизводится</string>
+    <string name="now_playing_open_remote">Коснитесь, чтобы открыть пульт</string>
+    <string name="now_playing_on_tv">Воспроизводится на ТВ</string>
+    <string name="now_playing_paused">На паузе</string>
+    <string name="now_playing_notification_idle">На ТВ нет активного воспроизведения</string>
+
+    <!-- Media notification -->
+    <string name="media_previous">Предыдущий</string>
+    <string name="media_play">Воспроизвести</string>
+    <string name="media_pause">Пауза</string>
+    <string name="media_next">Следующий</string>
+    <string name="media_channel_name">Воспроизведение на ТВ</string>
+    <string name="media_channel_description">Управление воспроизведением на ТВ</string>
+</resources>

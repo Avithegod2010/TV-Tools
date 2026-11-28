@@ -13,6 +13,7 @@ data class TvDevice(
     val port: Int,
     val proto: DeviceProto,
     val pairing: Boolean = false,
+    val discoveryId: String? = null,
 )
 
 /** An app installed on the TV. */

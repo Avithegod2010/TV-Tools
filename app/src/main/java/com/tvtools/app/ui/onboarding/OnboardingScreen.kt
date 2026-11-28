@@ -33,10 +33,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tvtools.app.R
 import kotlinx.coroutines.launch
 
 private data class Page(val icon: ImageVector, val title: String, val body: String)
@@ -46,18 +48,18 @@ fun OnboardingScreen(onDone: () -> Unit) {
     val pages = listOf(
         Page(
             Icons.Default.SettingsRemote,
-            "Your TV, in your pocket",
-            "Connect wirelessly over ADB to any Android TV, Google TV, Xiaomi TV or Fire TV on your Wi-Fi.\n\nNo root. No accounts.",
+            stringResource(R.string.your_tv_in_your_pocket),
+            stringResource(R.string.connect_wirelessly_over_adb_to_any_android),
         ),
         Page(
             Icons.Default.Cast,
-            "Do everything remotely",
-            "Install apps, browse files, run shell commands, see storage stats, mirror the screen and control it with a modern remote — plus screenshots and power.",
+            stringResource(R.string.do_everything_remotely),
+            stringResource(R.string.install_apps_browse_files_run_shell_commands),
         ),
         Page(
             Icons.Default.Lock,
-            "Private by design",
-            "TV Tools only talks to your TV on the local network. No telemetry, no cloud, no ads.\n\nThe source is open (MIT).",
+            stringResource(R.string.private_by_design),
+            stringResource(R.string.tv_tools_only_talks_to_your_tv),
         ),
     )
     val pager = rememberPagerState(pageCount = { pages.size })
@@ -71,7 +73,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
             .padding(24.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDone) { Text("Skip") }
+            TextButton(onClick = onDone) { Text(stringResource(R.string.skip)) }
         }
 
         HorizontalPager(
@@ -113,7 +115,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
                 )
                 if (index == pages.lastIndex) {
                     Spacer(Modifier.height(20.dp))
-                    Text("Pick your accent", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.pick_your_accent), style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(8.dp))
                     androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         listOf(
@@ -164,7 +166,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(25.dp),
         ) {
-            Text(if (pager.currentPage < pages.lastIndex) "Next" else "Get started")
+            Text(if (pager.currentPage < pages.lastIndex) stringResource(R.string.next) else stringResource(R.string.get_started))
         }
     }
 }

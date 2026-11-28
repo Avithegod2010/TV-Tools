@@ -67,11 +67,10 @@ class HomeViewModel : ViewModel() {
     val events: SharedFlow<HomeEvent> = _events.asSharedFlow()
 
     private var discoveryJob: Job? = null
-    private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
-    private var autoConnectJob: Job? = null
+    internal val connectionStatus = AppServices.recovery.status
+    internal val initialConnection = AppServices.recovery.initialConnection
 
     init {
-        startDiscovery()
         viewModelScope.launch {
             val last = prefs.loadLastDevice()
             val saved = prefs.loadDevices()
@@ -84,96 +83,21 @@ class HomeViewModel : ViewModel() {
                 macros = prefs.loadMacros(),
                 lastThumbPath = hero?.let { thumbFile(it.host)?.takeIf { f -> f.exists() }?.absolutePath },
             )
-            // Auto-reconnect (opt-in): try the last TV twice so the app is usable immediately.
-            if (last != null && !adb.isConnected && AppServices.settings.state.value.autoConnect) {
-                _ui.value = _ui.value.copy(connectingTo = last)
-                var connected = false
-                for (attempt in 0..1) {
-                    kotlinx.coroutines.delay(if (attempt == 0) 800 else 1500)
-                    if (adb.isConnected) {
-                        connected = true
-                        break
-                    }
-                    if (attempt == 1 && AppServices.settings.state.value.wakeOnWifi) {
-                        prefs.loadLastMac()?.let { com.tvtools.app.util.Wol.send(it) }
-                    }
-                    when (adb.connect(last.host, last.port)) {
-                        AdbClient.ConnectResult.Success -> {
-                            connected = true
-                        }
-                        AdbClient.ConnectResult.PairingRequired -> break
-                        is AdbClient.ConnectResult.Error -> Unit
-                    }
-                    if (connected) break
-                }
-                if (connected) {
-                    val friendly = friendlyName(last)
-                    prefs.saveLastDevice(friendly)
-                    prefs.saveDevice(friendly)
-                    applyDeviceAccent(last.host)
-                    _ui.value = _ui.value.copy(
-                        connectingTo = null,
-                        lastConnected = friendly,
-                        savedDevices = prefs.loadDevices(),
-                    )
-                    _events.emit(HomeEvent.Connected(friendly))
-                } else {
-                    _ui.value = _ui.value.copy(connectingTo = null)
-                }
-            }
         }
-        // Learn the TV MAC so Wake-on-LAN works later.
-        viewModelScope.launch {
-            if (adb.isConnected) {
-                adb.getMacAddress()?.let { prefs.saveLastMac(it) }
-            }
-        }
-        registerNetworkWatcher()
     }
 
-    /**
-     * Reconnect silently when Wi-Fi comes back. The callback also fires when the
-     * app opens, so wait a moment and skip if a manual connect is already running.
-     */
-    private fun registerNetworkWatcher() {
-        try {
-            val cm = TvToolsApp.instance.getSystemService(android.net.ConnectivityManager::class.java) ?: return
-            val callback = object : android.net.ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: android.net.Network) {
-                    if (!AppServices.settings.state.value.autoConnect) return
-                    if (adb.isConnected) return
-                    autoConnectJob?.cancel()
-                    autoConnectJob = viewModelScope.launch {
-                        kotlinx.coroutines.delay(2_500)
-                        if (adb.isConnected || _ui.value.connectingTo != null) return@launch
-                        val last = prefs.loadLastDevice() ?: return@launch
-                        var ok = adb.connect(last.host, last.port) == AdbClient.ConnectResult.Success
-                        if (!ok && AppServices.settings.state.value.wakeOnWifi) {
-                            // Back on the home Wi-Fi but the TV is asleep — send a wake packet and retry.
-                            val mac = prefs.loadLastMac()
-                            if (mac != null) {
-                                com.tvtools.app.util.Wol.send(mac)
-                                kotlinx.coroutines.delay(5_000)
-                                ok = adb.connect(last.host, last.port) == AdbClient.ConnectResult.Success
-                            }
-                        }
-                        if (ok) {
-                            val friendly = friendlyName(last)
-                            prefs.saveLastDevice(friendly)
-                            prefs.saveDevice(friendly)
-                            applyDeviceAccent(last.host)
-                            _ui.value = _ui.value.copy(
-                                lastConnected = friendly,
-                                savedDevices = prefs.loadDevices(),
-                            )
-                        }
-                    }
-                }
-            }
-            cm.registerDefaultNetworkCallback(callback)
-            networkCallback = callback
-        } catch (_: Exception) {
+    fun reconnectLast() {
+        if (_ui.value.connectingTo != null) return
+        viewModelScope.launch {
+            val device = AppServices.recovery.reconnectManually() ?: return@launch
+            if (acceptInitialConnection(device)) _events.emit(HomeEvent.Connected(device))
         }
+    }
+
+    internal suspend fun acceptInitialConnection(device: TvDevice): Boolean {
+        if (adb.connectedDevice?.preferencesHost != device.host) return false
+        applyDeviceAccent(device.host)
+        return adb.connectedDevice?.preferencesHost == device.host
     }
 
     /** Remove a saved TV from the dashboard (does not affect the last-connected card). */
@@ -273,6 +197,7 @@ class HomeViewModel : ViewModel() {
 
     /** Wake the TV (WOL if a MAC is stored) and retry connecting for ~25s. */
     fun wakeAndReconnect() {
+        if (_ui.value.connectingTo != null) return
         viewModelScope.launch {
             val last = prefs.loadLastDevice()
             if (last == null) {
@@ -331,7 +256,10 @@ class HomeViewModel : ViewModel() {
     }
 
     fun startDiscovery() {
-        discoveryJob?.cancel()
+        if (discoveryJob?.isActive == true) {
+            discovery.refreshSubnet()
+            return
+        }
         _ui.value = _ui.value.copy(devices = emptyList(), scanning = true)
         discoveryJob = viewModelScope.launch {
             discovery.discover(scanSubnetToo = true)
@@ -349,6 +277,12 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    fun stopDiscovery() {
+        discoveryJob?.cancel()
+        discoveryJob = null
+        _ui.value = _ui.value.copy(devices = emptyList(), scanning = false)
+    }
+
     private val pairingPortsSaved = mutableSetOf<String>()
 
     fun setShowAll(showAll: Boolean) {
@@ -356,6 +290,7 @@ class HomeViewModel : ViewModel() {
     }
 
     fun connect(device: TvDevice) {
+        if (_ui.value.connectingTo != null) return
         if (device.pairing) {
             _events.tryEmit(HomeEvent.PairingRequested(device))
             return
@@ -381,12 +316,7 @@ class HomeViewModel : ViewModel() {
                 }
                 is AdbClient.ConnectResult.Error -> {
                     _ui.value = _ui.value.copy(connectingTo = null)
-                    _events.emit(
-                        HomeEvent.Error(
-                            "Could not connect to ${device.host}:${device.port}\n${result.message}\n\n" +
-                                "Tip: check the TV for an \"Allow debugging\" prompt and try again."
-                        )
-                    )
+                    _events.emit(HomeEvent.Error(result.message))
                 }
             }
         }
@@ -466,6 +396,7 @@ class HomeViewModel : ViewModel() {
         _ui.value.devices.firstOrNull { it.host == host && !it.pairing && it.proto == DeviceProto.TLS }
 
     fun pairThenConnect(host: String, pairingPort: Int, code: String) {
+        if (_ui.value.connectingTo != null) return
         _ui.value = _ui.value.copy(connectingTo = TvDevice(host, host, pairingPort, DeviceProto.TLS))
         viewModelScope.launch {
             val pairResult = adb.pair(host, pairingPort, code)
@@ -533,24 +464,21 @@ class HomeViewModel : ViewModel() {
 
     /** Ask the freshly connected TV for its model name, e.g. "SmartTV". */
     private suspend fun friendlyName(device: TvDevice): TvDevice {
+        val identified = if (device.discoveryId == null) {
+            _ui.value.devices.firstOrNull {
+                !it.pairing && it.host == device.host && it.port == device.port && it.discoveryId != null
+            }?.let { device.copy(proto = it.proto, discoveryId = it.discoveryId) } ?: device
+        } else device
         val model = try {
             adb.exec("getprop ro.product.model", timeoutMs = 10_000).trim()
         } catch (_: Exception) {
             ""
         }
-        return if (model.isNotBlank() && model != "unknown") device.copy(name = model) else device
+        return if (model.isNotBlank() && model != "unknown") identified.copy(name = model) else identified
     }
 
     override fun onCleared() {
-        discoveryJob?.cancel()
-        autoConnectJob?.cancel()
-        try {
-            networkCallback?.let {
-                TvToolsApp.instance.getSystemService(android.net.ConnectivityManager::class.java)
-                    ?.unregisterNetworkCallback(it)
-            }
-        } catch (_: Exception) {
-        }
+        stopDiscovery()
         super.onCleared()
     }
 }

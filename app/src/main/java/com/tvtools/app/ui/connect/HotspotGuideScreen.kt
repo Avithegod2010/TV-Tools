@@ -24,8 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.tvtools.app.R
 import com.tvtools.app.ui.labs.LabScaffold
 
 /**
@@ -52,7 +54,7 @@ fun HotspotGuideScreen(onBack: () -> Unit) {
         }
     }
 
-    LabScaffold("Hotspot mode", onBack) {
+    LabScaffold(stringResource(R.string.hotspot_mode), onBack) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -74,13 +76,13 @@ fun HotspotGuideScreen(onBack: () -> Unit) {
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Control your TV without a Wi-Fi router",
+                        stringResource(R.string.control_your_tv_without_a_wi_fi),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Your phone becomes the network. The TV connects to it, and TV Tools reaches the TV over the hotspot.",
+                        stringResource(R.string.your_phone_becomes_the_network_the_tv),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -88,21 +90,21 @@ fun HotspotGuideScreen(onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(20.dp))
-            Text("Steps", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.steps), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(10.dp))
-            Step(1, "Turn on the phone's Wi-Fi hotspot", "Open the system settings below. Set a name and password.")
-            Step(2, "On the TV, join that hotspot", "Settings → Network & Internet → Wi-Fi → pick your phone's hotspot.")
-            Step(3, "Enable ADB on the TV", "Wireless debugging (Android 11+) or ADB debugging (Fire TV).")
-            Step(4, "Come back and refresh", "The TV usually appears as 192.168.43.x or 192.168.1.x in the device list.")
+            Step(1, stringResource(R.string.turn_on_the_phones_wi_fi_hotspot), stringResource(R.string.open_the_system_settings_below_set_a))
+            Step(2, stringResource(R.string.on_the_tv_join_that_hotspot), stringResource(R.string.settings_network_internet_wi_fi_pick_your))
+            Step(3, stringResource(R.string.enable_adb_on_the_tv), stringResource(R.string.wireless_debugging_android_11_or_adb_debugging))
+            Step(4, stringResource(R.string.come_back_and_refresh), stringResource(R.string.the_tv_usually_appears_as_192_168))
 
             Spacer(Modifier.height(20.dp))
             Button(onClick = { openHotspotSettings() }, modifier = Modifier.fillMaxWidth()) {
-                Text("Open hotspot settings")
+                Text(stringResource(R.string.open_hotspot_settings))
             }
 
             Spacer(Modifier.height(16.dp))
             Text(
-                "Tip: some TVs drop Wi-Fi when the hotspot uses 5 GHz only. Switch the hotspot to 2.4 GHz if the TV can't see it.",
+                stringResource(R.string.tip_some_tvs_drop_wi_fi_when),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

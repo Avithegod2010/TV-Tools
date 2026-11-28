@@ -3,6 +3,8 @@ package com.tvtools.app.ui.storage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
+import com.tvtools.app.TvToolsApp
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -80,7 +82,7 @@ class StorageViewModel : ViewModel() {
                 )
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(loading = false)
-                _messages.emit("Scan failed: ${e.message}")
+                _messages.emit(TvToolsApp.instance.getString(R.string.storage_scan_failed, e.message.orEmpty()))
             }
         }
     }
@@ -89,23 +91,23 @@ class StorageViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 adb.deleteFile(item.path)
-                _messages.emit("Deleted ${item.path.substringAfterLast('/')}")
+                _messages.emit(TvToolsApp.instance.getString(R.string.deleted_named_item, item.path.substringAfterLast('/')))
                 scan()
             } catch (e: Exception) {
-                _messages.emit("Delete failed: ${e.message}")
+                _messages.emit(TvToolsApp.instance.getString(R.string.delete_failed, e.message.orEmpty()))
             }
         }
     }
 
     fun trimCache() {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(busyLabel = "Trimming caches…")
+            _ui.value = _ui.value.copy(busyLabel = TvToolsApp.instance.getString(R.string.trimming_caches))
             try {
                 adb.exec("pm trim-caches 32G 2>&1", timeoutMs = 120_000)
-                _messages.emit("✅ Caches trimmed")
+                _messages.emit(TvToolsApp.instance.getString(R.string.caches_trimmed))
                 scan()
             } catch (e: Exception) {
-                _messages.emit("Cache trim failed: ${e.message}")
+                _messages.emit(TvToolsApp.instance.getString(R.string.cache_clear_failed, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busyLabel = null)
             }

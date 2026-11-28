@@ -3,6 +3,7 @@ package com.tvtools.app.ui.apps
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.data.AppBackup
 import com.tvtools.app.data.BackupManager
 import com.tvtools.app.TvToolsApp
@@ -41,15 +42,15 @@ class BackupsViewModel : ViewModel() {
 
     fun restore(backup: AppBackup) {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(busy = true, busyLabel = "Installing ${backup.label}…")
+            _ui.value = _ui.value.copy(busy = true, busyLabel = TvToolsApp.instance.getString(R.string.backup_installing, backup.label))
             try {
                 val out = adb.installSplitApk(backup.apkFiles)
                 _messages.emit(
-                    if (out.contains("Success", true)) "✅ ${backup.label} restored"
-                    else out.trim().ifBlank { "Restore failed" }
+                    if (out.contains("Success", true)) TvToolsApp.instance.getString(R.string.backup_restored, backup.label)
+                    else out.trim().ifBlank { TvToolsApp.instance.getString(R.string.restore_failed) }
                 )
             } catch (e: Exception) {
-                _messages.emit("Restore failed: ${e.message}")
+                _messages.emit(TvToolsApp.instance.getString(R.string.backup_restore_error, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false)
             }
@@ -60,18 +61,18 @@ class BackupsViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             manager.delete(backup)
             _ui.value = _ui.value.copy(backups = manager.list())
-            _messages.emit("Deleted backup of ${backup.label}")
+            _messages.emit(TvToolsApp.instance.getString(R.string.backup_deleted, backup.label))
         }
     }
 
     fun restoreData(backup: AppBackup) {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(busy = true, busyLabel = "Restoring data of ${backup.label}…")
+            _ui.value = _ui.value.copy(busy = true, busyLabel = TvToolsApp.instance.getString(R.string.backup_restoring_data, backup.label))
             try {
                 val ok = manager.restoreDataBackup(adb, backup)
-                _messages.emit(if (ok) "✅ Data restored for ${backup.label}" else "No data archive for this app")
+                _messages.emit(if (ok) TvToolsApp.instance.getString(R.string.backup_data_restored, backup.label) else TvToolsApp.instance.getString(R.string.no_data_archive_for_this_app))
             } catch (e: Exception) {
-                _messages.emit("Data restore failed: ${e.message}")
+                _messages.emit(TvToolsApp.instance.getString(R.string.backup_data_restore_error, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false)
             }
@@ -80,7 +81,7 @@ class BackupsViewModel : ViewModel() {
 
     fun exportEncrypted(passphrase: String, share: (java.io.File) -> Unit) {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(busy = true, busyLabel = "Encrypting backups…")
+            _ui.value = _ui.value.copy(busy = true, busyLabel = TvToolsApp.instance.getString(R.string.encrypting_backups))
             try {
                 val out = java.io.File(
                     com.tvtools.app.TvToolsApp.instance.cacheDir,
@@ -89,10 +90,10 @@ class BackupsViewModel : ViewModel() {
                 withContext(Dispatchers.IO) {
                     com.tvtools.app.data.BackupCrypto.export(manager.rootDir(), out, passphrase.toCharArray())
                 }
-                _messages.emit("✅ Encrypted backup created")
+                _messages.emit(TvToolsApp.instance.getString(R.string.encrypted_backup_created))
                 share(out)
             } catch (e: Exception) {
-                _messages.emit("Export failed: ${e.message}")
+                _messages.emit(TvToolsApp.instance.getString(R.string.backup_export_error, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false)
             }
@@ -101,7 +102,7 @@ class BackupsViewModel : ViewModel() {
 
     fun importEncrypted(uri: android.net.Uri, passphrase: String) {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(busy = true, busyLabel = "Decrypting backup…")
+            _ui.value = _ui.value.copy(busy = true, busyLabel = TvToolsApp.instance.getString(R.string.decrypting_backup))
             try {
                 val context = com.tvtools.app.TvToolsApp.instance
                 val tmp = java.io.File(context.cacheDir, "import.tvtools")
@@ -114,10 +115,10 @@ class BackupsViewModel : ViewModel() {
                     com.tvtools.app.data.BackupCrypto.import(tmp, manager.rootDir(), passphrase.toCharArray())
                 }
                 tmp.delete()
-                _messages.emit("✅ Imported $count file(s)")
+                _messages.emit(TvToolsApp.instance.getString(R.string.backup_imported_count, count))
                 refresh()
             } catch (e: Exception) {
-                _messages.emit("Import failed: ${e.message}")
+                _messages.emit(TvToolsApp.instance.getString(R.string.backup_import_error, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false)
             }

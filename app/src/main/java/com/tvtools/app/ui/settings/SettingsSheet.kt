@@ -29,11 +29,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.data.Accent
 import com.tvtools.app.data.ColorBlindMode
@@ -82,11 +84,11 @@ fun SettingsSheet(onDismiss: () -> Unit) {
         if (android.provider.Settings.canDrawOverlays(context)) {
             repo.setBubble(true)
             com.tvtools.app.service.OverlayBubbleService.start(context)
-            android.widget.Toast.makeText(context, "Remote bubble is on", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.remote_bubble_is_on), android.widget.Toast.LENGTH_SHORT).show()
         } else {
             android.widget.Toast.makeText(
                 context,
-                "Overlay permission is needed for the bubble",
+                context.getString(R.string.overlay_permission_is_needed_for_the_bubble),
                 android.widget.Toast.LENGTH_SHORT,
             ).show()
         }
@@ -97,7 +99,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
     ) { granted ->
         android.widget.Toast.makeText(
             context,
-            if (granted) "Media notifications enabled" else "Notifications stay off",
+            if (granted) context.getString(R.string.media_notifications_enabled) else context.getString(R.string.notifications_stay_off),
             android.widget.Toast.LENGTH_SHORT,
         ).show()
     }
@@ -113,21 +115,16 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
-            Text("Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.settings), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(20.dp))
 
-            SectionTitle("Appearance")
+            SectionTitle(stringResource(R.string.appearance))
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                listOf(
-                    ThemeMode.SYSTEM to "System",
-                    ThemeMode.LIGHT to "Light",
-                    ThemeMode.DARK to "Dark",
-                    ThemeMode.AMOLED to "AMOLED",
-                    ThemeMode.AUTO to "Auto",
-                ).forEach { (mode, label) ->
+                ThemeMode.entries.forEach { mode ->
+                    val label = context.getString(mode.labelRes)
                     FilterChip(
                         selected = settings.themeMode == mode,
                         onClick = { haptics(); repo.setThemeMode(mode) },
@@ -137,8 +134,8 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             }
             Text(
                 when (settings.themeMode) {
-                    ThemeMode.AMOLED -> "Pure-black surfaces for OLED screens"
-                    ThemeMode.AUTO -> "Light 7:00–19:00, dark at night"
+                    ThemeMode.AMOLED -> context.getString(R.string.pure_black_surfaces_for_oled_screens)
+                    ThemeMode.AUTO -> context.getString(R.string.light_7_00_19_00_dark_at)
                     else -> " "
                 },
                 style = MaterialTheme.typography.labelSmall,
@@ -146,7 +143,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             )
 
             Spacer(Modifier.height(16.dp))
-            SectionTitle("Accent color")
+            SectionTitle(stringResource(R.string.accent_color))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Accent.entries.forEach { accent ->
                     val selected = settings.accent == accent
@@ -171,79 +168,79 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(6.dp))
-            Text(settings.accent.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(settings.accent.labelRes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = {
                     haptics()
                     scope.launch {
-                        matchStatus = "Capturing TV screen…"
+                        matchStatus = context.getString(R.string.capturing_tv_screen)
                         val color = withContext(Dispatchers.IO) {
                             com.tvtools.app.ui.common.TvPalette.capture(context)
                         }
                         if (color != null) {
                             repo.setTvColor(color)
-                            matchStatus = "Matched TV colors ✓"
+                            matchStatus = context.getString(R.string.matched_tv_colors)
                         } else {
-                            matchStatus = "Connect to a TV first, then retry."
+                            matchStatus = context.getString(R.string.connect_to_a_tv_first_then_retry)
                         }
                     }
                 },
-            ) { Text("Match TV colors (screenshot palette)") }
+            ) { Text(stringResource(R.string.match_tv_colors_screenshot_palette)) }
             matchStatus?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Connection")
+            SectionTitle(stringResource(R.string.connection))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Auto-connect", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.auto_connect), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Reconnect to your last TV on launch and when Wi-Fi returns",
+                        stringResource(R.string.reconnect_to_your_last_tv_on_launch),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 LabeledSwitch(
-                    label = "Auto-connect",
+                    label = stringResource(R.string.auto_connect),
                     checked = settings.autoConnect,
                     onCheckedChange = { repo.setAutoConnect(it) },
                 )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Guest mode")
+            SectionTitle(stringResource(R.string.guest_mode))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Hand over the phone safely", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.hand_over_the_phone_safely), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Shows only the remote and the app launcher — hides Tools, Shell, Files and destructive app actions",
+                        stringResource(R.string.shows_only_the_remote_and_the_app),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 LabeledSwitch(
-                    label = "Guest mode",
+                    label = stringResource(R.string.guest_mode),
                     checked = settings.guestMode,
                     onCheckedChange = { repo.setGuestMode(it) },
                 )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Floating bubble")
+            SectionTitle(stringResource(R.string.floating_bubble))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Remote bubble", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.remote_bubble), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "A draggable shortcut over other apps — tap it to jump back to the remote",
+                        stringResource(R.string.a_draggable_shortcut_over_other_apps_tap),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 LabeledSwitch(
-                    label = "Floating remote bubble",
+                    label = stringResource(R.string.floating_remote_bubble),
                     checked = settings.bubble,
                     onCheckedChange = { enabled ->
                         if (!enabled) {
@@ -265,7 +262,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Remote")
+            SectionTitle(stringResource(R.string.remote))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -274,29 +271,29 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     FilterChip(
                         selected = settings.remoteSkin == skin,
                         onClick = { haptics(); repo.setRemoteSkin(skin) },
-                        label = { Text(skin.label) },
+                        label = { Text(stringResource(skin.labelRes)) },
                     )
                 }
             }
             Text(
-                "Layout — columns, D-pad size, hidden rows and quick keys — is edited from the Tune icon in the remote and saved per TV.",
+                stringResource(R.string.layout_columns_d_pad_size_hidden_rows),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Text & density")
+            SectionTitle(stringResource(R.string.text_density))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 UiDensity.entries.forEach { density ->
                     FilterChip(
                         selected = settings.uiDensity == density,
                         onClick = { haptics(); repo.setUiDensity(density) },
-                        label = { Text(density.label) },
+                        label = { Text(stringResource(density.labelRes)) },
                     )
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Text size", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.text_size), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 Text("${(settings.fontScale * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
             }
             Slider(
@@ -307,22 +304,22 @@ fun SettingsSheet(onDismiss: () -> Unit) {
             )
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("High contrast", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.high_contrast), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Stronger outlines and text for bright rooms",
+                        stringResource(R.string.stronger_outlines_and_text_for_bright_rooms),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 LabeledSwitch(
-                    label = "High contrast",
+                    label = stringResource(R.string.high_contrast),
                     checked = settings.highContrast,
                     onCheckedChange = { repo.setHighContrast(it) },
                 )
             }
 
             Spacer(Modifier.height(10.dp))
-            Text("Colour-blind safe signals", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.colour_blind_safe_signals), style = MaterialTheme.typography.titleSmall)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -331,46 +328,46 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     FilterChip(
                         selected = settings.colorBlind == mode,
                         onClick = { haptics(); repo.setColorBlind(mode) },
-                        label = { Text(mode.label) },
+                        label = { Text(stringResource(mode.labelRes)) },
                     )
                 }
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Motion & shapes")
+            SectionTitle(stringResource(R.string.motion_shapes))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Reduced motion", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.reduced_motion), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "No press scaling or springy movement",
+                        stringResource(R.string.no_press_scaling_or_springy_movement),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 LabeledSwitch(
-                    label = "Reduced motion",
+                    label = stringResource(R.string.reduced_motion),
                     checked = settings.reducedMotion,
                     onCheckedChange = { repo.setReducedMotion(it) },
                 )
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Expressive shapes", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.expressive_shapes), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Scalloped D-pad dial and soft spring feedback",
+                        stringResource(R.string.scalloped_d_pad_dial_and_soft_spring),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 LabeledSwitch(
-                    label = "Expressive shapes",
+                    label = stringResource(R.string.expressive_shapes),
                     checked = settings.expressiveShapes,
                     onCheckedChange = { repo.setExpressiveShapes(it) },
                 )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Sound pack")
+            SectionTitle(stringResource(R.string.sound_pack))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -379,20 +376,20 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     FilterChip(
                         selected = settings.soundPack == pack,
                         onClick = { haptics(); repo.setSoundPack(pack) },
-                        label = { Text(pack.label) },
+                        label = { Text(stringResource(pack.labelRes)) },
                     )
                 }
             }
             Text(
-                if (settings.sounds) "Used by key sounds." else "Turn on key sounds above to hear it.",
+                if (settings.sounds) context.getString(R.string.used_by_key_sounds) else context.getString(R.string.turn_on_key_sounds_above_to_hear),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Media notification")
+            SectionTitle(stringResource(R.string.media_notification))
             Text(
-                "Shows what is playing on the TV with previous / play-pause / next, outside the app.",
+                stringResource(R.string.shows_what_is_playing_on_the_tv),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -409,39 +406,39 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 } else {
                     android.widget.Toast.makeText(
                         context,
-                        "Notifications are already allowed",
+                        context.getString(R.string.notifications_are_already_allowed),
                         android.widget.Toast.LENGTH_SHORT,
                     ).show()
                 }
-            }) { Text("Allow media notification") }
+            }) { Text(stringResource(R.string.allow_media_notification)) }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Kids theme")
+            SectionTitle(stringResource(R.string.kids_theme))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Oversized, playful, safe", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.oversized_playful_safe), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Bigger text, warm palette and guest mode so destructive actions stay locked",
+                        stringResource(R.string.bigger_text_warm_palette_and_guest_mode),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 LabeledSwitch(
-                    label = "Kids theme",
+                    label = stringResource(R.string.kids_theme),
                     checked = settings.kidsTheme,
                     onCheckedChange = { repo.setKidsTheme(it) },
                 )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("TV look profiles")
+            SectionTitle(stringResource(R.string.tv_look_profiles))
             Text(
-                "A saved look applies automatically when you open that TV.",
+                stringResource(R.string.a_saved_look_applies_automatically_when_you),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(6.dp))
-            val connectedHost = AppServices.adb.connectedDevice?.host
+            val connectedHost = AppServices.adb.connectedDevice?.preferencesHost
             OutlinedButton(
                 enabled = connectedHost != null,
                 onClick = {
@@ -459,17 +456,17 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                         profiles = AppServices.prefs.loadDeviceProfiles()
                         android.widget.Toast.makeText(
                             context,
-                            "Look saved for this TV",
+                            context.getString(R.string.look_saved_for_this_tv),
                             android.widget.Toast.LENGTH_SHORT,
                         ).show()
                     }
                 },
             ) {
-                Text(if (connectedHost == null) "Connect to a TV to save its look" else "Save current look for this TV")
+                Text(if (connectedHost == null) context.getString(R.string.connect_to_a_tv_to_save_its) else context.getString(R.string.save_current_look_for_this_tv))
             }
             if (savedDevices.isEmpty()) {
                 Text(
-                    "No saved TVs yet.",
+                    stringResource(R.string.no_saved_tvs),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -483,7 +480,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(device.name, style = MaterialTheme.typography.titleSmall)
                         Text(
-                            ThemePack.summary(profile),
+                            ThemePack.summary(profile, context),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -493,24 +490,24 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                         repo.applyProfile(profile)
                         android.widget.Toast.makeText(
                             context,
-                            "Applied ${device.name}'s look",
+                            context.getString(R.string.applied_device_look, device.name),
                             android.widget.Toast.LENGTH_SHORT,
                         ).show()
-                    }) { Text("Apply") }
+                    }) { Text(stringResource(R.string.apply)) }
                     TextButton(onClick = {
                         scope.launch {
                             AppServices.prefs.forgetDeviceProfile(device.host)
                             savedDevices = AppServices.prefs.loadDevices()
                             profiles = AppServices.prefs.loadDeviceProfiles()
                         }
-                    }) { Text("Forget") }
+                    }) { Text(stringResource(R.string.forget)) }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     haptics()
                     scope.launch {
-                        val host = AppServices.adb.connectedDevice?.host
+                        val host = AppServices.adb.connectedDevice?.preferencesHost
                         val profile = if (host != null) {
                             val existing = AppServices.prefs.loadDeviceProfile(host)
                             repo.currentProfile().copy(
@@ -521,13 +518,13 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                         }
                         shareTheme(context, profile)
                     }
-                }) { Text("Share look") }
+                }) { Text(stringResource(R.string.share_look)) }
                 OutlinedButton(onClick = {
                     haptics()
                     val imported = importTheme(context)
                     if (imported != null) {
                         repo.applyProfile(imported)
-                        val host = AppServices.adb.connectedDevice?.host
+                        val host = AppServices.adb.connectedDevice?.preferencesHost
                         if (host != null) {
                             scope.launch {
                                 AppServices.prefs.saveDeviceProfile(host, imported)
@@ -537,28 +534,28 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                         }
                         android.widget.Toast.makeText(
                             context,
-                            "Look imported",
+                            context.getString(R.string.look_imported),
                             android.widget.Toast.LENGTH_SHORT,
                         ).show()
                     } else {
                         android.widget.Toast.makeText(
                             context,
-                            "Copy a TV Tools look to the clipboard first",
+                            context.getString(R.string.copy_a_tv_tools_look_to_the),
                             android.widget.Toast.LENGTH_SHORT,
                         ).show()
                     }
-                }) { Text("Import from clipboard") }
+                }) { Text(stringResource(R.string.import_from_clipboard)) }
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Screenshots")
+            SectionTitle(stringResource(R.string.screenshots))
             Text(
-                "Screenshots are only taken when you tap the button in Tools — never in the background.",
+                stringResource(R.string.screenshots_are_only_taken_when_you_tap),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
-            Text("Keep the newest", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.keep_the_newest), style = MaterialTheme.typography.titleSmall)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -567,15 +564,15 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     FilterChip(
                         selected = settings.screenshotLimit == limit,
                         onClick = { haptics(); repo.setScreenshotLimit(limit) },
-                        label = { Text(if (limit == 0) "Unlimited" else "$limit") },
+                        label = { Text(if (limit == 0) context.getString(R.string.unlimited) else "$limit") },
                     )
                 }
             }
             Text(
                 if (settings.screenshotLimit == 0) {
-                    "Old screenshots are kept until you delete them."
+                    context.getString(R.string.old_screenshots_are_kept_until_you_delete)
                 } else {
-                    "Older screenshots are deleted automatically after ${settings.screenshotLimit} captures."
+                    context.getString(R.string.screenshot_retention_limit, settings.screenshotLimit)
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -586,50 +583,50 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 scope.launch(Dispatchers.IO) {
                     com.tvtools.app.data.ScreenshotStore.clear(context)
                 }
-                android.widget.Toast.makeText(context, "Screenshot gallery cleared", android.widget.Toast.LENGTH_SHORT).show()
-            }) { Text("Clear screenshot gallery") }
+                android.widget.Toast.makeText(context, context.getString(R.string.screenshot_gallery_cleared), android.widget.Toast.LENGTH_SHORT).show()
+            }) { Text(stringResource(R.string.clear_screenshot_gallery)) }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Feedback")
+            SectionTitle(stringResource(R.string.feedback))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 HapticStrength.entries.forEach { s ->
                     FilterChip(
                         selected = settings.hapticStrength == s,
                         onClick = { repo.setHapticStrength(s); haptics() },
-                        label = { Text(s.label) },
+                        label = { Text(stringResource(s.labelRes)) },
                     )
                 }
             }
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Haptic feedback", style = MaterialTheme.typography.titleSmall)
-                    Text("Vibrate on keys and buttons", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.haptic_feedback), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.vibrate_on_keys_and_buttons), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 LabeledSwitch(
-                    label = "Haptic feedback",
+                    label = stringResource(R.string.haptic_feedback),
                     checked = settings.haptics,
                     onCheckedChange = { repo.setHaptics(it) },
                 )
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Key sounds", style = MaterialTheme.typography.titleSmall)
-                    Text("Soft click on remote keys", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.key_sounds), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.soft_click_on_remote_keys), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 LabeledSwitch(
-                    label = "Key sounds",
+                    label = stringResource(R.string.key_sounds),
                     checked = settings.sounds,
                     onCheckedChange = { repo.setSounds(it) },
                 )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("App icon")
+            SectionTitle(stringResource(R.string.app_icon))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("default" to "TV", "remote" to "Remote", "mono" to "Mono").forEach { (key, label) ->
+                listOf("default" to "TV", "remote" to "Remote", "mono" to context.getString(R.string.mono)).forEach { (key, label) ->
                     FilterChip(
                         selected = settings.appIcon == key,
                         onClick = {
@@ -642,13 +639,13 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 }
             }
             Text(
-                "Changes the launcher icon (may take a moment to refresh).",
+                stringResource(R.string.changes_the_launcher_icon_may_take_a),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Performance")
+            SectionTitle(stringResource(R.string.performance))
             var startupMs by remember {
                 mutableStateOf(com.tvtools.app.data.Performance.lastStartupMs(context))
             }
@@ -656,20 +653,20 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 mutableStateOf(com.tvtools.app.data.Performance.lastJank(context))
             }
             Text(
-                startupMs?.let { "Cold start: $it ms (process → first frame)" }
-                    ?: "Cold start: not measured yet",
+                startupMs?.let { context.getString(R.string.cold_start_duration, it) }
+                    ?: context.getString(R.string.cold_start_not_measured_yet),
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(
                 jank?.let { (bad, total) ->
                     val percent = if (total > 0) bad * 100f / total else 0f
-                    "Jank: $bad of $total frames (${percent.toInt()}%) last session"
-                } ?: "Frame jank: not measured yet",
+                    context.getString(R.string.last_session_jank, bad, total, percent.toInt())
+                } ?: context.getString(R.string.frame_jank_not_measured_yet),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "Measured on this phone only. Nothing is uploaded.",
+                stringResource(R.string.measured_on_this_phone_only_nothing_is),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -677,17 +674,17 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 com.tvtools.app.data.Performance.reset(context)
                 startupMs = null
                 jank = null
-            }) { Text("Reset measurements") }
+            }) { Text(stringResource(R.string.reset_measurements)) }
 
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Diagnostics")
+            SectionTitle(stringResource(R.string.diagnostics))
             var lastCrash by remember { mutableStateOf<String?>(null) }
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 lastCrash = com.tvtools.app.data.Diagnostics.lastCrash(context)
             }
             Text(
-                if (lastCrash == null) "No crashes recorded. Reports stay on this phone."
-                else "A crash report was saved locally. Copy it into a bug report if you like.",
+                if (lastCrash == null) context.getString(R.string.no_crashes_recorded_reports_stay_on_this)
+                else context.getString(R.string.a_crash_report_was_saved_locally_copy),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -697,21 +694,21 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
                     clipboard?.setPrimaryClip(
                         android.content.ClipData.newPlainText(
-                            "TV Tools diagnostics",
+                            context.getString(R.string.tv_tools_diagnostics),
                             com.tvtools.app.data.Diagnostics.copyReport(context),
                         )
                     )
                     android.widget.Toast.makeText(
                         context,
-                        "Diagnostics copied — nothing was uploaded",
+                        context.getString(R.string.diagnostics_copied_nothing_was_uploaded),
                         android.widget.Toast.LENGTH_SHORT,
                     ).show()
-                }) { Text("Copy diagnostics") }
+                }) { Text(stringResource(R.string.copy_diagnostics)) }
                 if (lastCrash != null) {
                     TextButton(onClick = {
                         com.tvtools.app.data.Diagnostics.clear(context)
                         lastCrash = null
-                    }) { Text("Clear crash") }
+                    }) { Text(stringResource(R.string.clear_crash)) }
                 }
             }
 
@@ -758,12 +755,12 @@ private fun LabeledSwitch(
 private fun shareTheme(context: Context, profile: DeviceProfile) {
     val share = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "TV Tools look")
+        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.tv_tools_look))
         putExtra(Intent.EXTRA_TEXT, ThemePack.encode(profile))
     }
     runCatching {
         context.startActivity(
-            Intent.createChooser(share, "Share TV Tools look")
+            Intent.createChooser(share, context.getString(R.string.share_tv_tools_look))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }

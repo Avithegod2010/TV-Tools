@@ -1,5 +1,8 @@
 package com.tvtools.app.data
 
+import android.content.Context
+import com.tvtools.app.R
+
 /**
  * A portable "look" that can be shared between phones as plain text.
  * Wraps the same compact profile codec used for per-TV profiles.
@@ -18,16 +21,22 @@ object ThemePack {
         return DeviceProfileCodec.decode(payload)
     }
 
-    /** Human-readable one-line summary for profile lists. */
-    fun summary(profile: DeviceProfile): String = buildString {
-        append(profile.accent.label)
-        append(" · ")
-        append(profile.themeMode.name.lowercase().replaceFirstChar { it.uppercase() })
-        append(" · ")
-        append(profile.remoteSkin.label)
-        append(" · ")
-        append(profile.density.label)
-        append(" · ")
-        append("${(profile.fontScale * 100).toInt()}% text")
-    }
+    /** An English summary for callers without an Android resource context. */
+    fun summary(profile: DeviceProfile): String = listOf(
+        profile.accent.label,
+        profile.themeMode.name.lowercase().replaceFirstChar { it.uppercase() },
+        profile.remoteSkin.label,
+        profile.density.name.lowercase().replaceFirstChar { it.uppercase() },
+        "${(profile.fontScale * 100).toInt()}% text",
+    ).joinToString(" · ")
+
+    /** Human-readable one-line summary for localized profile lists. */
+    fun summary(profile: DeviceProfile, context: Context): String = context.getString(
+        R.string.theme_profile_summary,
+        context.getString(profile.accent.labelRes),
+        context.getString(profile.themeMode.labelRes),
+        context.getString(profile.remoteSkin.labelRes),
+        context.getString(profile.density.labelRes),
+        (profile.fontScale * 100).toInt(),
+    )
 }

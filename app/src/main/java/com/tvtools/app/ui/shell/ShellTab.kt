@@ -31,11 +31,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.R
 
 @Composable
 fun ShellTab(viewModel: ShellViewModel = viewModel()) {
@@ -77,17 +79,17 @@ fun ShellTab(viewModel: ShellViewModel = viewModel()) {
             FilledTonalButton(onClick = viewModel::clear, shape = RoundedCornerShape(12.dp)) {
                 Icon(Icons.Default.Clear, null, Modifier.width(14.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("Clear", fontSize = 12.sp)
+                Text(stringResource(R.string.clear), fontSize = 12.sp)
             }
             FilledTonalButton(
                 onClick = { clipboard.setText(AnnotatedString(ui.output)) },
                 shape = RoundedCornerShape(12.dp),
             ) {
-                Text("Copy", fontSize = 12.sp)
+                Text(stringResource(R.string.copy), fontSize = 12.sp)
             }
             if (!ui.connected) {
                 FilledTonalButton(onClick = viewModel::reconnect, shape = RoundedCornerShape(12.dp)) {
-                    Text("Reconnect", fontSize = 12.sp)
+                    Text(stringResource(R.string.reconnect), fontSize = 12.sp)
                 }
             }
         }
@@ -100,7 +102,7 @@ fun ShellTab(viewModel: ShellViewModel = viewModel()) {
                 value = ui.input,
                 onValueChange = viewModel::setInput,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Shell command") },
+                placeholder = { Text(stringResource(R.string.shell_command)) },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
             )

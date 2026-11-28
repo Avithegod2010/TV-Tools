@@ -53,10 +53,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.TvDevice
 import com.tvtools.app.ui.labs.LabScaffold
@@ -72,6 +76,7 @@ private val ROOM_PRESETS = listOf("Living room", "Bedroom", "Kitchen", "Office",
  */
 @Composable
 fun RoomsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var devices by remember { mutableStateOf<List<TvDevice>>(emptyList()) }
     var rooms by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
@@ -106,7 +111,7 @@ fun RoomsScreen(onBack: () -> Unit) {
         if (busy) return
         val targets = if (room == ALL_ROOM) devices else devices.filter { roomOf(it) == room }
         if (targets.isEmpty()) {
-            status = "No TVs in $room."
+            status = context.getString(R.string.room_no_tvs, room)
             return
         }
         busy = true
@@ -122,14 +127,14 @@ fun RoomsScreen(onBack: () -> Unit) {
             if (origin != null) {
                 runCatching { AppServices.adb.connect(origin.host, origin.port) }
             }
-            status = "$label → $sent of ${targets.size} TV(s)"
+            status = context.getString(R.string.room_broadcast_progress, label, sent, targets.size)
             busy = false
             delay(2_000)
             if (!busy) status = null
         }
     }
 
-    LabScaffold("Rooms & groups", onBack) {
+    LabScaffold(stringResource(R.string.rooms_groups), onBack) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -137,7 +142,7 @@ fun RoomsScreen(onBack: () -> Unit) {
                 .padding(16.dp),
         ) {
             Text(
-                "Group your TVs by room. The remote below sends each press to every TV in the selected group.",
+                stringResource(R.string.group_your_tvs_by_room_the_remote),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -145,7 +150,7 @@ fun RoomsScreen(onBack: () -> Unit) {
 
             if (devices.isEmpty()) {
                 Text(
-                    "No saved TVs yet — connect to a TV first, then give it a room here.",
+                    stringResource(R.string.no_saved_tvs_yet_connect_to_a),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -176,7 +181,7 @@ fun RoomsScreen(onBack: () -> Unit) {
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
-                                    "${list.size} TV" + if (list.size == 1) "" else "s",
+                                    pluralStringResource(R.plurals.tv_count, list.size, list.size),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -194,7 +199,7 @@ fun RoomsScreen(onBack: () -> Unit) {
                                 Icon(Icons.Default.KeyboardArrowDown, "Move $room down", Modifier.size(16.dp))
                             }
                             OutlinedButton(onClick = { activeRoom = if (selected) null else room }) {
-                                Text(if (selected) "Hide remote" else "Group remote")
+                                Text(if (selected) stringResource(R.string.hide_remote) else stringResource(R.string.group_remote))
                             }
                         }
                         Spacer(Modifier.height(6.dp))
@@ -220,7 +225,7 @@ fun RoomsScreen(onBack: () -> Unit) {
                                 IconButton(onClick = { editing = device }) {
                                     Icon(
                                         Icons.Default.Edit,
-                                        contentDescription = "Assign room",
+                                        contentDescription = stringResource(R.string.assign_room),
                                         modifier = Modifier.size(16.dp),
                                     )
                                 }
@@ -244,7 +249,7 @@ fun RoomsScreen(onBack: () -> Unit) {
                     onClick = { activeRoom = if (activeRoom == ALL_ROOM) null else ALL_ROOM },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (activeRoom == ALL_ROOM) "Hide all-TVs remote" else "Broadcast to all TVs")
+                    Text(if (activeRoom == ALL_ROOM) stringResource(R.string.hide_all_tvs_remote) else stringResource(R.string.broadcast_to_all_tvs))
                 }
                 if (activeRoom == ALL_ROOM) {
                     Spacer(Modifier.height(10.dp))
@@ -295,14 +300,14 @@ private const val ALL_ROOM = "All TVs"
 private fun GroupRemote(room: String, busy: Boolean, onKey: (Int, String) -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RemoteKey(Icons.Default.KeyboardArrowUp, "Up") { onKey(19, "Up") }
-            RemoteKey(Icons.Default.KeyboardArrowDown, "Down") { onKey(20, "Down") }
-            RemoteKey(Icons.Default.KeyboardArrowLeft, "Left") { onKey(21, "Left") }
-            RemoteKey(Icons.Default.KeyboardArrowRight, "Right") { onKey(22, "Right") }
+            RemoteKey(Icons.Default.KeyboardArrowUp, stringResource(R.string.up)) { onKey(19, "Up") }
+            RemoteKey(Icons.Default.KeyboardArrowDown, stringResource(R.string.down)) { onKey(20, "Down") }
+            RemoteKey(Icons.Default.KeyboardArrowLeft, stringResource(R.string.left)) { onKey(21, "Left") }
+            RemoteKey(Icons.Default.KeyboardArrowRight, stringResource(R.string.right)) { onKey(22, "Right") }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            RemoteKey(Icons.Default.KeyboardArrowLeft, "Back") { onKey(4, "Back") }
+            RemoteKey(Icons.Default.KeyboardArrowLeft, stringResource(R.string.back)) { onKey(4, "Back") }
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
@@ -314,18 +319,18 @@ private fun GroupRemote(room: String, busy: Boolean, onKey: (Int, String) -> Uni
                     Text("OK", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
             }
-            RemoteKey(Icons.Default.Home, "Home") { onKey(3, "Home") }
+            RemoteKey(Icons.Default.Home, stringResource(R.string.home)) { onKey(3, "Home") }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RemoteKey(Icons.Default.VolumeDown, "Volume down") { onKey(25, "Vol −") }
-            RemoteKey(Icons.Default.PlayArrow, "Play/pause") { onKey(85, "Play/pause") }
-            RemoteKey(Icons.Default.VolumeUp, "Volume up") { onKey(24, "Vol +") }
+            RemoteKey(Icons.Default.VolumeDown, stringResource(R.string.volume_down)) { onKey(25, "Vol −") }
+            RemoteKey(Icons.Default.PlayArrow, stringResource(R.string.play_pause)) { onKey(85, "Play/pause") }
+            RemoteKey(Icons.Default.VolumeUp, stringResource(R.string.volume_up)) { onKey(24, "Vol +") }
         }
         if (busy) {
             Spacer(Modifier.height(6.dp))
             Text(
-                "Sending…",
+                stringResource(R.string.sending),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -362,13 +367,13 @@ private fun RoomDialog(
     var value by remember { mutableStateOf(current) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Room for ${device.name}") },
+        title = { Text(stringResource(R.string.room_for_device, device.name)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = value,
                     onValueChange = { value = it.take(30) },
-                    label = { Text("Room name") },
+                    label = { Text(stringResource(R.string.room_name)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 )
@@ -385,9 +390,9 @@ private fun RoomDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(value) }) { Text("Save") }
+            TextButton(onClick = { onSave(value) }) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

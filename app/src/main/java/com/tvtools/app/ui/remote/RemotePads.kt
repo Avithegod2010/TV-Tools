@@ -110,6 +110,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -122,6 +123,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.ui.common.rememberHaptics
 import com.tvtools.app.ui.theme.LocalExpressiveShapes
@@ -201,7 +203,7 @@ internal fun DPadPad(
             container = keyColor,
             tint = keyTint,
             size = keySize,
-        ) { Icon(Icons.Default.KeyboardArrowUp, "Up", Modifier.size(iconSize)) }
+        ) { Icon(Icons.Default.KeyboardArrowUp, stringResource(R.string.up), Modifier.size(iconSize)) }
 
         HoldKeyButton(
             modifier = Modifier
@@ -212,7 +214,7 @@ internal fun DPadPad(
             container = keyColor,
             tint = keyTint,
             size = keySize,
-        ) { Icon(Icons.Default.KeyboardArrowDown, "Down", Modifier.size(iconSize)) }
+        ) { Icon(Icons.Default.KeyboardArrowDown, stringResource(R.string.down), Modifier.size(iconSize)) }
 
         HoldKeyButton(
             modifier = Modifier
@@ -223,7 +225,7 @@ internal fun DPadPad(
             container = keyColor,
             tint = keyTint,
             size = keySize,
-        ) { Icon(Icons.Default.KeyboardArrowLeft, "Left", Modifier.size(iconSize)) }
+        ) { Icon(Icons.Default.KeyboardArrowLeft, stringResource(R.string.left), Modifier.size(iconSize)) }
 
         HoldKeyButton(
             modifier = Modifier
@@ -234,7 +236,7 @@ internal fun DPadPad(
             container = keyColor,
             tint = keyTint,
             size = keySize,
-        ) { Icon(Icons.Default.KeyboardArrowRight, "Right", Modifier.size(iconSize)) }
+        ) { Icon(Icons.Default.KeyboardArrowRight, stringResource(R.string.right), Modifier.size(iconSize)) }
 
         HoldKeyButton(
             modifier = Modifier.align(Alignment.Center),
@@ -250,6 +252,7 @@ internal fun DPadPad(
 
 @Composable
 internal fun TouchPad(onSend: (Int) -> Unit) {
+    val accessibilityLabel = stringResource(R.string.touchpad_accessibility)
     val haptics = rememberHaptics()
 
     Box(
@@ -261,7 +264,7 @@ internal fun TouchPad(onSend: (Int) -> Unit) {
                 RoundedCornerShape(28.dp),
             )
             .semantics {
-                contentDescription = "Touchpad. Drag to navigate, tap to select."
+                contentDescription = accessibilityLabel
                 role = Role.Button
                 onClick {
                     onSend(KEY_DPAD_CENTER)
@@ -370,20 +373,20 @@ internal fun TouchPad(onSend: (Int) -> Unit) {
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "Drag to navigate · Tap to select",
+                stringResource(R.string.drag_to_navigate_tap_to_select),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "2 fingers: scroll · pinch: volume",
+                stringResource(R.string.text_2_fingers_scroll_pinch_volume),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Text(
-                "2-finger tap: back · 3-finger tap: home",
+                stringResource(R.string.text_2_finger_tap_back_3_finger_tap),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -396,6 +399,7 @@ internal fun TouchPad(onSend: (Int) -> Unit) {
 
 @Composable
 internal fun GesturePad(onSend: (Int) -> Unit) {
+    val accessibilityLabel = stringResource(R.string.gesture_pad_accessibility)
     val haptics = rememberHaptics()
     var dragTotal by remember { mutableStateOf(Offset.Zero) }
     var lastAction by remember { mutableStateOf("Swipe in a direction") }
@@ -408,7 +412,7 @@ internal fun GesturePad(onSend: (Int) -> Unit) {
                 CircleShape,
             )
             .semantics {
-                contentDescription = "Gesture pad. Tap for OK. Swipe up for volume, down for home, left for back, right for menu."
+                contentDescription = accessibilityLabel
                 role = Role.Button
                 onClick {
                     onSend(KEY_DPAD_CENTER)
@@ -461,25 +465,25 @@ internal fun GesturePad(onSend: (Int) -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "Volume +",
+            stringResource(R.string.volume),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp),
         )
         Text(
-            "Home",
+            stringResource(R.string.home),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
         )
         Text(
-            "Back",
+            stringResource(R.string.back),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.CenterStart).padding(start = 22.dp),
         )
         Text(
-            "Menu",
+            stringResource(R.string.menu),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp),
@@ -493,7 +497,7 @@ internal fun GesturePad(onSend: (Int) -> Unit) {
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "Tap = OK",
+                stringResource(R.string.tap_ok),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -588,7 +592,7 @@ internal fun GestureMode(onSend: (Int) -> Unit) {
             FilterChip(
                 selected = airMouse,
                 onClick = { airMouse = !airMouse },
-                label = { Text("Air mouse") },
+                label = { Text(stringResource(R.string.air_mouse)) },
             )
             if (airMouse) {
                 OutlinedButton(onClick = {
@@ -601,9 +605,9 @@ internal fun GestureMode(onSend: (Int) -> Unit) {
                             adb.mouseUp(x, y)
                         }
                     }
-                }) { Text("Click") }
+                }) { Text(stringResource(R.string.click)) }
                 Text(
-                    "Tilt the phone",
+                    stringResource(R.string.tilt_the_phone),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -611,7 +615,7 @@ internal fun GestureMode(onSend: (Int) -> Unit) {
         }
         if (!sensorReady) {
             Text(
-                "This phone has no motion sensor for air mouse.",
+                stringResource(R.string.this_phone_has_no_motion_sensor_for),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -626,11 +630,11 @@ internal fun ClassicPad(onSend: (Int) -> Unit) {
     val square = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         HoldKeyButton(onClick = { onSend(KEY_DPAD_UP) }, repeatable = true, container = square) {
-            Icon(Icons.Default.KeyboardArrowUp, "Up", Modifier.size(30.dp))
+            Icon(Icons.Default.KeyboardArrowUp, stringResource(R.string.up), Modifier.size(30.dp))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             HoldKeyButton(onClick = { onSend(KEY_DPAD_LEFT) }, repeatable = true, container = square) {
-                Icon(Icons.Default.KeyboardArrowLeft, "Left", Modifier.size(30.dp))
+                Icon(Icons.Default.KeyboardArrowLeft, stringResource(R.string.left), Modifier.size(30.dp))
             }
             HoldKeyButton(
                 onClick = { onSend(KEY_DPAD_CENTER) },
@@ -639,11 +643,11 @@ internal fun ClassicPad(onSend: (Int) -> Unit) {
                 size = 76,
             ) { Text("OK", fontWeight = FontWeight.Bold) }
             HoldKeyButton(onClick = { onSend(KEY_DPAD_RIGHT) }, repeatable = true, container = square) {
-                Icon(Icons.Default.KeyboardArrowRight, "Right", Modifier.size(30.dp))
+                Icon(Icons.Default.KeyboardArrowRight, stringResource(R.string.right), Modifier.size(30.dp))
             }
         }
         HoldKeyButton(onClick = { onSend(KEY_DPAD_DOWN) }, repeatable = true, container = square) {
-            Icon(Icons.Default.KeyboardArrowDown, "Down", Modifier.size(30.dp))
+            Icon(Icons.Default.KeyboardArrowDown, stringResource(R.string.down), Modifier.size(30.dp))
         }
     }
 }
@@ -712,7 +716,7 @@ internal fun GamepadPad(onSend: (Int) -> Unit) {
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            "Physical controller: A = OK · B = back · X = menu · Y = home",
+            stringResource(R.string.physical_controller_a_ok_b_back_x),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

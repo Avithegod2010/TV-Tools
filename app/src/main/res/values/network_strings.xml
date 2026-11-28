@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="network_default_tv_name">Android TV</string>
+    <string name="network_busy">A TV connection is already in progress.</string>
+    <string name="network_pairing_rejected">The TV rejected pairing.</string>
+    <string name="network_changed">The network or active connection changed. Try again.</string>
+    <string name="network_handshake_timeout">The TV did not finish connecting in time. Check its debugging prompt and try again.</string>
+    <string name="network_tv_unreachable">Could not reach the TV. Check that it is awake and debugging is enabled.</string>
+    <string name="network_no_session">No active TV connection.</string>
+    <string name="network_stream_timeout">The TV stopped responding. Reconnect and try again.</string>
+    <string name="network_command_timeout">The TV command timed out after %1$d s.</string>
+    <string name="network_no_lan">Connect your phone and TV to the same Wi-Fi or local network.</string>
+    <string name="network_reconnecting">Reconnecting to the TV…</string>
+    <string name="network_reconnect">Reconnect</string>
+    <string name="network_reconnected">Reconnected to the TV</string>
+    <string name="network_authorization_needed">Check debugging authorization on the TV. You can select the TV on Home to authorize or pair it.</string>
+    <string name="network_tv_disconnected">The TV connection was lost.</string>
+    <string name="network_map_adb_tv">Android TV / ADB</string>
+    <string name="network_map_adb_connect">ADB over network · tap to connect</string>
+    <string name="network_map_emulator">Android TV / emulator</string>
+    <string name="network_map_adb_open">ADB port open</string>
+    <string name="network_map_cast_device">Chromecast / Google TV</string>
+    <string name="network_map_cast_open">Cast ports open</string>
+    <string name="network_map_airplay_device">AirPlay device</string>
+    <string name="network_map_airplay_open">AirPlay port open</string>
+    <string name="network_map_printer">Printer</string>
+    <string name="network_map_print_open">JetDirect port open</string>
+    <string name="network_map_ssh_host">SSH host</string>
+    <string name="network_map_ssh_open">Port 22 open</string>
+    <string name="network_map_web_device">Web device</string>
+    <string name="network_map_web_open">HTTP(S) open</string>
+    <string name="network_map_device">Device</string>
+    <string name="network_map_ports_open">Open ports</string>
+</resources>

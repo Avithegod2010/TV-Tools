@@ -56,11 +56,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.data.ScreenshotStore
 import kotlinx.coroutines.launch
@@ -120,15 +123,15 @@ fun GalleryScreen(onBack: () -> Unit) {
                     if (selected.isEmpty()) {
                         if (files.isNotEmpty()) {
                             TextButton(onClick = { selected = files.toSet() }) {
-                                Text("Select all")
+                                Text(stringResource(R.string.select_all))
                             }
                         }
                     } else {
                         IconButton(onClick = { shareFiles(context, selected.toList()) }) {
-                            Icon(Icons.Default.Share, "Share selected")
+                            Icon(Icons.Default.Share, stringResource(R.string.share_selected))
                         }
                         IconButton(onClick = { deleteTargets = selected.toList() }) {
-                            Icon(Icons.Default.Delete, "Delete selected")
+                            Icon(Icons.Default.Delete, stringResource(R.string.delete_selected))
                         }
                     }
                 },
@@ -149,7 +152,7 @@ fun GalleryScreen(onBack: () -> Unit) {
                     FilterChip(
                         selected = filter == null,
                         onClick = { filter = null; selected = emptySet() },
-                        label = { Text("All TVs") },
+                        label = { Text(stringResource(R.string.all_tvs)) },
                     )
                     groups.keys.forEach { name ->
                         FilterChip(
@@ -173,10 +176,10 @@ fun GalleryScreen(onBack: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Text("No screenshots yet", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.no_screenshots_yet), style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Take a screenshot in Tools. Captures are grouped by TV and kept according to the retention setting.",
+                        stringResource(R.string.take_a_screenshot_in_tools_captures_are),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -263,7 +266,7 @@ fun GalleryScreen(onBack: () -> Unit) {
                         ) {
                             Icon(Icons.Default.Share, null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Share")
+                            Text(stringResource(R.string.share))
                         }
                         Button(
                             onClick = {
@@ -275,19 +278,19 @@ fun GalleryScreen(onBack: () -> Unit) {
                         ) {
                             Icon(Icons.Default.Cast, null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Show on TV")
+                            Text(stringResource(R.string.show_on_tv))
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { preview = null }) { Text("Close") }
+                TextButton(onClick = { preview = null }) { Text(stringResource(R.string.close)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     preview = null
                     deleteTargets = listOf(file)
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
         )
     }
@@ -295,8 +298,8 @@ fun GalleryScreen(onBack: () -> Unit) {
     if (deleteTargets.isNotEmpty()) {
         AlertDialog(
             onDismissRequest = { deleteTargets = emptyList() },
-            title = { Text("Delete ${deleteTargets.size} screenshot(s)?") },
-            text = { Text("They are removed from this phone only. The TV is not touched.") },
+            title = { Text(pluralStringResource(R.plurals.delete_screenshots, deleteTargets.size, deleteTargets.size)) },
+            text = { Text(stringResource(R.string.they_are_removed_from_this_phone_only)) },
             confirmButton = {
                 Button(onClick = {
                     deleteTargets.forEach { runCatching { it.delete() } }
@@ -304,10 +307,10 @@ fun GalleryScreen(onBack: () -> Unit) {
                     deleteTargets = emptyList()
                     preview = null
                     reload()
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTargets = emptyList() }) { Text("Cancel") }
+                TextButton(onClick = { deleteTargets = emptyList() }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -407,7 +410,7 @@ private fun shareFiles(context: android.content.Context, files: List<File>) {
 private fun showOnTv(context: android.content.Context, file: File) {
     val adb = AppServices.adb
     if (!adb.isConnected) {
-        android.widget.Toast.makeText(context, "Connect to the TV first", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(context, R.string.device_connect_first, android.widget.Toast.LENGTH_SHORT).show()
         return
     }
     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
@@ -416,7 +419,7 @@ private fun showOnTv(context: android.content.Context, file: File) {
             adb.pushFile(file, remote)
             adb.openFileOnTv(remote, "image/png")
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                android.widget.Toast.makeText(context, "Opening on the TV", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, R.string.gallery_opening_on_tv, android.widget.Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {

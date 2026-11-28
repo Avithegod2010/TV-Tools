@@ -38,10 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.DeviceProto
@@ -103,16 +105,16 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
         val targetHost = host.trim()
         val targetPort = port.toIntOrNull() ?: 5555
         if (targetHost.isBlank()) {
-            pairStatus = "Enter the TV's IP address first."
+            pairStatus = context.getString(R.string.enter_the_tvs_ip_address_first)
             return
         }
         running = true
         checks = listOf(
-            DoctorCheck("Phone network", CheckState.RUNNING, "Checking Wi-Fi…"),
-            DoctorCheck("TCP reachability", CheckState.PENDING, "Waiting"),
-            DoctorCheck("mDNS advertisements", CheckState.PENDING, "Waiting"),
-            DoctorCheck("ADB handshake", CheckState.PENDING, "Waiting"),
-            DoctorCheck("Pairing state", CheckState.PENDING, "Waiting"),
+            DoctorCheck(context.getString(R.string.phone_network), CheckState.RUNNING, context.getString(R.string.checking_wi_fi)),
+            DoctorCheck(context.getString(R.string.tcp_reachability), CheckState.PENDING, context.getString(R.string.waiting)),
+            DoctorCheck(context.getString(R.string.mdns_advertisements), CheckState.PENDING, context.getString(R.string.waiting)),
+            DoctorCheck(context.getString(R.string.adb_handshake), CheckState.PENDING, context.getString(R.string.waiting)),
+            DoctorCheck(context.getString(R.string.pairing_state), CheckState.PENDING, context.getString(R.string.waiting)),
         )
         scope.launch {
             // 1. Phone network
@@ -120,12 +122,14 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             val gateway = localGateway()
             checks = checks.toMutableList().also {
                 it[0] = if (ip == null)
-                    DoctorCheck("Phone network", CheckState.FAIL, "Not on Wi-Fi — join the same network as the TV.")
+                    DoctorCheck(context.getString(R.string.phone_network), CheckState.FAIL, context.getString(R.string.not_on_wi_fi_join_the_same))
                 else
                     DoctorCheck(
-                        "Phone network",
+                        context.getString(R.string.phone_network),
                         CheckState.PASS,
-                        "This phone: $ip" + (gateway?.let { " · router $it" } ?: ""),
+                        context.getString(R.string.doctor_phone_ip, ip) + (gateway?.let {
+                            " · " + context.getString(R.string.doctor_router, it)
+                        } ?: ""),
                     )
             }
 
@@ -140,19 +144,19 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             checks = checks.toMutableList().also {
                 it[1] = when {
                     directOpen -> DoctorCheck(
-                        "TCP reachability",
+                        context.getString(R.string.tcp_reachability),
                         CheckState.PASS,
-                        "Port $targetPort is open · $latency ms",
+                        context.getString(R.string.doctor_port_open, targetPort, latency),
                     )
                     openAlt.isNotEmpty() -> DoctorCheck(
-                        "TCP reachability",
+                        context.getString(R.string.tcp_reachability),
                         CheckState.WARN,
-                        "Port $targetPort closed, but ${openAlt.joinToString(", ")} open. Try one of those.",
+                        context.getString(R.string.doctor_alternate_ports, targetPort, openAlt.joinToString(", ")),
                     )
                     else -> DoctorCheck(
-                        "TCP reachability",
+                        context.getString(R.string.tcp_reachability),
                         CheckState.FAIL,
-                        "No ADB port answered. The TV may be off, asleep, on another network or have debugging disabled.",
+                        context.getString(R.string.no_adb_port_answered_the_tv_may),
                     )
                 }
             }
@@ -167,24 +171,24 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             checks = checks.toMutableList().also {
                 it[2] = when {
                     relevant.any { it.pairing } -> DoctorCheck(
-                        "mDNS advertisements",
+                        context.getString(R.string.mdns_advertisements),
                         CheckState.WARN,
-                        "TV advertises a pairing port ${relevant.first { d -> d.pairing }.port} — pair below, then connect.",
+                        context.getString(R.string.doctor_pairing_advert, relevant.first { it.pairing }.port),
                     )
                     relevant.isNotEmpty() -> DoctorCheck(
-                        "mDNS advertisements",
+                        context.getString(R.string.mdns_advertisements),
                         CheckState.PASS,
                         relevant.joinToString(" · ") { "${it.name}:${it.port}" },
                     )
                     seen.isNotEmpty() -> DoctorCheck(
-                        "mDNS advertisements",
+                        context.getString(R.string.mdns_advertisements),
                         CheckState.WARN,
-                        "Found ${seen.size} ADB advert(s), but none for $targetHost. Wrong IP, or another network.",
+                        context.getString(R.string.doctor_no_matching_advert, seen.size, targetHost),
                     )
                     else -> DoctorCheck(
-                        "mDNS advertisements",
+                        context.getString(R.string.mdns_advertisements),
                         CheckState.WARN,
-                        "No mDNS adverts. Some TVs don't broadcast — manual IP + port still works.",
+                        context.getString(R.string.no_mdns_adverts_some_tvs_dont_broadcast),
                     )
                 }
             }
@@ -215,22 +219,22 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                         AppServices.prefs.saveLastDevice(device)
                         AppServices.prefs.saveDevice(device)
                         onConnected(model)
-                        DoctorCheck("ADB handshake", CheckState.PASS, "Connected to $model on port $connectPort.")
+                        DoctorCheck(context.getString(R.string.adb_handshake), CheckState.PASS, context.getString(R.string.doctor_connected, model, connectPort))
                     }
                     AdbClient.ConnectResult.PairingRequired -> DoctorCheck(
-                        "ADB handshake",
+                        context.getString(R.string.adb_handshake),
                         CheckState.WARN,
-                        "TV refused the key — pairing required. Use the form below.",
+                        context.getString(R.string.tv_refused_the_key_pairing_required_use),
                     )
                     is AdbClient.ConnectResult.Error -> DoctorCheck(
-                        "ADB handshake",
+                        context.getString(R.string.adb_handshake),
                         CheckState.FAIL,
-                        "Reachable but ADB failed: ${result.message}",
+                        context.getString(R.string.doctor_adb_failed, result.message),
                     )
                     null -> DoctorCheck(
-                        "ADB handshake",
+                        context.getString(R.string.adb_handshake),
                         CheckState.FAIL,
-                        "Skipped — no open port to talk to.",
+                        context.getString(R.string.skipped_no_open_port_to_talk_to),
                     )
                 }
             }
@@ -239,24 +243,24 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             checks = checks.toMutableList().also {
                 it[4] = when {
                     pairingAdvert != null -> DoctorCheck(
-                        "Pairing state",
+                        context.getString(R.string.pairing_state),
                         CheckState.WARN,
-                        "Pairing port ${pairingAdvert.port} is advertised. Enter the code shown on the TV.",
+                        context.getString(R.string.doctor_enter_pairing_code, pairingAdvert.port),
                     )
                     rememberedPairPort != null -> DoctorCheck(
-                        "Pairing state",
+                        context.getString(R.string.pairing_state),
                         CheckState.PASS,
-                        "Remembered pairing port $rememberedPairPort. If rejected, check the TV for a new port.",
+                        context.getString(R.string.doctor_remembered_port, rememberedPairPort),
                     )
                     result is AdbClient.ConnectResult.Success -> DoctorCheck(
-                        "Pairing state",
+                        context.getString(R.string.pairing_state),
                         CheckState.PASS,
-                        "Already paired — the TV accepted this phone's key.",
+                        context.getString(R.string.already_paired_the_tv_accepted_this_phones),
                     )
                     else -> DoctorCheck(
-                        "Pairing state",
+                        context.getString(R.string.pairing_state),
                         CheckState.WARN,
-                        "No pairing port seen. Enable Wireless debugging and open \"Pair device with pairing code\".",
+                        context.getString(R.string.no_pairing_port_seen_enable_wireless_debugging),
                     )
                 }
             }
@@ -270,20 +274,20 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
         val h = pairHost.trim().ifBlank { host.trim() }
         val p = pairPort.toIntOrNull() ?: 0
         if (h.isBlank() || p <= 0 || pairCode.length != 6) {
-            pairStatus = "Enter the TV IP, pairing port and 6-digit code."
+            pairStatus = context.getString(R.string.enter_the_tv_ip_pairing_port_and)
             return
         }
         pairing = true
-        pairStatus = "Pairing…"
+        pairStatus = context.getString(R.string.pairing)
         scope.launch {
             val result = AppServices.adb.pair(h, p, pairCode)
             if (result.isFailure) {
                 pairing = false
-                pairStatus = "Pairing failed: ${result.exceptionOrNull()?.message ?: "wrong code?"}"
+                pairStatus = context.getString(R.string.doctor_pairing_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.wrong_pairing_code))
                 return@launch
             }
             AppServices.prefs.savePairingPort(h, p)
-            pairStatus = "Paired. Looking for the connect port…"
+            pairStatus = context.getString(R.string.paired_looking_for_the_connect_port)
             var connectPort = adverts.firstOrNull { it.host == h && !it.pairing }?.port
             var waited = 0
             while (connectPort == null && waited < 8_000) {
@@ -305,15 +309,15 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                 val device = TvDevice(model, h, finalPort, DeviceProto.TCP)
                 AppServices.prefs.saveLastDevice(device)
                 AppServices.prefs.saveDevice(device)
-                pairStatus = "Connected to $model ✓"
+                pairStatus = context.getString(R.string.doctor_connected_to, model)
                 onConnected(model)
             } else {
-                pairStatus = "Paired, but connecting failed on port $finalPort. Try Connect by IP."
+                pairStatus = context.getString(R.string.doctor_connect_failed_after_pairing, finalPort)
             }
         }
     }
 
-    LabScaffold("Connection doctor", onBack) {
+    LabScaffold(stringResource(R.string.connection_doctor), onBack) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -321,7 +325,7 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                 .padding(16.dp),
         ) {
             Text(
-                "Checks the whole path from this phone to the TV and tells you what to fix.",
+                stringResource(R.string.checks_the_whole_path_from_this_phone),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -330,7 +334,7 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                 OutlinedTextField(
                     value = host,
                     onValueChange = { host = it.trim() },
-                    label = { Text("TV address") },
+                    label = { Text(stringResource(R.string.tv_address)) },
                     placeholder = { Text("192.168.1.50") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
@@ -339,7 +343,7 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                 OutlinedTextField(
                     value = port,
                     onValueChange = { port = it.filter(Char::isDigit) },
-                    label = { Text("Port") },
+                    label = { Text(stringResource(R.string.port)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.width(90.dp),
@@ -351,7 +355,7 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(if (running) "Running checks…" else "Run checks")
+                Text(if (running) context.getString(R.string.running_checks) else context.getString(R.string.run_checks))
             }
 
             checks.forEach { check ->
@@ -404,9 +408,9 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(14.dp)) {
-                        Text("Pair with the TV", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.pair_with_the_tv), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "On the TV: Developer options → Wireless debugging → Pair device with pairing code. The port changes each time.",
+                            stringResource(R.string.on_the_tv_developer_options_wireless_debugging),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -423,7 +427,7 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                             OutlinedTextField(
                                 value = pairPort,
                                 onValueChange = { pairPort = it.filter(Char::isDigit) },
-                                label = { Text("Port") },
+                                label = { Text(stringResource(R.string.port)) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.width(90.dp),
@@ -433,7 +437,7 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                         OutlinedTextField(
                             value = pairCode,
                             onValueChange = { pairCode = it.filter(Char::isDigit).take(6) },
-                            label = { Text("6-digit code") },
+                            label = { Text(stringResource(R.string.six_digit_code)) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                             modifier = Modifier.fillMaxWidth(),
@@ -443,7 +447,7 @@ fun ConnectionDoctorScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                             OutlinedButton(
                                 onClick = { pairNow() },
                                 enabled = !pairing && pairCode.length == 6,
-                            ) { Text(if (pairing) "Pairing…" else "Pair & connect") }
+                            ) { Text(if (pairing) context.getString(R.string.pairing) else context.getString(R.string.pair_connect)) }
                             Spacer(Modifier.width(10.dp))
                             pairStatus?.let {
                                 Text(

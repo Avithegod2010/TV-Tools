@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import com.tvtools.app.data.MusicItem
 import com.tvtools.app.data.NowPlaying
@@ -120,7 +121,7 @@ class MusicViewModel : ViewModel() {
                 _ui.value = _ui.value.copy(items = merged, scanningMore = false)
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(loading = false, scanningMore = false)
-                _messages.emit("Couldn't scan music: ${e.message}")
+                _messages.emit(context.getString(R.string.scan_music_failed, e.message.orEmpty()))
             }
         }
     }
@@ -227,12 +228,12 @@ class MusicViewModel : ViewModel() {
 
     fun addToQueue(item: MusicItem) {
         playback.enqueue(item)
-        viewModelScope.launch { _messages.emit("Added ${item.title} to the queue") }
+        viewModelScope.launch { _messages.emit(context.getString(R.string.queued_named_track, item.title)) }
     }
 
     fun playNext(item: MusicItem) {
         playback.playNext(item)
-        viewModelScope.launch { _messages.emit("Playing ${item.title} next") }
+        viewModelScope.launch { _messages.emit(context.getString(R.string.play_named_track_next, item.title)) }
     }
 
     fun playQueueAt(index: Int) = playback.playAt(index)
@@ -253,9 +254,9 @@ class MusicViewModel : ViewModel() {
                 val dir = File(context.getExternalFilesDir(null), "Music").apply { mkdirs() }
                 val out = File(dir, item.name)
                 withContext(Dispatchers.IO) { adb.pullFile(item.path, out, item.size) }
-                _messages.emit("Saved to app storage/Music/${item.name}")
+                _messages.emit(context.getString(R.string.saved_in_app_music, item.name))
             } catch (e: Exception) {
-                _messages.emit("Download failed: ${e.message}")
+                _messages.emit(context.getString(R.string.download_failed, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false, busyLabel = null, progress = -1f)
             }
@@ -271,9 +272,9 @@ class MusicViewModel : ViewModel() {
                 val queueIndex = _ui.value.queue.indexOfFirst { it.path == item.path }
                 if (queueIndex >= 0) playback.removeFromQueue(queueIndex)
                 _ui.value = _ui.value.copy(items = _ui.value.items.filterNot { it.path == item.path })
-                _messages.emit("Deleted ${item.name}")
+                _messages.emit(context.getString(R.string.deleted_named_item, item.name))
             } catch (e: Exception) {
-                _messages.emit("Delete failed: ${e.message}")
+                _messages.emit(context.getString(R.string.delete_failed, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false, busyLabel = null)
             }
@@ -319,12 +320,12 @@ class MusicViewModel : ViewModel() {
                     _ui.value = _ui.value.copy(
                         items = (_ui.value.items + added).distinctBy { it.path },
                     )
-                    _messages.emit("✅ Uploaded $ok/${uris.size} track(s)")
+                    _messages.emit(context.getString(R.string.tracks_uploaded, ok, uris.size))
                 } else {
-                    _messages.emit("Upload failed")
+                    _messages.emit(context.getString(R.string.upload_failed))
                 }
             } catch (e: Exception) {
-                _messages.emit("Upload failed: ${e.message}")
+                _messages.emit(context.getString(R.string.upload_failed_detail, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false, busyLabel = null, progress = -1f)
             }

@@ -77,12 +77,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.data.MusicItem
 import com.tvtools.app.ui.common.LoadingRow
 import com.tvtools.app.ui.common.PlaybackBar
@@ -112,10 +114,10 @@ fun MusicScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Music", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.music), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -127,11 +129,11 @@ fun MusicScreen(
                                 }
                             },
                         ) {
-                            Icon(Icons.Default.QueueMusic, "Queue")
+                            Icon(Icons.Default.QueueMusic, stringResource(R.string.queue))
                         }
                     }
                     IconButton(onClick = viewModel::scan) {
-                        Icon(Icons.Default.Refresh, "Rescan")
+                        Icon(Icons.Default.Refresh, stringResource(R.string.rescan))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -143,7 +145,7 @@ fun MusicScreen(
             ExtendedFloatingActionButton(
                 onClick = { picker.launch("audio/*") },
                 icon = { Icon(Icons.Default.Upload, null) },
-                text = { Text("Upload") },
+                text = { Text(stringResource(R.string.upload)) },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -182,12 +184,12 @@ fun MusicScreen(
                 value = ui.query,
                 onValueChange = viewModel::setQuery,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search your TV music") },
+                placeholder = { Text(stringResource(R.string.search_your_tv_music)) },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = {
                     if (ui.query.isNotEmpty()) {
                         IconButton(onClick = { viewModel.setQuery("") }) {
-                            Icon(Icons.Default.Close, "Clear search")
+                            Icon(Icons.Default.Close, stringResource(R.string.clear_search))
                         }
                     }
                 },
@@ -239,7 +241,7 @@ fun MusicScreen(
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        "Checking Downloads for more music…",
+                        stringResource(R.string.checking_downloads_for_more_music),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -249,8 +251,8 @@ fun MusicScreen(
             Spacer(Modifier.height(6.dp))
 
             when {
-                ui.loading -> LoadingRow("Scanning the TV for music…")
-                ui.items.isEmpty() && ui.scanningMore -> LoadingRow("Scanning /sdcard/Music and Downloads…")
+                ui.loading -> LoadingRow(stringResource(R.string.scanning_the_tv_for_music))
+                ui.items.isEmpty() && ui.scanningMore -> LoadingRow(stringResource(R.string.scanning_sdcard_music_and_downloads))
                 ui.items.isEmpty() -> EmptyMusic(onUpload = { picker.launch("audio/*") })
                 ui.visibleItems.isEmpty() -> Column(
                     Modifier.fillMaxWidth().padding(vertical = 40.dp),
@@ -262,9 +264,9 @@ fun MusicScreen(
                         modifier = Modifier.size(34.dp),
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text("No track matches \"${ui.query}\"", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.no_track_matches, ui.query), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Try a title, folder or file name.",
+                        stringResource(R.string.try_a_title_folder_or_file_name),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -306,16 +308,16 @@ fun MusicScreen(
     deleteTarget?.let { item ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete from the TV?") },
-            text = { Text("${item.title} will be removed from ${item.path}.") },
+            title = { Text(stringResource(R.string.delete_from_the_tv)) },
+            text = { Text(stringResource(R.string.delete_track_details, item.title, item.path)) },
             confirmButton = {
                 Button(onClick = {
                     viewModel.delete(item)
                     deleteTarget = null
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("Cancel") }
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -358,19 +360,19 @@ private fun MusicHero(trackCount: Int, totalBytes: Long, onShuffle: () -> Unit) 
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Music on your TV",
+                        stringResource(R.string.music_on_your_tv),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                     Text(
-                        if (trackCount == 0) "Nothing found yet"
+                        if (trackCount == 0) stringResource(R.string.nothing_found_yet)
                         else "$trackCount tracks · ${formatBytes(totalBytes)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     )
                     Text(
-                        "Tap a track to play it through the TV",
+                        stringResource(R.string.tap_a_track_to_play_it_through),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                     )
@@ -385,7 +387,7 @@ private fun MusicHero(trackCount: Int, totalBytes: Long, onShuffle: () -> Unit) 
                     ) {
                         Icon(Icons.Default.Shuffle, null, Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Shuffle")
+                        Text(stringResource(R.string.shuffle))
                     }
                 }
             }
@@ -455,35 +457,35 @@ private fun TrackRow(
                 )
             }
             FilledIconButton(onClick = onPlay, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Default.PlayArrow, "Play on TV")
+                Icon(Icons.Default.PlayArrow, stringResource(R.string.play_on_tv))
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Default.MoreVert, "More")
+                    Icon(Icons.Default.MoreVert, stringResource(R.string.more))
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(
-                        text = { Text("Play on TV") },
+                        text = { Text(stringResource(R.string.play_on_tv)) },
                         leadingIcon = { Icon(Icons.Default.PlayArrow, null) },
                         onClick = { menuOpen = false; onPlay() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Play next") },
+                        text = { Text(stringResource(R.string.play_next)) },
                         leadingIcon = { Icon(Icons.Default.PlaylistPlay, null) },
                         onClick = { menuOpen = false; onPlayNext() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Add to queue") },
+                        text = { Text(stringResource(R.string.add_to_queue)) },
                         leadingIcon = { Icon(Icons.Default.PlaylistAdd, null) },
                         onClick = { menuOpen = false; onAddToQueue() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Download to phone") },
+                        text = { Text(stringResource(R.string.download_to_phone)) },
                         leadingIcon = { Icon(Icons.Default.Download, null) },
                         onClick = { menuOpen = false; onDownload() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete from TV") },
+                        text = { Text(stringResource(R.string.delete_from_tv)) },
                         leadingIcon = { Icon(Icons.Default.Delete, null) },
                         onClick = { menuOpen = false; onDelete() },
                     )
@@ -544,25 +546,25 @@ private fun QueueSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Queue",
+                        stringResource(R.string.queue),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        if (queue.isEmpty()) "Nothing queued"
+                        if (queue.isEmpty()) stringResource(R.string.nothing_queued)
                         else "${queue.size} tracks · tap one to play",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 TextButton(onClick = onClear, enabled = queue.isNotEmpty()) {
-                    Text("Clear")
+                    Text(stringResource(R.string.clear))
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
             if (queue.isEmpty()) {
                 Text(
-                    "Open the ⋮ menu on any track and choose \"Play next\" or \"Add to queue\".",
+                    stringResource(R.string.open_the_menu_on_any_track_and),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 28.dp),
@@ -599,7 +601,7 @@ private fun QueueSheet(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    if (current) "Playing" else
+                                    if (current) stringResource(R.string.playing) else
                                         item.artist.ifBlank { item.folder.ifBlank { formatBytes(item.size) } },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -608,7 +610,7 @@ private fun QueueSheet(
                                 )
                             }
                             IconButton(onClick = { onRemove(index) }) {
-                                Icon(Icons.Default.Close, "Remove from queue")
+                                Icon(Icons.Default.Close, stringResource(R.string.remove_from_queue))
                             }
                         }
                     }
@@ -639,9 +641,9 @@ private fun EmptyMusic(onUpload: () -> Unit) {
             }
         }
         Spacer(Modifier.height(14.dp))
-        Text("No music on the TV yet", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.no_music_on_the_tv_yet), style = MaterialTheme.typography.titleMedium)
         Text(
-            "Tracks in /sdcard/Music and /sdcard/Download show up here. Upload from this phone to get started.",
+            stringResource(R.string.tracks_in_sdcard_music_and_sdcard_download),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -650,7 +652,7 @@ private fun EmptyMusic(onUpload: () -> Unit) {
         Button(onClick = onUpload) {
             Icon(Icons.Default.Upload, null, Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Upload music")
+            Text(stringResource(R.string.upload_music))
         }
     }
 }

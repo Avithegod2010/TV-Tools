@@ -38,8 +38,8 @@ class AppLaunchTest {
     }
 
     private fun onboardingNodes() =
-        composeRule.onAllNodesWithText("Skip").fetchSemanticsNodes()
+        composeRule.onAllNodesWithText(composeRule.activity.getString(R.string.skip)).fetchSemanticsNodes()
 
     private fun homeNodes() =
-        composeRule.onAllNodesWithText("TV Tools").fetchSemanticsNodes()
+        composeRule.onAllNodesWithText(composeRule.activity.getString(R.string.app_name)).fetchSemanticsNodes()
 }

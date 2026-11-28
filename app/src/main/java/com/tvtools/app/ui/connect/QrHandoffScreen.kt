@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -52,6 +53,7 @@ import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeWriter
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.adb.AdbClient
 import com.tvtools.app.data.DeviceProto
 import com.tvtools.app.data.TvDevice
@@ -84,11 +86,11 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
     fun handleText(text: String) {
         val profile = parseProfile(text)
         if (profile == null) {
-            status = "That QR isn't a TV Tools profile."
+            status = context.getString(R.string.qr_wrong_profile)
             return
         }
         busy = true
-        status = "Connecting to ${profile.name}…"
+        status = context.getString(R.string.share_connecting_to, profile.name)
         scope.launch {
             when (val result = AppServices.adb.connect(profile.host, profile.port)) {
                 AdbClient.ConnectResult.Success -> {
@@ -98,17 +100,17 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                     val friendly = profile.copy(name = model.ifBlank { profile.name })
                     AppServices.prefs.saveLastDevice(friendly)
                     AppServices.prefs.saveDevice(friendly)
-                    status = "Connected ✓"
+                    status = context.getString(R.string.qr_connected)
                     busy = false
                     onConnected(friendly.name)
                 }
                 AdbClient.ConnectResult.PairingRequired -> {
                     busy = false
-                    status = "This TV needs pairing first — open Home, tap the TV and enter the pairing code once."
+                    status = context.getString(R.string.qr_pair_first)
                 }
                 is AdbClient.ConnectResult.Error -> {
                     busy = false
-                    status = "Couldn't connect: ${result.message}"
+                    status = context.getString(R.string.qr_connection_failed, result.message)
                 }
             }
         }
@@ -120,7 +122,7 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             scope.launch {
                 val text = withContext(Dispatchers.IO) { decodeQr(file) }
                 file.delete()
-                if (text == null) status = "No QR code found in that photo." else handleText(text)
+                if (text == null) status = context.getString(R.string.qr_not_found) else handleText(text)
             }
         }
     }
@@ -132,17 +134,17 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
             takePicture.launch(uri)
         } catch (e: Exception) {
-            status = "No camera app available: ${e.message}"
+            status = context.getString(R.string.qr_camera_unavailable, e.message.orEmpty())
         }
     }
 
     fun pasteFromClipboard() {
         val cm = context.getSystemService(android.content.ClipboardManager::class.java)
         val text = cm?.primaryClip?.getItemAt(0)?.text?.toString()
-        if (text.isNullOrBlank()) status = "Clipboard is empty." else handleText(text)
+        if (text.isNullOrBlank()) status = context.getString(R.string.qr_clipboard_empty) else handleText(text)
     }
 
-    LabScaffold("Share TV via QR", onBack) {
+    LabScaffold(stringResource(R.string.share_tv_via_qr), onBack) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -151,7 +153,7 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "Point another phone's camera at this code. Both phones must be on the same Wi-Fi as the TV.",
+                stringResource(R.string.point_another_phones_camera_at_this_code),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -167,7 +169,7 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                     val bmp = remember(link) { qrBitmap(link, 640) }
                     Image(
                         bitmap = bmp.asImageBitmap(),
-                        contentDescription = "TV profile QR code",
+                        contentDescription = stringResource(R.string.tv_profile_qr_code),
                         modifier = Modifier.padding(16.dp).size(240.dp),
                     )
                 }
@@ -184,17 +186,17 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, link)
                         }
-                        context.startActivity(Intent.createChooser(send, "Share TV profile"))
-                    }) { Text("Share link") }
+                        context.startActivity(Intent.createChooser(send, context.getString(R.string.qr_share_profile)))
+                    }) { Text(stringResource(R.string.share_link)) }
                     OutlinedButton(onClick = {
                         val cm = context.getSystemService(android.content.ClipboardManager::class.java)
-                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("TV profile", link))
-                        status = "Link copied — paste it on the other phone."
-                    }) { Text("Copy link") }
+                        cm?.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.qr_tv_profile), link))
+                        status = context.getString(R.string.qr_copied)
+                    }) { Text(stringResource(R.string.copy_link)) }
                 }
             } else {
                 Text(
-                    "Connect to a TV once — its profile will appear here as a QR code.",
+                    stringResource(R.string.connect_to_a_tv_once_its_profile),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -208,17 +210,17 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Connect with a QR", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.connect_with_a_qr), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Scan a code shown on another phone running TV Tools.",
+                        stringResource(R.string.scan_a_code_shown_on_another_phone),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Button(onClick = { scanWithCamera() }, enabled = !busy) { Text("Scan with camera") }
-                        TextButton(onClick = { pasteFromClipboard() }, enabled = !busy) { Text("Paste link") }
+                        Button(onClick = { scanWithCamera() }, enabled = !busy) { Text(stringResource(R.string.scan_with_camera)) }
+                        TextButton(onClick = { pasteFromClipboard() }, enabled = !busy) { Text(stringResource(R.string.paste_link)) }
                         if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     }
                 }

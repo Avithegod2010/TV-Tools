@@ -18,8 +18,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.tvtools.app.R
 import com.tvtools.app.ui.common.ArcGauge
 import com.tvtools.app.ui.common.CardTitle
 import com.tvtools.app.ui.common.InfoCard
@@ -40,7 +42,7 @@ fun InfoTab(viewModel: DeviceViewModel) {
 
     val s = stats
     if (loading && s == null) {
-        LoadingRow("Reading device info…")
+        LoadingRow(stringResource(R.string.reading_device_info))
         return
     }
     if (s == null) return
@@ -56,7 +58,7 @@ fun InfoTab(viewModel: DeviceViewModel) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             InfoCard(Modifier.weight(1f)) {
-                CardTitle("Device")
+                CardTitle(stringResource(R.string.device))
                 Spacer(Modifier.height(6.dp))
                 Text(s.model, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                 if (s.brand.isNotBlank()) {
@@ -77,12 +79,12 @@ fun InfoTab(viewModel: DeviceViewModel) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             InfoCard(Modifier.weight(1f)) {
-                CardTitle("Storage")
+                CardTitle(stringResource(R.string.storage))
                 Spacer(Modifier.height(10.dp))
                 ArcGauge(
                     fraction = if (s.storageTotal > 0) s.storageUsed.toFloat() / s.storageTotal else 0f,
                     centerText = formatBytes(s.storageUsed),
-                    subText = "of ${formatBytes(s.storageTotal)}",
+                    subText = stringResource(R.string.usage_total, formatBytes(s.storageTotal)),
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
             }
@@ -93,7 +95,7 @@ fun InfoTab(viewModel: DeviceViewModel) {
                 ArcGauge(
                     fraction = if (s.ramTotal > 0) used.toFloat() / s.ramTotal else 0f,
                     centerText = formatBytes(used),
-                    subText = "of ${formatBytes(s.ramTotal)}",
+                    subText = stringResource(R.string.usage_total, formatBytes(s.ramTotal)),
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
             }
@@ -106,19 +108,19 @@ fun InfoTab(viewModel: DeviceViewModel) {
                 ArcGauge(
                     fraction = s.cpuUsagePercent / 100f,
                     centerText = "${s.cpuUsagePercent}%",
-                    subText = "usage",
+                    subText = stringResource(R.string.usage),
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
             }
             InfoCard(Modifier.weight(1f)) {
-                CardTitle("Network")
+                CardTitle(stringResource(R.string.network))
                 Spacer(Modifier.height(10.dp))
-                Text("DOWNLOAD", style = MaterialTheme.typography.labelSmall,
+                Text(stringResource(R.string.download_heading), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(formatBytes(s.netRxBytes), style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
-                Text("UPLOAD", style = MaterialTheme.typography.labelSmall,
+                Text(stringResource(R.string.upload_heading), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(formatBytes(s.netTxBytes), style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold)
@@ -126,7 +128,7 @@ fun InfoTab(viewModel: DeviceViewModel) {
         }
 
         InfoCard(Modifier.fillMaxWidth()) {
-            CardTitle("Uptime")
+            CardTitle(stringResource(R.string.uptime))
             Spacer(Modifier.height(6.dp))
             Text(formatUptime(s.uptimeSeconds), style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium)

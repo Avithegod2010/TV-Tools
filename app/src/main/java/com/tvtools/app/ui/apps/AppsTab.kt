@@ -54,10 +54,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.R
 import com.tvtools.app.data.TvApp
 import com.tvtools.app.ui.common.formatBytes
 
@@ -78,22 +80,22 @@ fun AppsTab(onOpenBackups: () -> Unit, guest: Boolean = false, viewModel: AppsVi
             ) {
                 if (ui.selection.isNotEmpty()) {
                     Text(
-                        "${ui.selection.size} selected",
+                        stringResource(R.string.items_selected, ui.selection.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = viewModel::clearSelection) { Text("Cancel") }
+                    TextButton(onClick = viewModel::clearSelection) { Text(stringResource(R.string.cancel)) }
                 } else {
                     Text(
-                        "Installed apps",
+                        stringResource(R.string.installed_apps),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
                     if (ui.iconsTotal > 0 && ui.iconsLoaded < ui.iconsTotal) {
                         Text(
-                            "icons ${ui.iconsLoaded}/${ui.iconsTotal}",
+                            stringResource(R.string.app_icons_loaded, ui.iconsLoaded, ui.iconsTotal),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -115,14 +117,14 @@ fun AppsTab(onOpenBackups: () -> Unit, guest: Boolean = false, viewModel: AppsVi
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = viewModel::selectAll) { Text("All") }
-                    TextButton(onClick = viewModel::backupSelected) { Text("Backup") }
+                    TextButton(onClick = viewModel::selectAll) { Text(stringResource(R.string.all)) }
+                    TextButton(onClick = viewModel::backupSelected) { Text(stringResource(R.string.backup)) }
                     TextButton(onClick = viewModel::downloadSelectedApks) { Text("APKs") }
-                    TextButton(onClick = viewModel::backupDataSelected) { Text("Data") }
-                    TextButton(onClick = viewModel::forceStopSelected) { Text("Stop") }
-                    TextButton(onClick = viewModel::clearDataSelected) { Text("Clear data") }
-                    TextButton(onClick = viewModel::disableSelected) { Text("Disable") }
-                    TextButton(onClick = viewModel::uninstallSelected) { Text("Uninstall") }
+                    TextButton(onClick = viewModel::backupDataSelected) { Text(stringResource(R.string.data)) }
+                    TextButton(onClick = viewModel::forceStopSelected) { Text(stringResource(R.string.stop)) }
+                    TextButton(onClick = viewModel::clearDataSelected) { Text(stringResource(R.string.clear_data)) }
+                    TextButton(onClick = viewModel::disableSelected) { Text(stringResource(R.string.disable)) }
+                    TextButton(onClick = viewModel::uninstallSelected) { Text(stringResource(R.string.uninstall)) }
                 }
             }
 
@@ -143,7 +145,7 @@ fun AppsTab(onOpenBackups: () -> Unit, guest: Boolean = false, viewModel: AppsVi
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
-                placeholder = { Text("Search") },
+                placeholder = { Text(stringResource(R.string.search)) },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = {
                     if (ui.search.isNotEmpty()) {
@@ -160,12 +162,12 @@ fun AppsTab(onOpenBackups: () -> Unit, guest: Boolean = false, viewModel: AppsVi
                 FilterChip(
                     selected = ui.sort == AppSort.SIZE,
                     onClick = { if (ui.sort != AppSort.SIZE) viewModel.toggleSort() },
-                    label = { Text("Sort by size") },
+                    label = { Text(stringResource(R.string.sort_by_size)) },
                 )
                 FilterChip(
                     selected = ui.onlyRunning,
                     onClick = viewModel::toggleRunning,
-                    label = { Text("Running apps") },
+                    label = { Text(stringResource(R.string.running_apps)) },
                 )
             }
 
@@ -283,25 +285,25 @@ private fun AppRow(
             var menuOpen by remember { mutableStateOf(false) }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Actions")
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.actions))
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(text = { Text("Launch") }, onClick = { menuOpen = false; onAction(AppAction.LAUNCH) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.launch)) }, onClick = { menuOpen = false; onAction(AppAction.LAUNCH) })
                     if (guest) {
-                        DropdownMenuItem(text = { Text("Permissions (on TV)") }, onClick = { menuOpen = false; onAction(AppAction.PERMISSIONS) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.permissions_on_tv)) }, onClick = { menuOpen = false; onAction(AppAction.PERMISSIONS) })
                     } else {
                     if (!app.isSystemApp) {
-                        DropdownMenuItem(text = { Text("Uninstall") }, onClick = { menuOpen = false; onAction(AppAction.UNINSTALL) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.uninstall)) }, onClick = { menuOpen = false; onAction(AppAction.UNINSTALL) })
                     }
-                    DropdownMenuItem(text = { Text("Download APK") }, onClick = { menuOpen = false; onAction(AppAction.DOWNLOAD) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.download_apk)) }, onClick = { menuOpen = false; onAction(AppAction.DOWNLOAD) })
                     if (app.iconPath == null) {
-                        DropdownMenuItem(text = { Text("Load icon") }, onClick = { menuOpen = false; onAction(AppAction.LOAD_ICON) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.load_icon)) }, onClick = { menuOpen = false; onAction(AppAction.LOAD_ICON) })
                     }
-                    DropdownMenuItem(text = { Text("Force stop") }, onClick = { menuOpen = false; onAction(AppAction.FORCE_STOP) })
-                    DropdownMenuItem(text = { Text("Clear data") }, onClick = { menuOpen = false; onAction(AppAction.CLEAR_DATA) })
-                    DropdownMenuItem(text = { Text("Permissions (on TV)") }, onClick = { menuOpen = false; onAction(AppAction.PERMISSIONS) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.force_stop)) }, onClick = { menuOpen = false; onAction(AppAction.FORCE_STOP) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.clear_data)) }, onClick = { menuOpen = false; onAction(AppAction.CLEAR_DATA) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.permissions_on_tv)) }, onClick = { menuOpen = false; onAction(AppAction.PERMISSIONS) })
                     DropdownMenuItem(
-                        text = { Text(if (app.enabled) "Disable" else "Enable") },
+                        text = { Text(if (app.enabled) stringResource(R.string.disable) else stringResource(R.string.enable)) },
                         onClick = { menuOpen = false; onAction(AppAction.TOGGLE) },
                     )
                     }

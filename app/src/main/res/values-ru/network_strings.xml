@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="network_default_tv_name">Android TV</string>
+    <string name="network_busy">Подключение к телевизору уже выполняется.</string>
+    <string name="network_pairing_rejected">Телевизор отклонил запрос на сопряжение.</string>
+    <string name="network_changed">Сеть или активное подключение изменилось. Повторите попытку.</string>
+    <string name="network_handshake_timeout">Телевизор не успел завершить подключение. Проверьте запрос на отладку на телевизоре и повторите попытку.</string>
+    <string name="network_tv_unreachable">Не удалось связаться с телевизором. Убедитесь, что он включён и отладка разрешена.</string>
+    <string name="network_no_session">Нет активного подключения к телевизору.</string>
+    <string name="network_stream_timeout">Телевизор перестал отвечать. Подключитесь заново и повторите попытку.</string>
+    <string name="network_command_timeout">Телевизор не выполнил команду за %1$d с.</string>
+    <string name="network_no_lan">Подключите телефон и телевизор к одной сети Wi-Fi или локальной сети.</string>
+    <string name="network_reconnecting">Повторное подключение к телевизору…</string>
+    <string name="network_reconnect">Подключиться снова</string>
+    <string name="network_reconnected">Подключение к телевизору восстановлено</string>
+    <string name="network_authorization_needed">Проверьте разрешение на отладку на телевизоре. Для авторизации или сопряжения выберите телевизор на главном экране.</string>
+    <string name="network_tv_disconnected">Подключение к телевизору потеряно.</string>
+    <string name="network_map_adb_tv">Android TV / ADB</string>
+    <string name="network_map_adb_connect">ADB по сети · нажмите для подключения</string>
+    <string name="network_map_emulator">Android TV / эмулятор</string>
+    <string name="network_map_adb_open">Порт ADB открыт</string>
+    <string name="network_map_cast_device">Chromecast / Google TV</string>
+    <string name="network_map_cast_open">Порты Cast открыты</string>
+    <string name="network_map_airplay_device">Устройство AirPlay</string>
+    <string name="network_map_airplay_open">Порт AirPlay открыт</string>
+    <string name="network_map_printer">Принтер</string>
+    <string name="network_map_print_open">Порт JetDirect открыт</string>
+    <string name="network_map_ssh_host">Узел SSH</string>
+    <string name="network_map_ssh_open">Порт 22 открыт</string>
+    <string name="network_map_web_device">Устройство с веб-интерфейсом</string>
+    <string name="network_map_web_open">Порт HTTP(S) открыт</string>
+    <string name="network_map_device">Устройство</string>
+    <string name="network_map_ports_open">Открытые порты</string>
+</resources>

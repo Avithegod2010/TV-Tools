@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -96,7 +97,7 @@ class FilesViewModel : ViewModel() {
                 loadThumbnails(entries)
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(loading = false)
-                _messages.emit("Can't open $path: ${e.message}")
+                _messages.emit(context.getString(R.string.open_path_failed, path, e.message.orEmpty()))
             }
         }
     }
@@ -172,11 +173,11 @@ class FilesViewModel : ViewModel() {
                     adb.exec("$cmd '${item.path.replace("'", "'\\''")}' '${dest.replace("'", "'\\''")}'", timeoutMs = 120_000)
                     ok++
                 }
-                _messages.emit("${if (move) "Moved" else "Copied"} $ok item(s)")
+                _messages.emit(context.getString(if (move) R.string.items_moved else R.string.items_copied, ok))
                 clearSelection()
                 refresh()
             } catch (e: Exception) {
-                _messages.emit("Transfer failed: ${e.message}")
+                _messages.emit(context.getString(R.string.transfer_failed, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false)
             }
@@ -194,7 +195,7 @@ class FilesViewModel : ViewModel() {
 
     fun enqueueDownload(item: FileItem) {
         if (item.isDir) {
-            _messages.tryEmit("Folders can't be downloaded directly — copy them instead.")
+            _messages.tryEmit(context.getString(R.string.folders_cant_be_downloaded_directly_copy_them))
             return
         }
         downloadQueue.addLast(item)
@@ -221,9 +222,9 @@ class FilesViewModel : ViewModel() {
                     adb.pullFile(item.path, out, item.size) { done ->
                         _ui.value = _ui.value.copy(downloadProgress = done.toFloat() / total)
                     }
-                    _messages.emit("Saved ${item.name} to Downloads")
+                    _messages.emit(context.getString(R.string.saved_in_downloads, item.name))
                 } catch (e: Exception) {
-                    _messages.emit("Download failed: ${e.message}")
+                    _messages.emit(context.getString(R.string.download_failed, e.message.orEmpty()))
                 }
             }
             _ui.value = _ui.value.copy(downloadLabel = null, downloadProgress = -1f, queueRemaining = 0)
@@ -237,10 +238,10 @@ class FilesViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 adb.deleteFile(item.path)
-                _messages.emit("Deleted ${item.name}")
+                _messages.emit(context.getString(R.string.deleted_named_item, item.name))
                 refresh()
             } catch (e: Exception) {
-                _messages.emit("Delete failed: ${e.message}")
+                _messages.emit(context.getString(R.string.delete_failed, e.message.orEmpty()))
             }
         }
     }
@@ -251,11 +252,11 @@ class FilesViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 items.forEach { adb.deleteFile(it.path) }
-                _messages.emit("Deleted ${items.size} item(s)")
+                _messages.emit(context.getString(R.string.items_deleted, items.size))
                 clearSelection()
                 refresh()
             } catch (e: Exception) {
-                _messages.emit("Delete failed: ${e.message}")
+                _messages.emit(context.getString(R.string.delete_failed, e.message.orEmpty()))
             }
         }
     }
@@ -268,7 +269,7 @@ class FilesViewModel : ViewModel() {
                 adb.rename(item.path, newPath)
                 refresh()
             } catch (e: Exception) {
-                _messages.emit("Rename failed: ${e.message}")
+                _messages.emit(context.getString(R.string.rename_failed, e.message.orEmpty()))
             }
         }
     }
@@ -280,7 +281,7 @@ class FilesViewModel : ViewModel() {
                 adb.mkdir(_ui.value.path.trimEnd('/') + "/" + name)
                 refresh()
             } catch (e: Exception) {
-                _messages.emit("Mkdir failed: ${e.message}")
+                _messages.emit(context.getString(R.string.mkdir_failed, e.message.orEmpty()))
             }
         }
     }
@@ -305,10 +306,10 @@ class FilesViewModel : ViewModel() {
                     _ui.value = _ui.value.copy(uploadProgress = done.toFloat() / total)
                 }
                 tmp.delete()
-                _messages.emit("Uploaded $name")
+                _messages.emit(context.getString(R.string.uploaded_named_item, name))
                 refresh()
             } catch (e: Exception) {
-                _messages.emit("Upload failed: ${e.message}")
+                _messages.emit(context.getString(R.string.upload_failed_detail, e.message.orEmpty()))
             } finally {
                 _ui.value = _ui.value.copy(busy = false, uploadProgress = -1f)
             }
@@ -328,7 +329,7 @@ class FilesViewModel : ViewModel() {
                         adb.pullFile(item.path, out, item.size)
                         _preview.value = FilePreview.Image(out)
                     } catch (e: Exception) {
-                        _preview.value = FilePreview.Message("Couldn't load image: ${e.message}")
+                        _preview.value = FilePreview.Message(context.getString(R.string.preview_image_failed, e.message.orEmpty()))
                     }
                 }
                 ext in setOf("txt", "log", "json", "xml", "md", "ini", "conf", "sh", "properties") -> {
@@ -336,7 +337,7 @@ class FilesViewModel : ViewModel() {
                         val text = adb.exec("head -c 24000 '${item.path.replace("'", "'\\''")}'", timeoutMs = 30_000)
                         _preview.value = FilePreview.Text(text)
                     } catch (e: Exception) {
-                        _preview.value = FilePreview.Message("Couldn't read file: ${e.message}")
+                        _preview.value = FilePreview.Message(context.getString(R.string.preview_file_failed, e.message.orEmpty()))
                     }
                 }
                 else -> {

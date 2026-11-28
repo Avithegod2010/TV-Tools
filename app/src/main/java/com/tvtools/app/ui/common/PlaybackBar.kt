@@ -36,9 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.tvtools.app.R
 import com.tvtools.app.data.PlaybackState
 import kotlinx.coroutines.delay
 
@@ -131,7 +133,7 @@ fun PlaybackBar(
                     )
                 }
                 IconButton(onClick = onPrevious) {
-                    Icon(Icons.Default.SkipPrevious, "Previous")
+                    Icon(Icons.Default.SkipPrevious, stringResource(R.string.previous))
                 }
                 FilledIconButton(onClick = onPlayPause, modifier = Modifier.size(42.dp)) {
                     Icon(
@@ -140,10 +142,10 @@ fun PlaybackBar(
                     )
                 }
                 IconButton(onClick = onNext) {
-                    Icon(Icons.Default.SkipNext, "Next")
+                    Icon(Icons.Default.SkipNext, stringResource(R.string.media_next_action))
                 }
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, "Hide player")
+                    Icon(Icons.Default.Close, stringResource(R.string.hide_player))
                 }
             }
         }

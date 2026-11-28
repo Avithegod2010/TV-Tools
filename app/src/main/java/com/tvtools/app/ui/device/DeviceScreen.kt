@@ -58,14 +58,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
+import com.tvtools.app.adb.ConnectionStatus
 import com.tvtools.app.ui.apps.AppsTab
 import com.tvtools.app.ui.common.PlaybackBar
 import com.tvtools.app.ui.common.rememberHaptics
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.tvtools.app.ui.info.InfoTab
 import com.tvtools.app.ui.remote.RemoteControlSheet
@@ -104,6 +108,9 @@ fun DeviceScreen(
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val ctx = com.tvtools.app.TvToolsApp.instance
     val settings by com.tvtools.app.AppServices.settings.state.collectAsState()
+    val connectionStatus by viewModel.connectionStatus.collectAsState()
+    val connectedDevice by viewModel.connectedDevice.collectAsState()
+    val reconnectedText = stringResource(R.string.network_reconnected)
     val guest = settings.guestMode
     val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
 
@@ -115,9 +122,12 @@ fun DeviceScreen(
         viewModel.disconnected.collect { onBack() }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.reconnected.collect {
-            snackbar.showSnackbar("Reconnected to the TV")
+    LaunchedEffect(viewModel, reconnectedText) {
+        var wasConnected = viewModel.connectedDevice.value != null
+        viewModel.connectedDevice.collectLatest { device ->
+            val reconnected = device != null && !wasConnected
+            wasConnected = device != null
+            if (reconnected) snackbar.showSnackbar(reconnectedText)
         }
     }
 
@@ -157,7 +167,7 @@ fun DeviceScreen(
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "DEVICE",
+                                stringResource(R.string.device_heading),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 letterSpacing = androidx.compose.ui.unit.TextUnit(2f, androidx.compose.ui.unit.TextUnitType.Sp),
@@ -167,35 +177,35 @@ fun DeviceScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.disconnect() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Disconnect")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.disconnect))
                     }
                 },
                 actions = {
                     IconButton(onClick = { haptics(); showRemote = !showRemote }) {
-                        Icon(Icons.Default.SettingsRemote, contentDescription = "Remote control")
+                        Icon(Icons.Default.SettingsRemote, contentDescription = stringResource(R.string.remote_control))
                     }
                     Box {
                         IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More")
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
-                                text = { Text("Remote control") },
+                                text = { Text(stringResource(R.string.remote_control)) },
                                 leadingIcon = { Icon(Icons.Default.SettingsRemote, null) },
                                 onClick = { menuOpen = false; showRemote = true },
                             )
                             if (!guest) {
                             DropdownMenuItem(
-                                text = { Text("Screen mirroring") },
+                                text = { Text(stringResource(R.string.screen_mirroring)) },
                                 leadingIcon = { Icon(Icons.Default.Cast, null) },
                                 onClick = { menuOpen = false; onOpenMirror() },
                             )
                             DropdownMenuItem(
-                                text = { Text("Save look for this TV") },
+                                text = { Text(stringResource(R.string.save_look_for_this_tv)) },
                                 leadingIcon = { Icon(Icons.Default.Save, null) },
                                 onClick = {
                                     menuOpen = false
-                                    val host = com.tvtools.app.AppServices.adb.connectedDevice?.host
+                                    val host = connectedDevice?.preferencesHost
                                     if (host != null) {
                                         coroutineScope.launch {
                                             val existing = com.tvtools.app.AppServices.prefs
@@ -210,7 +220,7 @@ fun DeviceScreen(
                                             )
                                             android.widget.Toast.makeText(
                                                 TvToolsApp.instance,
-                                                "Look saved for this TV",
+                                                R.string.device_look_saved,
                                                 android.widget.Toast.LENGTH_SHORT,
                                             ).show()
                                         }
@@ -218,7 +228,7 @@ fun DeviceScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Refresh TV palette") },
+                                text = { Text(stringResource(R.string.refresh_tv_palette)) },
                                 leadingIcon = { Icon(Icons.Default.Palette, null) },
                                 onClick = {
                                     menuOpen = false
@@ -230,7 +240,7 @@ fun DeviceScreen(
                                         }
                                         if (color != null) {
                                             com.tvtools.app.AppServices.settings.setTvColor(color)
-                                            val host = com.tvtools.app.AppServices.adb.connectedDevice?.host
+                                            val host = com.tvtools.app.AppServices.adb.connectedDevice?.preferencesHost
                                             if (host != null) {
                                                 val existing = com.tvtools.app.AppServices.prefs
                                                     .loadDeviceProfile(host)
@@ -245,13 +255,13 @@ fun DeviceScreen(
                                             }
                                             android.widget.Toast.makeText(
                                                 TvToolsApp.instance,
-                                                "Palette refreshed from the TV",
+                                                R.string.device_palette_refreshed,
                                                 android.widget.Toast.LENGTH_SHORT,
                                             ).show()
                                         } else {
                                             android.widget.Toast.makeText(
                                                 TvToolsApp.instance,
-                                                "Connect to the TV first",
+                                                R.string.device_connect_first,
                                                 android.widget.Toast.LENGTH_SHORT,
                                             ).show()
                                         }
@@ -259,16 +269,16 @@ fun DeviceScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Forget this TV's look") },
+                                text = { Text(stringResource(R.string.forget_this_tvs_look)) },
                                 leadingIcon = { Icon(Icons.Default.Delete, null) },
                                 onClick = {
                                     menuOpen = false
-                                    com.tvtools.app.AppServices.adb.connectedDevice?.host?.let { host ->
+                                    connectedDevice?.preferencesHost?.let { host ->
                                         coroutineScope.launch {
                                             com.tvtools.app.AppServices.prefs.forgetDeviceProfile(host)
                                             android.widget.Toast.makeText(
                                                 TvToolsApp.instance,
-                                                "Saved look removed",
+                                                R.string.device_saved_look_removed,
                                                 android.widget.Toast.LENGTH_SHORT,
                                             ).show()
                                         }
@@ -278,19 +288,19 @@ fun DeviceScreen(
                             }
                             if (guest) {
                                 DropdownMenuItem(
-                                    text = { Text("Exit guest mode") },
+                                    text = { Text(stringResource(R.string.exit_guest_mode)) },
                                     onClick = { menuOpen = false; showExitGuest = true },
                                 )
                             }
                             if (!guest) {
                                 DropdownMenuItem(
-                                    text = { Text("Appearance & settings") },
+                                    text = { Text(stringResource(R.string.appearance_settings)) },
                                     leadingIcon = { Icon(Icons.Default.Settings, null) },
                                     onClick = { menuOpen = false; showSettings = true },
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Disconnect") },
+                                text = { Text(stringResource(R.string.disconnect)) },
                                 onClick = { menuOpen = false; viewModel.disconnect() },
                             )
                         }
@@ -320,28 +330,28 @@ fun DeviceScreen(
                         selected = selectedTab == 0,
                         onClick = { haptics(); selectedTab = 0 },
                         icon = { Icon(Icons.Default.Build, null) },
-                        label = { Text("Tools") },
+                        label = { Text(stringResource(R.string.tools)) },
                     )
                 }
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { haptics(); selectedTab = 1 },
                     icon = { Icon(Icons.Default.Apps, null) },
-                    label = { Text("Apps") },
+                    label = { Text(stringResource(R.string.apps)) },
                 )
                 if (!guest) {
                     NavigationBarItem(
                         selected = selectedTab == 2,
                         onClick = { haptics(); selectedTab = 2 },
                         icon = { Icon(Icons.Default.Terminal, null) },
-                        label = { Text("Shell") },
+                        label = { Text(stringResource(R.string.shell)) },
                     )
                 }
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = { haptics(); selectedTab = 3 },
                     icon = { Icon(Icons.Default.Info, null) },
-                    label = { Text("Info") },
+                    label = { Text(stringResource(R.string.info)) },
                 )
                 }
             }
@@ -352,6 +362,28 @@ fun DeviceScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            if (connectedDevice == null) {
+                val message = when (connectionStatus) {
+                    ConnectionStatus.NO_NETWORK -> R.string.network_no_lan
+                    ConnectionStatus.NETWORK_CHANGED -> R.string.network_changed
+                    ConnectionStatus.RECONNECTING -> R.string.network_reconnecting
+                    ConnectionStatus.UNAVAILABLE -> R.string.network_tv_unreachable
+                    ConnectionStatus.AUTHORIZATION_REQUIRED -> R.string.network_authorization_needed
+                    else -> R.string.network_tv_disconnected
+                }
+                Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Text(stringResource(message), style = MaterialTheme.typography.bodySmall)
+                        if (connectionStatus == ConnectionStatus.IDLE ||
+                            connectionStatus == ConnectionStatus.UNAVAILABLE
+                        ) {
+                            TextButton(onClick = viewModel::reconnect) {
+                                Text(stringResource(R.string.network_reconnect))
+                            }
+                        }
+                    }
+                }
+            }
             if (guest) {
                 Surface(
                     color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
@@ -363,11 +395,11 @@ fun DeviceScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "Guest mode · remote & apps only",
+                            stringResource(R.string.guest_mode_remote_apps_only),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = { showExitGuest = true }) { Text("Exit") }
+                        TextButton(onClick = { showExitGuest = true }) { Text(stringResource(R.string.exit)) }
                     }
                 }
             }
@@ -422,16 +454,16 @@ fun DeviceScreen(
     if (showExitGuest) {
         AlertDialog(
             onDismissRequest = { showExitGuest = false },
-            title = { Text("Exit guest mode?") },
-            text = { Text("This brings back Tools, Shell, Files and app management.") },
+            title = { Text(stringResource(R.string.exit_guest_mode_2)) },
+            text = { Text(stringResource(R.string.this_brings_back_tools_shell_files_and)) },
             confirmButton = {
                 TextButton(onClick = {
                     com.tvtools.app.AppServices.settings.setGuestMode(false)
                     showExitGuest = false
-                }) { Text("Exit guest mode") }
+                }) { Text(stringResource(R.string.exit_guest_mode)) }
             },
             dismissButton = {
-                TextButton(onClick = { showExitGuest = false }) { Text("Stay") }
+                TextButton(onClick = { showExitGuest = false }) { Text(stringResource(R.string.stay)) }
             },
         )
     }

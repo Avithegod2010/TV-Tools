@@ -1,9 +1,12 @@
 package com.tvtools.app.data
 
+import androidx.annotation.StringRes
+import com.tvtools.app.R
+
 /** A remote key that can be pinned to the quick-key strip. */
 data class QuickKey(
     val id: String,
-    val label: String,
+    @StringRes val label: Int,
     val keyCode: Int,
 )
 
@@ -14,25 +17,25 @@ data class QuickKey(
 object QuickKeys {
 
     val catalog = listOf(
-        QuickKey("back", "Back", 4),
-        QuickKey("home", "Home", 3),
-        QuickKey("menu", "Menu", 82),
-        QuickKey("ok", "OK", 23),
-        QuickKey("vol_up", "Vol +", 24),
-        QuickKey("vol_down", "Vol −", 25),
-        QuickKey("mute", "Mute", 164),
-        QuickKey("play", "Play/pause", 85),
-        QuickKey("next", "Next", 87),
-        QuickKey("prev", "Prev", 88),
-        QuickKey("search", "Search", 84),
-        QuickKey("info", "Info", 165),
-        QuickKey("captions", "Subtitles", 175),
-        QuickKey("stop", "Stop", 86),
-        QuickKey("power", "Power", 26),
-        QuickKey("sleep", "Sleep", 223),
-        QuickKey("settings", "Settings", 176),
-        QuickKey("assistant", "Assistant", 219),
-        QuickKey("tv_input", "TV input", 178),
+        QuickKey("back", R.string.back, 4),
+        QuickKey("home", R.string.home, 3),
+        QuickKey("menu", R.string.menu, 82),
+        QuickKey("ok", R.string.ok, 23),
+        QuickKey("vol_up", R.string.quick_volume_up, 24),
+        QuickKey("vol_down", R.string.quick_volume_down, 25),
+        QuickKey("mute", R.string.mute, 164),
+        QuickKey("play", R.string.play_pause, 85),
+        QuickKey("next", R.string.quick_next, 87),
+        QuickKey("prev", R.string.quick_previous, 88),
+        QuickKey("search", R.string.search, 84),
+        QuickKey("info", R.string.info, 165),
+        QuickKey("captions", R.string.subtitles, 175),
+        QuickKey("stop", R.string.stop, 86),
+        QuickKey("power", R.string.power, 26),
+        QuickKey("sleep", R.string.sleep, 223),
+        QuickKey("settings", R.string.settings, 176),
+        QuickKey("assistant", R.string.assistant, 219),
+        QuickKey("tv_input", R.string.tv_input, 178),
     )
 
     val defaultIds = listOf("back", "home", "play", "mute", "search")

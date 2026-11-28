@@ -41,10 +41,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.tvtools.app.R
 import com.tvtools.app.data.QuickKeys
 import com.tvtools.app.data.RemoteLayout
 import kotlin.math.roundToInt
@@ -75,9 +77,9 @@ internal fun RemoteLayoutEditorDialog(
         onDismissRequest = onDismiss,
         title = {
             Column {
-                Text("Remote layout", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.remote_layout), fontWeight = FontWeight.Bold)
                 Text(
-                    "Saved for this TV",
+                    stringResource(R.string.saved_for_this_tv),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -90,7 +92,7 @@ internal fun RemoteLayoutEditorDialog(
                     .heightIn(max = 470.dp)
                     .verticalScroll(rememberScrollState()),
             ) {
-                Text("Columns", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.columns), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(1, 2, 3).forEachIndexed { index, columns ->
@@ -104,8 +106,8 @@ internal fun RemoteLayoutEditorDialog(
 
                 Spacer(Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("D-pad size", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                    Text("${draft.dpadSize} dp", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.d_pad_size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.number_dp, draft.dpadSize), style = MaterialTheme.typography.labelMedium)
                 }
                 Slider(
                     value = draft.dpadSize.toFloat(),
@@ -115,20 +117,20 @@ internal fun RemoteLayoutEditorDialog(
                 )
 
                 SettingSwitch(
-                    title = "One-handed mode",
-                    subtitle = "Dock the D-pad at the bottom of the sheet",
+                    title = stringResource(R.string.one_handed_mode),
+                    subtitle = stringResource(R.string.dock_the_d_pad_at_the_bottom),
                     checked = draft.oneHanded,
                     onChange = { update(draft.copy(oneHanded = it)) },
                 )
                 SettingSwitch(
-                    title = "Expressive shapes",
-                    subtitle = "Scalloped dial and springy press feedback",
+                    title = stringResource(R.string.expressive_shapes),
+                    subtitle = stringResource(R.string.scalloped_dial_and_springy_press_feedback),
                     checked = draft.expressive,
                     onChange = { update(draft.copy(expressive = it)) },
                 )
 
                 Spacer(Modifier.height(12.dp))
-                Text("Show on the remote", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.show_on_the_remote), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(4.dp))
                 RemoteLayout.sections.chunked(2).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
@@ -158,7 +160,7 @@ internal fun RemoteLayoutEditorDialog(
                 Spacer(Modifier.height(14.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "Quick keys",
+                        stringResource(R.string.quick_keys),
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.weight(1f),
                     )
@@ -166,14 +168,14 @@ internal fun RemoteLayoutEditorDialog(
                         TextButton(onClick = { addMenuOpen = true }) {
                             Icon(Icons.Default.Add, null, Modifier.size(16.dp))
                             Spacer(Modifier.size(4.dp))
-                            Text("Add")
+                            Text(stringResource(R.string.add))
                         }
                         DropdownMenu(expanded = addMenuOpen, onDismissRequest = { addMenuOpen = false }) {
                             QuickKeys.catalog
                                 .filterNot { it.id in draft.quickOrder }
                                 .forEach { key ->
                                     DropdownMenuItem(
-                                        text = { Text(key.label) },
+                                        text = { Text(stringResource(key.label)) },
                                         onClick = {
                                             addMenuOpen = false
                                             update(draft.copy(quickOrder = draft.quickOrder + key.id))
@@ -185,7 +187,7 @@ internal fun RemoteLayoutEditorDialog(
                 }
                 if (draft.quickOrder.isEmpty()) {
                     Text(
-                        "No quick keys — add a few for one-tap access.",
+                        stringResource(R.string.no_quick_keys_add_a_few_for),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -203,7 +205,7 @@ internal fun RemoteLayoutEditorDialog(
                             modifier = Modifier.padding(start = 12.dp, end = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(key.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            Text(stringResource(key.label), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                             IconButton(
                                 onClick = {
                                     if (index > 0) {
@@ -215,7 +217,7 @@ internal fun RemoteLayoutEditorDialog(
                                 },
                                 enabled = index > 0,
                             ) {
-                                Icon(Icons.Default.KeyboardArrowUp, "Move ${key.label} up", Modifier.size(18.dp))
+                                Icon(Icons.Default.KeyboardArrowUp, stringResource(R.string.move_key_up, stringResource(key.label)), Modifier.size(18.dp))
                             }
                             IconButton(
                                 onClick = {
@@ -228,12 +230,12 @@ internal fun RemoteLayoutEditorDialog(
                                 },
                                 enabled = index < draft.quickOrder.lastIndex,
                             ) {
-                                Icon(Icons.Default.KeyboardArrowDown, "Move ${key.label} down", Modifier.size(18.dp))
+                                Icon(Icons.Default.KeyboardArrowDown, stringResource(R.string.move_key_down, stringResource(key.label)), Modifier.size(18.dp))
                             }
                             IconButton(onClick = {
                                 update(draft.copy(quickOrder = draft.quickOrder - id))
                             }) {
-                                Icon(Icons.Default.Close, "Remove ${key.label}", Modifier.size(16.dp))
+                                Icon(Icons.Default.Close, stringResource(R.string.remove_quick_key, stringResource(key.label)), Modifier.size(16.dp))
                             }
                         }
                     }
@@ -253,15 +255,15 @@ internal fun RemoteLayoutEditorDialog(
                 ) {
                     Icon(Icons.Default.RestartAlt, null, Modifier.size(18.dp))
                     Spacer(Modifier.size(6.dp))
-                    Text("Reset to default")
+                    Text(stringResource(R.string.reset_to_default))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(draft) }) { Text("Save") }
+            TextButton(onClick = { onSave(draft) }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
