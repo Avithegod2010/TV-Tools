@@ -865,4 +865,30 @@
     <string name="network_map_no_ipv4">Нет локальной сети IPv4</string>
     <string name="network_map_prefixes">Локальные адреса: %1$s</string>
     <string name="network_map_phone_and_router">Этот телефон: %1$s · Роутер: %2$s</string>
+    <string name="theme_amoled">AMOLED</string>
+    <string name="theme_profile_summary">%1$s · %2$s · %3$s · %4$s · текст %5$d%%</string>
+    <string name="qr_wrong_profile">Этот QR-код не содержит профиль TV Tools.</string>
+    <string name="qr_connected">Подключено ✓</string>
+    <string name="qr_pair_first">Для этого ТВ требуется сопряжение. На главной выберите ТВ и введите код.</string>
+    <string name="qr_connection_failed">Не удалось подключиться: %1$s</string>
+    <string name="qr_not_found">На фотографии нет QR-кода.</string>
+    <string name="qr_camera_unavailable">Приложение камеры недоступно: %1$s</string>
+    <string name="qr_clipboard_empty">Буфер обмена пуст.</string>
+    <string name="qr_share_profile">Поделиться профилем ТВ</string>
+    <string name="qr_tv_profile">Профиль ТВ</string>
+    <string name="qr_copied">Ссылка скопирована. Вставьте её на другом телефоне.</string>
+    <string name="mdns_no_types">Поиск по типам служб не запущен</string>
+    <string name="mdns_resolving">Определение адреса…</string>
+    <string name="mdns_host_unresolved">Адрес неизвестен. Коснитесь, чтобы повторить.</string>
+    <string name="room_no_tvs">В группе «%1$s» нет телевизоров.</string>
+    <string name="room_broadcast_progress">%1$s → ТВ: %2$d из %3$d</string>
+    <string name="fast_mirror_unavailable">Быстрая трансляция недоступна: %1$s</string>
+    <string name="fast_mirror_snapshots">Не удалось запустить быструю трансляцию. Показываются снимки экрана.</string>
+    <string name="mirror_connection_lost">Связь с ТВ прервалась: %1$s</string>
+    <plurals name="mdns_browsing_types">
+        <item quantity="one">Поиск по %1$d типу служб…</item>
+        <item quantity="few">Поиск по %1$d типам служб…</item>
+        <item quantity="many">Поиск по %1$d типам служб…</item>
+        <item quantity="other">Поиск по %1$d типам служб…</item>
+    </plurals>
 </resources>

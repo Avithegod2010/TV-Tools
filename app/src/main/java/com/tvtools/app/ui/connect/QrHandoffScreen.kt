@@ -86,11 +86,11 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
     fun handleText(text: String) {
         val profile = parseProfile(text)
         if (profile == null) {
-            status = "That QR isn't a TV Tools profile."
+            status = context.getString(R.string.qr_wrong_profile)
             return
         }
         busy = true
-        status = "Connecting to ${profile.name}…"
+        status = context.getString(R.string.share_connecting_to, profile.name)
         scope.launch {
             when (val result = AppServices.adb.connect(profile.host, profile.port)) {
                 AdbClient.ConnectResult.Success -> {
@@ -100,17 +100,17 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                     val friendly = profile.copy(name = model.ifBlank { profile.name })
                     AppServices.prefs.saveLastDevice(friendly)
                     AppServices.prefs.saveDevice(friendly)
-                    status = "Connected ✓"
+                    status = context.getString(R.string.qr_connected)
                     busy = false
                     onConnected(friendly.name)
                 }
                 AdbClient.ConnectResult.PairingRequired -> {
                     busy = false
-                    status = "This TV needs pairing first — open Home, tap the TV and enter the pairing code once."
+                    status = context.getString(R.string.qr_pair_first)
                 }
                 is AdbClient.ConnectResult.Error -> {
                     busy = false
-                    status = "Couldn't connect: ${result.message}"
+                    status = context.getString(R.string.qr_connection_failed, result.message)
                 }
             }
         }
@@ -122,7 +122,7 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             scope.launch {
                 val text = withContext(Dispatchers.IO) { decodeQr(file) }
                 file.delete()
-                if (text == null) status = "No QR code found in that photo." else handleText(text)
+                if (text == null) status = context.getString(R.string.qr_not_found) else handleText(text)
             }
         }
     }
@@ -134,14 +134,14 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
             takePicture.launch(uri)
         } catch (e: Exception) {
-            status = "No camera app available: ${e.message}"
+            status = context.getString(R.string.qr_camera_unavailable, e.message.orEmpty())
         }
     }
 
     fun pasteFromClipboard() {
         val cm = context.getSystemService(android.content.ClipboardManager::class.java)
         val text = cm?.primaryClip?.getItemAt(0)?.text?.toString()
-        if (text.isNullOrBlank()) status = "Clipboard is empty." else handleText(text)
+        if (text.isNullOrBlank()) status = context.getString(R.string.qr_clipboard_empty) else handleText(text)
     }
 
     LabScaffold(stringResource(R.string.share_tv_via_qr), onBack) {
@@ -186,12 +186,12 @@ fun QrHandoffScreen(onBack: () -> Unit, onConnected: (String) -> Unit) {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, link)
                         }
-                        context.startActivity(Intent.createChooser(send, "Share TV profile"))
+                        context.startActivity(Intent.createChooser(send, context.getString(R.string.qr_share_profile)))
                     }) { Text(stringResource(R.string.share_link)) }
                     OutlinedButton(onClick = {
                         val cm = context.getSystemService(android.content.ClipboardManager::class.java)
-                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("TV profile", link))
-                        status = "Link copied — paste it on the other phone."
+                        cm?.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.qr_tv_profile), link))
+                        status = context.getString(R.string.qr_copied)
                     }) { Text(stringResource(R.string.copy_link)) }
                 }
             } else {

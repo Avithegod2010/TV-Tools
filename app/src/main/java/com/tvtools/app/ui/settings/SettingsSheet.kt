@@ -123,13 +123,8 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                listOf(
-                    ThemeMode.SYSTEM to context.getString(R.string.system),
-                    ThemeMode.LIGHT to context.getString(R.string.light),
-                    ThemeMode.DARK to context.getString(R.string.dark),
-                    ThemeMode.AMOLED to "AMOLED",
-                    ThemeMode.AUTO to context.getString(R.string.auto),
-                ).forEach { (mode, label) ->
+                ThemeMode.entries.forEach { mode ->
+                    val label = context.getString(mode.labelRes)
                     FilterChip(
                         selected = settings.themeMode == mode,
                         onClick = { haptics(); repo.setThemeMode(mode) },
@@ -485,7 +480,7 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(device.name, style = MaterialTheme.typography.titleSmall)
                         Text(
-                            ThemePack.summary(profile),
+                            ThemePack.summary(profile, context),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

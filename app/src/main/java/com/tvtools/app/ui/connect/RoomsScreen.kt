@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +76,7 @@ private val ROOM_PRESETS = listOf("Living room", "Bedroom", "Kitchen", "Office",
  */
 @Composable
 fun RoomsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var devices by remember { mutableStateOf<List<TvDevice>>(emptyList()) }
     var rooms by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
@@ -109,7 +111,7 @@ fun RoomsScreen(onBack: () -> Unit) {
         if (busy) return
         val targets = if (room == ALL_ROOM) devices else devices.filter { roomOf(it) == room }
         if (targets.isEmpty()) {
-            status = "No TVs in $room."
+            status = context.getString(R.string.room_no_tvs, room)
             return
         }
         busy = true
@@ -125,7 +127,7 @@ fun RoomsScreen(onBack: () -> Unit) {
             if (origin != null) {
                 runCatching { AppServices.adb.connect(origin.host, origin.port) }
             }
-            status = "$label → $sent of ${targets.size} TV(s)"
+            status = context.getString(R.string.room_broadcast_progress, label, sent, targets.size)
             busy = false
             delay(2_000)
             if (!busy) status = null

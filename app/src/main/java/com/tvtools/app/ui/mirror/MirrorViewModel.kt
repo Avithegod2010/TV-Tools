@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvtools.app.AppServices
+import com.tvtools.app.R
 import com.tvtools.app.TvToolsApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -162,7 +163,7 @@ class MirrorViewModel : ViewModel() {
                         if (wantRunning) {
                             _ui.value = _ui.value.copy(
                                 fastMode = false,
-                                error = "Fast mirror unavailable: $message",
+                                error = TvToolsApp.instance.getString(R.string.fast_mirror_unavailable, message),
                                 hasFrame = false,
                             )
                             viewModelScope.launch { startSlow(preserveError = true) }
@@ -187,7 +188,7 @@ class MirrorViewModel : ViewModel() {
                 Log.e(TAG, "fast mirror produced no frame in 15s; falling back")
                 _ui.value = _ui.value.copy(
                     fastMode = false,
-                    error = "Fast mirror did not start; using snapshots",
+                    error = TvToolsApp.instance.getString(R.string.fast_mirror_snapshots),
                 )
                 startSlow(preserveError = true)
             }
@@ -232,7 +233,7 @@ class MirrorViewModel : ViewModel() {
                     if (isActive) {
                         _ui.value = _ui.value.copy(
                             running = false,
-                            error = "Connection lost: ${e.message}",
+                            error = TvToolsApp.instance.getString(R.string.mirror_connection_lost, e.message.orEmpty()),
                         )
                     }
                     break

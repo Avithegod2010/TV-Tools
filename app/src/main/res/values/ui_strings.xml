@@ -853,4 +853,28 @@
     <string name="network_map_no_ipv4">No local IPv4 network</string>
     <string name="network_map_prefixes">Local addresses: %1$s</string>
     <string name="network_map_phone_and_router">This phone: %1$s · Router: %2$s</string>
+    <string name="theme_amoled">AMOLED</string>
+    <string name="theme_profile_summary">%1$s · %2$s · %3$s · %4$s · %5$d%% text</string>
+    <string name="qr_wrong_profile">That QR code isn\'t a TV Tools profile.</string>
+    <string name="qr_connected">Connected ✓</string>
+    <string name="qr_pair_first">This TV needs pairing. On Home, select the TV and enter the pairing code.</string>
+    <string name="qr_connection_failed">Couldn\'t connect: %1$s</string>
+    <string name="qr_not_found">No QR code found in that photo.</string>
+    <string name="qr_camera_unavailable">No camera app available: %1$s</string>
+    <string name="qr_clipboard_empty">Clipboard is empty.</string>
+    <string name="qr_share_profile">Share TV profile</string>
+    <string name="qr_tv_profile">TV profile</string>
+    <string name="qr_copied">Link copied. Paste it on the other phone.</string>
+    <string name="mdns_no_types">No service types are being browsed</string>
+    <string name="mdns_resolving">Resolving…</string>
+    <string name="mdns_host_unresolved">Host not resolved. Tap to retry.</string>
+    <string name="room_no_tvs">No TVs in %1$s.</string>
+    <string name="room_broadcast_progress">%1$s → %2$d of %3$d TVs</string>
+    <string name="fast_mirror_unavailable">Fast mirror unavailable: %1$s</string>
+    <string name="fast_mirror_snapshots">Fast mirror did not start. Using snapshots.</string>
+    <string name="mirror_connection_lost">Connection lost: %1$s</string>
+    <plurals name="mdns_browsing_types">
+        <item quantity="one">Browsing %1$d service type…</item>
+        <item quantity="other">Browsing %1$d service types…</item>
+    </plurals>
 </resources>

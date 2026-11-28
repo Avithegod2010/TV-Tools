@@ -18,7 +18,10 @@ import kotlinx.coroutines.launch
 
 private val Context.settingsStore by preferencesDataStore(name = "settings")
 
-enum class ThemeMode { SYSTEM, LIGHT, DARK, AMOLED, AUTO }
+enum class ThemeMode(@StringRes val labelRes: Int) {
+    SYSTEM(R.string.system), LIGHT(R.string.light), DARK(R.string.dark),
+    AMOLED(R.string.theme_amoled), AUTO(R.string.auto),
+}
 
 enum class Accent(val label: String, @StringRes val labelRes: Int) {
     GREEN("Green", R.string.green),

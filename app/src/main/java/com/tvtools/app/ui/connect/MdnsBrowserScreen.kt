@@ -3,6 +3,7 @@ package com.tvtools.app.ui.connect
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -44,8 +45,12 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tvtools.app.AppServices
 import com.tvtools.app.R
 import com.tvtools.app.ui.labs.LabScaffold
+import java.util.concurrent.atomic.AtomicBoolean
 
 private data class MdnsEntry(
     val name: String,
@@ -88,37 +93,45 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
     val nsd = remember {
         context.getSystemService(Context.NSD_SERVICE) as? NsdManager
     }
-    val entries = remember { mutableStateMapOf<String, MdnsEntry>() }
-    val listeners = remember { mutableStateListOf<NsdManager.DiscoveryListener>() }
-    val browsing = remember { mutableStateListOf<String>() }
+    val lan = AppServices.networks.current.collectAsStateWithLifecycle().value
     var customType by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("Browsing…") }
     var restartKey by remember { mutableStateOf(0) }
+    val customTypes = remember { mutableStateListOf<String>() }
+    val entries = remember(lan, restartKey) { mutableStateMapOf<String, MdnsEntry>() }
+    val listeners = remember(lan, restartKey) { mutableListOf<NsdManager.DiscoveryListener>() }
+    val browsing = remember(lan, restartKey) { mutableStateListOf<String>() }
+    val found = remember(lan, restartKey) { mutableMapOf<String, NsdServiceInfo>() }
+    val active = remember(lan, restartKey) { AtomicBoolean(false) }
+    val executor = remember(context) { ContextCompat.getMainExecutor(context) }
+
+    fun isCurrent() = active.get() && AppServices.networks.current.value == lan
 
     fun resolve(service: NsdServiceInfo, type: String) {
+        val network = lan ?: return
+        if (!isCurrent()) return
         val key = "$type|${service.serviceName}"
+        found[key] = service
         entries[key] = MdnsEntry(service.serviceName, type, null, service.port, true)
         try {
             nsd?.resolveService(service, object : NsdManager.ResolveListener {
                 override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                    entries[key] = MdnsEntry(
-                        serviceInfo.serviceName,
-                        type,
-                        null,
-                        serviceInfo.port,
-                        false,
-                    )
+                    executor.execute {
+                        if (isCurrent() && found[key] === service) {
+                            entries[key] = MdnsEntry(service.serviceName, type, null, service.port, false)
+                        }
+                    }
                 }
 
                 override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                    val host = serviceInfo.host?.hostAddress ?: return
-                    entries[key] = MdnsEntry(
-                        serviceInfo.serviceName,
-                        type,
-                        host.removeSuffix("."),
-                        serviceInfo.port,
-                        false,
-                    )
+                    executor.execute {
+                        if (isCurrent() && found[key] === service) {
+                            val addresses = if (Build.VERSION.SDK_INT >= 34) serviceInfo.hostAddresses.orEmpty()
+                            else listOfNotNull(serviceInfo.host)
+                            val host = addresses.firstOrNull(network::contains)?.hostAddress
+                            if (host == null) entries.remove(key)
+                            else entries[key] = MdnsEntry(serviceInfo.serviceName, type, host, serviceInfo.port, false)
+                        }
+                    }
                 }
             })
         } catch (_: Exception) {
@@ -127,43 +140,47 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
     }
 
     fun startType(type: String) {
-        if (type.isBlank() || type in browsing) return
+        val network = lan ?: return
+        if (!isCurrent() || type.isBlank() || type in browsing) return
         val manager = nsd ?: return
-        browsing.add(type)
         val listener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(serviceType: String) {}
-            override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {}
+            override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+                executor.execute { if (isCurrent()) browsing.remove(type) }
+            }
             override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {}
             override fun onDiscoveryStopped(serviceType: String) {}
             override fun onServiceFound(serviceInfo: NsdServiceInfo) {
-                resolve(serviceInfo, type)
+                executor.execute { resolve(serviceInfo, type) }
             }
 
             override fun onServiceLost(serviceInfo: NsdServiceInfo) {
-                entries.remove("$type|${serviceInfo.serviceName}")
+                executor.execute {
+                    if (isCurrent()) {
+                        val key = "$type|${serviceInfo.serviceName}"
+                        found.remove(key)
+                        entries.remove(key)
+                    }
+                }
             }
         }
         try {
-            manager.discoverServices(type, NsdManager.PROTOCOL_DNS_SD, listener)
+            if (Build.VERSION.SDK_INT >= 33) {
+                manager.discoverServices(type, NsdManager.PROTOCOL_DNS_SD, network.handle, executor, listener)
+            } else {
+                manager.discoverServices(type, NsdManager.PROTOCOL_DNS_SD, listener)
+            }
+            browsing.add(type)
             listeners.add(listener)
         } catch (_: Exception) {
         }
     }
 
-    DisposableEffect(restartKey) {
-        entries.clear()
-        listeners.forEach { listener ->
-            try {
-                nsd?.stopServiceDiscovery(listener)
-            } catch (_: Exception) {
-            }
-        }
-        listeners.clear()
-        browsing.clear()
-        COMMON_SERVICE_TYPES.forEach { startType(it) }
-        status = "Browsing ${browsing.size} service types…"
-
+    DisposableEffect(lan, restartKey) {
+        active.set(lan != null)
+        (COMMON_SERVICE_TYPES + customTypes).forEach { startType(it) }
         onDispose {
+            active.set(false)
             listeners.forEach { listener ->
                 try {
                     nsd?.stopServiceDiscovery(listener)
@@ -171,11 +188,10 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
                 }
             }
             listeners.clear()
-            browsing.clear()
         }
     }
 
-    LabScaffold("mDNS browser", onBack) {
+    LabScaffold(stringResource(R.string.mdns_service_browser), onBack) {
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Text(
                 stringResource(R.string.devices_advertise_services_like_googlecast_tcp_or),
@@ -197,8 +213,8 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
                     onClick = {
                         val type = customType.let { if (it.startsWith("_")) it else "_$it" }
                             .let { if (it.endsWith("._tcp") || it.endsWith("._udp")) it else "$it._tcp" }
+                        if (type !in COMMON_SERVICE_TYPES && type !in customTypes) customTypes.add(type)
                         startType(type)
-                        status = "Browsing ${browsing.size} service types…"
                     },
                     enabled = customType.isNotBlank(),
                 ) {
@@ -211,6 +227,13 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(6.dp))
+            val status = if (lan == null) {
+                stringResource(R.string.network_no_lan)
+            } else if (browsing.isEmpty()) {
+                stringResource(R.string.mdns_no_types)
+            } else {
+                pluralStringResource(R.plurals.mdns_browsing_types, browsing.size, browsing.size)
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (entries.values.any { it.resolving }) {
                     CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
@@ -258,8 +281,8 @@ fun MdnsBrowserScreen(onBack: () -> Unit) {
                                 Text(
                                     when {
                                         entry.host != null -> "${if (entry.host.contains(':')) "[${entry.host}]" else entry.host}:${entry.port}"
-                                        entry.resolving -> "resolving…"
-                                        else -> "host not resolved — tap to retry"
+                                        entry.resolving -> stringResource(R.string.mdns_resolving)
+                                        else -> stringResource(R.string.mdns_host_unresolved)
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (isAdb || isCast) MaterialTheme.colorScheme.primary
